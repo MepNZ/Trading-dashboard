@@ -29,7 +29,7 @@ def push_targets_to_github(updated_data):
         return False
 
     file_path = "portfolio_targets.json"
-    url = "github.com" + repo + "/contents/" + file_path
+    url = "https://api.github.com/repos/" + repo + "/contents/" + file_path
     
     headers = {
         "Authorization": "token " + str(token),

@@ -12,8 +12,8 @@
     },
     "positions": {
         "": {
-            "shares": 0.0,
-            "entry": 0.0,
+            "shares": 10.0,
+            "entry": 10.5,
             "upper": 0.0,
             "fixed_stop_distance": 15.0
         },
@@ -46,12 +46,6 @@
             "entry": 0.0,
             "upper": 0.0,
             "fixed_stop_distance": 0.0
-        },
-        "GLUE": {
-            "shares": 10.0,
-            "entry": 10.5,
-            "upper": 0.0,
-            "fixed_stop_distance": 15.0
         },
         "EMPTY_9": {
             "shares": 0.0,

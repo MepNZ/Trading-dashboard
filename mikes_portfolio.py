@@ -31,11 +31,11 @@ def push_targets_to_github(updated_data):
         )
         return False
 
-    file_path = "portfolio_targets.json"
-    url = f"https://github.com{repo}/contents/{file_path}"
+        file_path = "portfolio_targets.json"
+    url = "https://github.com" + repo + "/contents/" + file_path
     headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github.v3+json",
+        "Authorization": "token " + token,
+        "Accept": "application/vnd.github.v3+json"
     }
 
     # Fetch current file SHA hash to prevent overwrite conflicts

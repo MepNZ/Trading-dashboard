@@ -14,46 +14,44 @@ import sys
 import warnings
 sys.modules['warnings'] = warnings
 import base64
-import json
 import requests
 
 def push_targets_to_github(updated_data):
-    """Automatically commits and pushes updated portfolio targets
-
+    """
+    Automatically commits and pushes updated portfolio targets 
     directly back to the private GitHub repository.
     """
     try:
         token = st.secrets["GITHUB_TOKEN"]
         repo = st.secrets["GITHUB_REPO"]
     except KeyError:
-        st.error(
-            "Missing GITHUB_TOKEN or GITHUB_REPO in Streamlit Cloud Secrets."
-        )
+        st.error("Missing GITHUB_TOKEN or GITHUB_REPO in Streamlit Cloud Secrets.")
         return False
 
-        file_path = "portfolio_targets.json"
-    url = "https://github.com" + repo + "/contents/" + file_path
+    file_path = "portfolio_targets.json"
+    url = "https://github.com" + str(repo) + "/contents/" + str(file_path)
+    
     headers = {
-        "Authorization": "token " + token,
+        "Authorization": "token " + str(token),
         "Accept": "application/vnd.github.v3+json"
     }
 
     # Fetch current file SHA hash to prevent overwrite conflicts
-    response = requests.get(url, headers=headers)
-    sha = None
-    if response.status_code == 200:
-        sha = response.json().get("sha")
-    elif response.status_code != 404:
-        st.error(
-            f"Failed to fetch repository metadata. Status: {response.status_code}"
-        )
+    try:
+        response = requests.get(url, headers=headers)
+        sha = None
+        if response.status_code == 200:
+            sha = response.json().get("sha")
+        elif response.status_code != 404:
+            st.error(f"Failed to fetch repository metadata. Status: {response.status_code}")
+            return False
+    except Exception as e:
+        st.error(f"Network error trying to read repository metadata: {e}")
         return False
 
     # Format JSON structure cleanly matching your layout matrix
     json_string = json.dumps(updated_data, indent=4)
-    encoded_content = base64.b64encode(json_string.encode("utf-8")).decode(
-        "utf-8"
-    )
+    encoded_content = base64.b64encode(json_string.encode("utf-8")).decode("utf-8")
 
     payload = {
         "message": "🔄 Automated portfolio boundary update via Cloud Dashboard",
@@ -63,17 +61,16 @@ def push_targets_to_github(updated_data):
     if sha:
         payload["sha"] = sha
 
-    put_response = requests.put(url, headers=headers, json=payload)
-
-    if put_response.status_code in [200, 201]:
-        st.success(
-            "✅ Permanent Sync Complete! Target changes securely committed to GitHub."
-        )
-        return True
-    else:
-        st.error(
-            f"Sync failed. GitHub API responded with status: {put_response.status_code}"
-        )
+    try:
+        put_response = requests.put(url, headers=headers, json=payload)
+        if put_response.status_code in:
+            st.success("✅ Permanent Sync Complete! Target changes securely committed to GitHub.")
+            return True
+        else:
+            st.error(f"Sync failed. GitHub API responded with status: {put_response.status_code}")
+            return False
+    except Exception as e:
+        st.error(f"Network error trying to upload changes to GitHub: {e}")
         return False
 
 st.set_page_config(page_title="Mike's Share Market Dashboard", layout="wide")
@@ -172,7 +169,9 @@ with st.sidebar:
                 }
             with open(TARGETS_FILE, 'w') as f:
                 json.dump(live_sidebar_bounds, f, indent=4)
-                push_targets_to_github(live_sidebar_bounds)
+            
+            # Fire the automated background sync to your repository
+            push_targets_to_github(live_sidebar_bounds)
             st.cache_data.clear()
             st.rerun()
 
@@ -235,7 +234,6 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 def get_live_fx_rates():
-    """Fetches true live Yahoo Finance rate pairings, reading directly from NZD=X format."""
     nzd_rate = 1.6500  
     aud_rate = 1.1000  
     
@@ -279,7 +277,6 @@ def get_live_fx_rates():
 usd_to_nzd_rate, aud_to_nzd_rate = get_live_fx_rates()
 
 def fetch_all_market_data_batch(ticker_list, start_date):
-    """Checks if local cache file exists. If missing, automatically downloads live data."""
     if os.path.exists(CACHE_FILE):
         try:
             df_cached = pd.read_json(CACHE_FILE)
@@ -357,8 +354,9 @@ def apply_market_signal_theme(df):
             elif val == "⬜ CASH FLAT": styles[idx] = 'background-color: #f8f9fa; color: #6c757d;'
         return styles
     return df.style.apply(style_metric_cells, axis=1)
+
 # ==============================================================================
-# MIKE'S SHARE MARKET DASHBOARD: ASSET PARSING ENGINE (PART 4B OF 6) - FIXED
+# MIKE'S SHARE MARKET DASHBOARD: ASSET PARSING ENGINE (PART 4B OF 6)
 # ==============================================================================
 master_unified_rows, active_live_positions, operational_dfs = [], [], {}
 lookback_days_map = {"1 Month": 30, "3 Months": 90, "6 Months": 180, "1 Year": 365, "2 Years": 730}
@@ -367,7 +365,6 @@ lookback_start_date = datetime.now() - timedelta(days=lookback_days_map[selected
 macro_sector_rows = []
 sector_mapping_dictionary = {"SPY": "🇺🇸 S&P 500 Index", "XLK": "💻 Technology", "XLY": "📦 Consumer Discretionary", "XLC": "🗣️ Communication", "XLF": "🏦 Financials", "XLV": "🩺 Healthcare", "XLP": "🛒 Consumer Staples", "XLI": "🏗️ Industrials", "XLE": "🛢️ Energy", "XLB": "🧱 Materials", "XLU": "⚡ Utilities", "XLRE": "🏢 Real Estate"}
 
-# 🩹 DATA DEPTH OVERLAPPING PATCH: Combined workspace and sector tickers into request batch
 extended_fetching_tickers = list(set(active_configured_tickers + list(sector_mapping_dictionary.keys())))
 RAW_MARKET_BATCH = fetch_all_market_data_batch(extended_fetching_tickers, lookback_start_date)
 
@@ -490,6 +487,7 @@ if active_live_positions:
     total_app_value = total_equity_nzd + integrated_cash_nzd
     pnl_color, pnl_sign = ("#28a745", "+") if total_equity_profit_nzd >= 0 else ("#dc3545", "")
     st.markdown(f"""<div style='background-color: #f8f9fa; padding: 10px 14px; border-radius: 4px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; font-size: 0.88rem; font-weight: bold; margin-bottom: 20px; border: 1px solid #e9ecef;'><div>🌎 FX: <span style='color: #007bff;'>US/NZD: {usd_to_nzd_rate:.4f}</span></div><div>📋 Invested: <span style='color: #333333;'>${total_investment_nzd:,.2f} NZD</span></div><div>💰 Cash: <span style='color: #007bff;'>${integrated_cash_nzd:,.2f} NZD</span></div><div style='background-color: #eef1f6;'>👑 TOTAL VALUE:<br><span style='color: #111111; font-size: 1.15rem;'>${total_app_value:,.2f} NZD</span></div><div>📈 Return: <span style='color: {pnl_color};'>{pnl_sign}${total_equity_profit_nzd:,.2f} ({pnl_sign}{total_roi_nzd:.2f}%)</span></div></div>""", unsafe_allow_html=True)
+
 # ==============================================================================
 # MIKE'S SHARE MARKET DASHBOARD: CHART ANALYTICS (PART 5B OF 6)
 # ==============================================================================
@@ -602,7 +600,7 @@ with management_col1:
             ]
             selected_row_to_kill = st.selectbox("Select Record Row to Permanently Remove:", options=deletion_options)
             if st.button("❌ Delete Selected Record Match", use_container_width=True):
-                target_idx = int(selected_row_to_kill.split(']')[0].replace('[', ''))
+                target_idx = int(selected_row_to_kill.split(']').replace('[', ''))
                 removed_item = current_journal.pop(target_idx)
                 save_trading_journal(current_journal)
                 st.toast(f"Removed record entry for {removed_item['Ticker']} successfully.")
@@ -625,7 +623,7 @@ with management_col2:
                 export_rows.append(row_copy)
             elif "SELL" in row_copy['Action']:
                 if tk in inventory_pool and inventory_pool[tk]:
-                    matched_buy = inventory_pool[tk][0]
+                    matched_buy = inventory_pool[tk]
                     cost_basis = matched_buy['price']
                     abs_pnl = (row_copy['Price'] - cost_basis) * row_copy['Shares']
                     pct_roi = ((row_copy['Price'] - cost_basis) / cost_basis) * 100
@@ -677,7 +675,7 @@ for row in sorted(current_journal, key=lambda x: x['Date']):
         processed_display_rows.append(row_copy)
     elif "SELL" in row_copy['Action']:
         if ticker in inventory_buy_pool and inventory_buy_pool[ticker]:
-            matched_buy_event = inventory_buy_pool[ticker][0]
+            matched_buy_event = inventory_buy_pool[ticker]
             cost_basis_per_share = matched_buy_event['price']
             absolute_pnl = (row_copy['Price'] - cost_basis_per_share) * row_copy['Shares']
             pnl_percentage_efficiency = ((row_copy['Price'] - cost_basis_per_share) / cost_basis_per_share) * 100

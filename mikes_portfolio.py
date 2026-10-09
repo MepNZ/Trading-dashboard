@@ -63,7 +63,7 @@ def push_targets_to_github(updated_data):
 
     try:
         put_response = requests.put(url, headers=headers, json=payload)
-        if put_response.status_code in:
+        if put_response.status_code in [200, 201]:
             st.success("✅ Permanent Sync Complete! Target changes securely committed to GitHub.")
             return True
         else:

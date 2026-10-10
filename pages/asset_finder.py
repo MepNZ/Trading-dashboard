@@ -263,7 +263,7 @@ def sync_changes_to_master_repository(updated_memory):
             st.error(f"Local Write Error: {str(e)}")
             return False
             
-    url = f"https://api.github.com{repos}/contents/{TARGETS_FILE}"
+    url = f"https://api.github.com{repo}/contents/{TARGETS_FILE}"
     headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
     
     try:

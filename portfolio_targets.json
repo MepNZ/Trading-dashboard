@@ -11,7 +11,7 @@
         "graph_horizon": "1 Year"
     },
     "positions": {
-        "": {
+        "V": {
             "shares": 0.0,
             "entry": 0.0,
             "upper": 0.0,

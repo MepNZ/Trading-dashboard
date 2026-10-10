@@ -280,7 +280,7 @@ def sync_changes_to_master_repository(updated_memory):
         put_r = requests.put(url, headers=headers, json=payload)
 
         # Step 4: Verify the API response status code safely
-        if put_r.status_code in:
+        if put_r.status_code in (200, 201):
             st.success("Changes successfully synced to the master repository!")
             return True
         else:

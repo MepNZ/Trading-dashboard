@@ -135,7 +135,7 @@ if "graph_horizon" not in st.session_state: st.session_state["graph_horizon"] = 
 # ==============================================================================
 with st.sidebar:
     st.markdown("### 🛠️ Configuration Controls")
-    if st.button("🔄 Clear App Cache Memory", use_container_width=True):
+    if st.button("🔄 Clear App Cache Memory", use_container_width="stretch"):
         if os.path.exists(CACHE_FILE):
             try: os.remove(CACHE_FILE)
             except: pass
@@ -144,7 +144,7 @@ with st.sidebar:
 
     @st.fragment
     def render_isolated_sidebar_controls():
-        if st.button("💾 Save Matrix Boundary Changes", use_container_width=True):
+        if st.button("💾 Save Matrix Boundary Changes", use_container_width="stretch"):
             live_sidebar_bounds = {
                 "wallet_cash": {
                     "NZD": float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 0.00))),
@@ -462,7 +462,7 @@ if active_live_positions:
     p_df = p_df[[c for c in cols_layer_a if c in p_df.columns]]
     
     st.dataframe(
-        p_df, use_container_width=True, hide_index=True, height=350, 
+        p_df, use_container_width="stretch", hide_index=True, height=350, 
         column_config={
             "Ticker": st.column_config.TextColumn("Ticker", width="small"),
             "Company Name": st.column_config.TextColumn("Company Name", width="medium"),
@@ -536,7 +536,7 @@ if unified_chart_list:
             hover_sensor = base_plot.mark_rule(opacity=0).add_params(pointer_selection).encode(tooltip=shared_tooltips)
             vertical_ind = base_plot.mark_rule(color='#B0BEC5', strokeWidth=1.2).encode(opacity=alt.condition(pointer_selection, alt.value(0.6), alt.value(0))).transform_filter(pointer_selection)
             
-            st.altair_chart(alt.layer(close_tr, fast_tr, slow_tr, atr_stop_line, hover_sensor, vertical_ind), use_container_width=True)
+            st.altair_chart(alt.layer(close_tr, fast_tr, slow_tr, atr_stop_line, hover_sensor, vertical_ind), use_container_width="stretch")
 # ==============================================================================
 # MIKE'S SHARE MARKET DASHBOARD: COMPARISON GRIDS (PART 6A OF 6)
 # ==============================================================================
@@ -548,7 +548,7 @@ if master_unified_rows:
     master_df = master_df[columns_to_show]
     
     st.dataframe(
-        apply_market_signal_theme(master_df), use_container_width=True, hide_index=True, height=500, 
+        apply_market_signal_theme(master_df), use_container_width="stretch", hide_index=True, height=500, 
         column_config={
             "Sector": st.column_config.TextColumn("Sector ETF", width="small"),
             "Closing": st.column_config.NumberColumn("Price", format="$%.2f"), 
@@ -564,7 +564,7 @@ st.markdown("#### 🔄 Layer C: Institutional Sector Money Flow")
 if macro_sector_rows:
     sector_df = pd.DataFrame(macro_sector_rows).sort_values(by="RSI Status Value", ascending=False)
     st.dataframe(
-        sector_df, use_container_width=True, hide_index=True, height="content",
+        sector_df, use_container_width="stretch", hide_index=True, height="content",
         column_config={
             "Closing Price": st.column_config.NumberColumn(format="$%.2f"),
             "RSI Status Value": st.column_config.NumberColumn("RSI Value", format="%.1f"),
@@ -599,7 +599,7 @@ with management_col1:
                 for i, row in enumerate(current_journal)
             ]
             selected_row_to_kill = st.selectbox("Select Record Row to Permanently Remove:", options=deletion_options)
-            if st.button("❌ Delete Selected Record Match", use_container_width=True):
+            if st.button("❌ Delete Selected Record Match", use_container_width="stretch"):
                 target_idx = int(selected_row_to_kill.split(']').replace('[', ''))
                 removed_item = current_journal.pop(target_idx)
                 save_trading_journal(current_journal)
@@ -639,8 +639,8 @@ with management_col2:
         if 'Price' in raw_export_df.columns: raw_export_df['Price'] = raw_export_df['Price'].apply(lambda x: f"${float(x):.2f}")
         if 'Total (Local)' in raw_export_df.columns: raw_export_df['Total (Local)' ] = raw_export_df['Total (Local)'].apply(lambda x: f"${float(x):.2f}")
         csv_buffer = raw_export_df.to_csv(index=False).encode('utf-8-sig')
-        st.download_button(label="📥 Export Ledger to Excel (.CSV)", data=csv_buffer, file_name=f"mikes_trading_journal_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv", use_container_width=True)
-    else: st.button("📥 Export Ledger to Excel (.CSV)", disabled=True, use_container_width=True)
+        st.download_button(label="📥 Export Ledger to Excel (.CSV)", data=csv_buffer, file_name=f"mikes_trading_journal_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv", use_container_width="stretch")
+    else: st.button("📥 Export Ledger to Excel (.CSV)", disabled=True, use_container_width="stretch")
 
 with st.expander("➕ Log a New Trade Execution Entry", expanded=False):
     form_col1, form_col2, form_col3 = st.columns(3)
@@ -654,7 +654,7 @@ with st.expander("➕ Log a New Trade Execution Entry", expanded=False):
     with form_col3:
         log_catalyst = st.selectbox("Indicator Setup Catalyst", options=["🌟 STRONG BUY Ruleset Match", "🟩 Bullish Long MA Crossover", "📐 Chandelier Trailing Floor Invalidation", "📈 RSI Overbought Profit Scale-Out", "🟢 RSI Oversold Bounce Entry", "⏱️ Manual Discretionary Trade"])
         log_notes = st.text_area("Session Observations / Compliance Notes", placeholder="E.g., Followed 2x ATR rule cushion perfectly.")
-    if st.button("🚀 Commit Execution to Local Database", use_container_width=True):
+    if st.button("🚀 Commit Execution to Local Database", use_container_width="stretch"):
         if log_shares <= 0 or log_price <= 0: st.error("❌ Submission Denied: Shares and Price must be greater than zero.")
         else:
             new_log_entry = {"Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Ticker": log_ticker, "Action": log_type, "Date": log_date.strftime("%Y-%m-%d"), "Shares": float(log_shares), "Price": float(log_price), "Total (Local)": float(log_shares * log_price), "Setup Catalyst": log_catalyst, "Notes": log_notes}
@@ -688,7 +688,7 @@ for row in sorted(current_journal, key=lambda x: x['Date']):
 st.markdown("<p class='small-header'>📋 Live Execution Ledger & Profit Reconciliations</p>", unsafe_allow_html=True)
 if processed_display_rows:
     display_df = pd.DataFrame(processed_display_rows).iloc[::-1]
-    st.dataframe(display_df, use_container_width=True, hide_index=True, column_config={"Shares": st.column_config.NumberColumn(format="%.4f"), "Price": st.column_config.NumberColumn(format="$%.2f"), "Total (Local)": st.column_config.NumberColumn(format="$%.2f"), "Realized PnL ($)": st.column_config.TextColumn("Realized PnL ($)"), "PnL ROI (%)": st.column_config.TextColumn("PnL ROI (%)")})
+    st.dataframe(display_df, use_container_width="stretch", hide_index=True, column_config={"Shares": st.column_config.NumberColumn(format="%.4f"), "Price": st.column_config.NumberColumn(format="$%.2f"), "Total (Local)": st.column_config.NumberColumn(format="$%.2f"), "Realized PnL ($)": st.column_config.TextColumn("Realized PnL ($)"), "PnL ROI (%)": st.column_config.TextColumn("PnL ROI (%)")})
     pnl_banner_color = "#28a745" if running_career_pnl >= 0 else "#dc3545"
     pnl_sign_symbol = "+" if running_career_pnl >= 0 else ""
     st.markdown(f"""<div style='background-color: #1A1E24; padding: 10px; border-radius: 4px; border-right: 5px solid {pnl_banner_color}; font-size: 1.05rem; font-weight: bold; color: #FFFFFF;'>📈 Cumulative Career Ledger Trading Performance: <span style='color: {pnl_banner_color};'>{pnl_sign_symbol}${running_career_pnl:,.2f} USD Total Realized Cash Velocity</span></div>""", unsafe_allow_html=True)

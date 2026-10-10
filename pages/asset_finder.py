@@ -307,8 +307,7 @@ with tab_momentum:
                 disk_memory["local_name_map"][selected_m_ticker] = fallback_name
                 if sync_changes_to_master_repository(disk_memory):
                     st.success(f"🚀 Alignment Saved! Click '💾 Save Matrix Boundary Changes' in the main dashboard to deploy live.")
-                    st.rerun()
-            
+                                
             chart_sliced = operational_dfs[selected_m_ticker].tail(chosen_lookback_days).copy().reset_index()
             if 'index' in chart_sliced.columns: chart_sliced = chart_sliced.rename(columns={'index': 'Date'})
             if not chart_sliced.empty and 'Fast_MA' in chart_sliced.columns:

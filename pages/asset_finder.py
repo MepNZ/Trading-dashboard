@@ -246,11 +246,44 @@ for ticker in unique_scan_pool:
 tab_momentum, tab_discount = st.tabs(["🔥 Breakouts", "📉 Possible Value Discounts"])
 
 def sync_changes_to_master_repository(updated_memory):
+    """Programmatically patches portfolio_targets.json directly onto your GitHub repo"""
+    import requests
+    import base64
+    
+    # Securely inherit your centralized Streamlit cloud tokens
+    token = st.secrets.get("GITHUB_TOKEN")
+    repo = st.secrets.get("GITHUB_REPO")
+    
+    if not token or not repo:
+        # Fallback to standard local file write if running offline on your laptop
+        try:
+            with open(TARGETS_FILE, 'w') as f: json.dump(updated_memory, f, indent=4)
+            return True
+        except Exception as e:
+            st.error(f"Local Write Error: {str(e)}")
+            return False
+            
+    url = f"https://github.com{repo}/contents/{TARGETS_FILE}"
+    headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+    
     try:
-        with open(TARGETS_FILE, 'w') as f: json.dump(updated_memory, f, indent=4)
-        return True
+        # Step 1: Fetch the active file blob sha to prevent overwrite collisions
+        r = requests.get(url, headers=headers)
+        sha = r.json().get("sha") if r.status_code == 200 else None
+        
+        # Step 2: Push the updated JSON structure live to GitHub
+        new_content = base64.b64encode(json.dumps(updated_memory, indent=4).encode("utf-8")).decode("utf-8")
+        payload = {"message": "📡 Asset Finder: Added custom ticker metadata", "content": new_content}
+        if sha: payload["sha"] = sha
+        
+        put_r = requests.put(url, headers=headers, json=payload)
+        if put_r.status_code in:
+            return True
+        else:
+            st.error(f"GitHub Sync Engine Rejected Write: {put_r.text}")
+            return False
     except Exception as e:
-        st.error(f"Sync Engine Write Error: {str(e)}")
+        st.error(f"Cloud Network Sync Error: {str(e)}")
         return False
 
 with tab_momentum:

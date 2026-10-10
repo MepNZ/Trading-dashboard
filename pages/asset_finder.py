@@ -276,14 +276,19 @@ def sync_changes_to_master_repository(updated_memory):
         payload = {"message": "📡 Asset Finder: Added custom ticker metadata", "content": new_content}
         if sha: payload["sha"] = sha
         
+                # Step 3: Commit the changes back to GitHub
         put_r = requests.put(url, headers=headers, json=payload)
+
+        # Step 4: Verify the API response status code safely
         if put_r.status_code in:
+            st.success("Changes successfully synced to the master repository!")
             return True
         else:
-            st.error(f"GitHub Sync Engine Rejected Write: {put_r.text}")
+            st.error(f"GitHub Sync Failed. Status code: {put_r.status_code}")
             return False
+
     except Exception as e:
-        st.error(f"Cloud Network Sync Error: {str(e)}")
+        st.error(f"Repository connection error: {str(e)}")
         return False
 
 with tab_momentum:

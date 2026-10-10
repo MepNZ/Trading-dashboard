@@ -264,7 +264,7 @@ def sync_changes_to_master_repository(updated_memory):
             return False
             
     url = f"https://api.github.com/{repo}/contents/{TARGETS_FILE}"
-    headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
     
     try:
         # Step 1: Fetch the active file blob sha to prevent overwrite collisions

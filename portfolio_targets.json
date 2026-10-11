@@ -30,8 +30,8 @@
             "fixed_stop_distance": 0.0
         },
         "TEAM": {
-            "shares": 1.0,
-            "entry": 2.5,
+            "shares": 3.0,
+            "entry": 1.25,
             "upper": 0.0,
             "fixed_stop_distance": 0.0
         }

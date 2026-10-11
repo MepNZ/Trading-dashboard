@@ -10,28 +10,21 @@ import os
 import altair as alt
 from datetime import datetime, timedelta
 
-# NOTE: st.set_page_config removed for native sub-menu sidebar inheritance
-
+# Force wide layout and matching high-visibility font scales
 st.markdown("""
     <style>
-        /* Global Font Scaling & Row Expansion */
         html, body, [data-testid="stAppViewContainer"] {
             font-size: 1.2rem !important;
         }
-        
-        /* Force Tables to render with large, high-visibility text */
         div[data-testid="stDataFrame"] * {
             font-size: 1.25rem !important;
         }
-        
-        /* Expand spacing between tracking rows so they don't squash */
         div[data-testid="stDataFrame"] [role="row"] {
             margin-top: 4px !important;
             margin-bottom: 4px !important;
         }
-
         .block-container { padding-top: 3.5rem !important; padding-bottom: 1rem !important; }
-        h1 { font-size: 2.2rem !important; font-weight: 800 !important; color: #111111 !important; }
+        h1 { font-size: 2.2rem !important; font-weight: 800 !important; color: #FFFFFF !important; }
         .small-header { font-size: 1.3rem !important; font-weight: bold !important; color: #4A90E2 !important; }
     </style>
 """, unsafe_allow_html=True)
@@ -52,25 +45,44 @@ TARGETS_FILE = "portfolio_targets.json"
 CACHE_FILE = "alpha_hunter_cache.json"
 CACHE_TTL_MINUTES = 15
 
+# Read configuration files from the hard drive safely
 disk_memory = {}
 if os.path.exists(TARGETS_FILE):
     try:
         with open(TARGETS_FILE, 'r') as f:
             disk_memory = json.load(f)
-    except Exception:
-        pass
+    except Exception: pass
 
 if "local_name_map" not in disk_memory:
     disk_memory["local_name_map"] = {}
 
+# Initialize local sidebar settings or default back to standard values
 runtime_sliders = disk_memory.get("sliders", {})
-fast_ma_input = int(runtime_sliders.get("fast_ma", 10))
-slow_ma_input = int(runtime_sliders.get("slow_ma", 100))
-selected_timeframe = runtime_sliders.get("roi_window", "1 Year")
-chart_timeframe_choice = runtime_sliders.get("graph_horizon", "1 Year")
+default_fast_ma = int(runtime_sliders.get("fast_ma", 10))
+default_slow_ma = int(runtime_sliders.get("slow_ma", 100))
+default_roi = runtime_sliders.get("roi_window", "1 Year")
+default_horizon = runtime_sliders.get("graph_horizon", "1 Year")
+
+if "asset_fast_ma" not in st.session_state: st.session_state["asset_fast_ma"] = default_fast_ma
+if "asset_slow_ma" not in st.session_state: st.session_state["asset_slow_ma"] = default_slow_ma
+if "asset_roi" not in st.session_state: st.session_state["asset_roi"] = default_roi
+if "asset_horizon" not in st.session_state: st.session_state["asset_horizon"] = default_horizon
+
+# --- INDEPENDENT INTERACTIVE RESEARCH CONTROLS ---
+with st.sidebar:
+    st.markdown("### 🛰️ Research Settings")
+    st.selectbox("Screening Window", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], key="asset_roi")
+    st.selectbox("Scanner Chart Horizon", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], key="asset_horizon")
+    st.selectbox("Scanner Fast MA", [5, 10, 20, 50], index=[5, 10, 20, 50].index(st.session_state["asset_fast_ma"]) if st.session_state["asset_fast_ma"] in [5, 10, 20, 50] else 1, key="asset_fast_ma")
+    st.selectbox("Scanner Slow MA", [25, 50, 100, 200], index=[25, 50, 100, 200].index(st.session_state["asset_slow_ma"]) if st.session_state["asset_slow_ma"] in [25, 50, 100, 200] else 2, key="asset_slow_ma")
+
+fast_ma_input = st.session_state["asset_fast_ma"]
+slow_ma_input = st.session_state["asset_slow_ma"]
+selected_timeframe = st.session_state["asset_roi"]
+chart_timeframe_choice = st.session_state["asset_horizon"]
 
 st.title("🔍 Asset Finder")
-st.caption("Integrated Multi-Strategy Institutional Alpha Scanner (Enhanced Pool)")
+st.caption("Standalone Laboratory Analysis & Market Screeners")
 
 institutional_scan_pool = [
     "AAPL", "MSFT", "GOOGL", "AMZN", "META", "BRK-B", "JNJ", "V", "PG", "WMT",
@@ -88,7 +100,7 @@ institutional_scan_pool = [
     "WOW.AX", "WES.AX", "RIO.AX", "FMG.AX", "MQG.AX", "REA.AX", "XRO.AX"
 ]
 # ==============================================================================
-# MIKE'S QUANT ALPHA HUNTER: DICTIONARY & CACHE ENGINE (PART 2 OF 3)
+# MIKE'S QUANT ALPHA HUNTER: DICTIONARY & CACHE ENGINE (PART 2 - HALF 1)
 # ==============================================================================
 local_name_map = {
     "AAPL": "Apple Inc.", "ADBE": "Adobe Inc.", "AMZN": "Amazon.com Inc.", "APP": "AppLovin Corp",
@@ -162,8 +174,7 @@ def fetch_all_market_data_batch(ticker_list, start_date):
             df_cached.index = pd.to_datetime(df_cached.index)
             df_cached.columns = pd.MultiIndex.from_tuples([eval(col) for col in df_cached.columns])
             return df_cached
-        except Exception:
-            pass
+        except Exception: pass
     try:
         df_live = yf.download(list(set(ticker_list)), start=start_date, group_by='ticker', actions=False, threads=True, progress=False)
         if not df_live.empty:
@@ -171,10 +182,9 @@ def fetch_all_market_data_batch(ticker_list, start_date):
             df_serializable.columns = [str(col) for col in df_serializable.columns]
             df_serializable.to_json(CACHE_FILE)
         return df_live
-    except Exception:
-        return pd.DataFrame()
+    except Exception: return pd.DataFrame()
 # ==============================================================================
-# MIKE'S QUANT ALPHA HUNTER: DATA PROCESSING LOOP (PART 3a OF 4)
+# MIKE'S QUANT ALPHA HUNTER: SCREENING LOOPS (PART 2 - HALF 2)
 # ==============================================================================
 def extract_ticker_dataframe(df_all, ticker):
     try:
@@ -183,8 +193,7 @@ def extract_ticker_dataframe(df_all, ticker):
         df = df_all[ticker].copy()
         df.columns = [str(c).title() for c in df.columns]
         return df.dropna(subset=['Open', 'High', 'Low', 'Close'])
-    except:
-        return pd.DataFrame(columns=['Open', 'High', 'Low', 'Close', 'Volume'])
+    except: return pd.DataFrame(columns=['Open', 'High', 'Low', 'Close', 'Volume'])
 
 lookback_days_map = {"1 Month": 30, "3 Months": 90, "6 Months": 180, "1 Year": 365, "2 Years": 730}
 chosen_lookback_days = lookback_days_map.get(chart_timeframe_choice, 365)
@@ -241,81 +250,49 @@ for ticker in unique_scan_pool:
             "Proximity to Low": proximity_to_low_pct, "RSI Status": rsi_val, "MACD Signal": signal_label
         })
 # ==============================================================================
-# MIKE'S QUANT ALPHA HUNTER: DASHBOARD INTERFACE LAYOUT (PART 3b OF 4)
+# MIKE'S QUANT ALPHA HUNTER: DASHBOARD INTERFACE LAYOUT (PART 3 OF 3)
 # ==============================================================================
 tab_momentum, tab_discount = st.tabs(["🔥 Breakouts", "📉 Possible Value Discounts"])
 
-def sync_changes_to_master_repository(updated_memory):
-    """Programmatically patches portfolio_targets.json directly onto your GitHub repo"""
-    import requests
-    import base64
-    
-    # Securely inherit your centralized Streamlit cloud tokens
-    token = st.secrets.get("GITHUB_TOKEN")
-    repo = st.secrets.get("GITHUB_REPO")
-    
-    if not token or not repo:
-        # Fallback to standard local file write if running offline on your laptop
-        try:
-            with open(TARGETS_FILE, 'w') as f: json.dump(updated_memory, f, indent=4)
-            return True
-        except Exception as e:
-            st.error(f"Local Write Error: {str(e)}")
-            return False
-            
-    url = f"https://api.github.com/{repo}/contents/{TARGETS_FILE}"
-    headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
-    
-    try:
-        # Step 1: Fetch the active file blob sha to prevent overwrite collisions
-        r = requests.get(url, headers=headers)
-        sha = r.json().get("sha") if r.status_code == 200 else None
-        
-        # Step 2: Push the updated JSON structure live to GitHub
-        new_content = base64.b64encode(json.dumps(updated_memory, indent=4).encode("utf-8")).decode("utf-8")
-        payload = {"message": "📡 Asset Finder: Added custom ticker metadata", "content": new_content}
-        if sha: payload["sha"] = sha
-        
-                # Step 3: Commit the changes back to GitHub
-        put_r = requests.put(url, headers=headers, json=payload)
-
-        # Step 4: Verify the API response status code safely
-        if put_r.status_code in (200, 201):
-            st.success("Changes successfully synced to the master repository!")
-            return True
-        else:
-            st.error(f"GitHub Sync Failed. Status code: {put_r.status_code}")
-            return False
-
-    except Exception as e:
-        st.error(f"Repository connection error: {str(e)}")
-        return False
-
 with tab_momentum:
-    st.markdown("<p class='small-header'>Institutional Velocity Screening Grid</p>", unsafe_allow_html=True)
+    st.markdown("<p class='small-header'>Potential Targets</p>", unsafe_allow_html=True)
     if breakout_rows:
         breakout_df = pd.DataFrame(breakout_rows).sort_values(by="Daily Change %", ascending=False).head(20)
         momentum_tickers = sorted(list(set(breakout_df["Ticker"].tolist())))
         cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Live Price", "ATR Volatility", "Vol Multiple", "Daily Change %", "RSI Momentum"]
-        st.dataframe(apply_alpha_signal_theme(breakout_df[[c for c in cols_order if c in breakout_df.columns]]), use_container_width=True, hide_index=True, height=250, column_config={"Live Price": st.column_config.NumberColumn(format="$%.2f"), "ATR Volatility": st.column_config.NumberColumn("Daily ATR ($)", format="$%.2f"), "Vol Multiple": st.column_config.NumberColumn("Volume Surge", format="%.2fx"), "Daily Change %": st.column_config.NumberColumn(format="%+.2f%%"), "RSI Momentum": st.column_config.NumberColumn(format="%.1f")})
+        
+        st.dataframe(
+            apply_alpha_signal_theme(breakout_df[[c for c in cols_order if c in breakout_df.columns]]), 
+            use_container_width=True, hide_index=True, height=280, 
+            column_config={
+                "Live Price": st.column_config.NumberColumn(format="$%.2f"), 
+                "ATR Volatility": st.column_config.NumberColumn("Daily ATR ($)", format="$%.2f"), 
+                "Vol Multiple": st.column_config.NumberColumn("Volume Surge", format="%.2fx"), 
+                "Daily Change %": st.column_config.NumberColumn(format="%+.2f%%"), 
+                "RSI Momentum": st.column_config.NumberColumn(format="%.1f")
+            }
+        )
         
         st.markdown("---")
-        selected_m_ticker = st.selectbox("🛰️ **Select Ticker to view chart:**", options=momentum_tickers, key="m_select_key")
+        selected_m_ticker = st.selectbox("🛰 *Select Ticker to view chart:*", options=momentum_tickers, key="m_select_key")
         if selected_m_ticker in operational_dfs:
-            fallback_name = local_name_map.get(selected_m_ticker, f"{selected_m_ticker} Asset")
-            if st.button(f"➕ Push {selected_m_ticker} into Core Cockpit Targets", key="m_push_btn"):
-                disk_memory["local_name_map"][selected_m_ticker] = fallback_name
-                if sync_changes_to_master_repository(disk_memory):
-                    st.success(f"🚀 Alignment Saved! Click '💾 Save Matrix Boundary Changes' in the main dashboard to deploy live.")
-                                
             chart_sliced = operational_dfs[selected_m_ticker].tail(chosen_lookback_days).copy().reset_index()
-            if 'index' in chart_sliced.columns: chart_sliced = chart_sliced.rename(columns={'index': 'Date'})
+            if 'index' in chart_sliced.columns: 
+                chart_sliced = chart_sliced.rename(columns={'index': 'Date'})
             if not chart_sliced.empty and 'Fast_MA' in chart_sliced.columns:
                 chart_sliced['Date'] = pd.to_datetime(chart_sliced['Date']).dt.strftime('%Y-%m-%d')
+                
                 y_scale = alt.Scale(domain=[float(chart_sliced[['Close', 'Fast_MA', 'Slow_MA']].min().min()) * 0.98, float(chart_sliced[['Close', 'Fast_MA', 'Slow_MA']].max().max()) * 1.02], zero=False)
                 base = alt.Chart(chart_sliced).encode(x=alt.X('Date:T', title=None)).properties(width=900, height=320)
-                st.altair_chart(base.mark_line(color='#4A90E2', strokeWidth=3.5).encode(y=alt.Y('Close:Q', scale=y_scale, title='Price ($)')) + base.mark_line(color='#00FF66', strokeWidth=3.0).encode(y=alt.Y('Fast_MA:Q')) + base.mark_line(color='#FF3333', strokeWidth=3.0).encode(y=alt.Y('Slow_MA:Q')), use_container_width=True)
-    else: st.info("No tickers matching crossover momentum velocity rules right now.")
+                
+                final_m_chart = (
+                    base.mark_line(color='#4A90E2', strokeWidth=3.5).encode(y=alt.Y('Close:Q', scale=y_scale, title='Price ($)')) + 
+                    base.mark_line(color='#00FF66', strokeWidth=3.0).encode(y=alt.Y('Fast_MA:Q')) + 
+                    base.mark_line(color='#FF3333', strokeWidth=3.0).encode(y=alt.Y('Slow_MA:Q'))
+                )
+                st.altair_chart(final_m_chart, use_container_width=True)
+    else:
+        st.info("No tickers matching crossover momentum velocity rules right now.")
 
 with tab_discount:
     st.markdown("<p class='small-header'>Mean-Reversion Floor Screening Grid</p>", unsafe_allow_html=True)
@@ -323,23 +300,36 @@ with tab_discount:
         discount_df = pd.DataFrame(discount_rows).sort_values(by="Proximity to Low", ascending=True).head(20)
         discount_tickers = sorted(list(set(discount_df["Ticker"].tolist())))
         cols_discount_order = ["Market", "Ticker", "Company Name", "Live Price", "52W Low Floor", "52W High Ceiling", "Proximity to Low", "RSI Status", "MACD Signal"]
-        st.dataframe(discount_df[[c for c in cols_discount_order if c in discount_df.columns]], use_container_width=True, hide_index=True, height=220, column_config={"Live Price": st.column_config.NumberColumn(format="$%.2f"), "52W Low Floor": st.column_config.NumberColumn(format="$%.2f"), "52W High Ceiling": st.column_config.NumberColumn(format="$%.2f"), "Proximity to Low": st.column_config.NumberColumn("Distance From Low", format="%.2f%%"), "RSI Status": st.column_config.NumberColumn(format="%.1f")})
+        
+        st.dataframe(
+            discount_df[[c for c in cols_discount_order if c in discount_df.columns]], 
+            use_container_width=True, hide_index=True, height=280, 
+            column_config={
+                "Live Price": st.column_config.NumberColumn(format="$%.2f"), 
+                "52W Low Floor": st.column_config.NumberColumn(format="$%.2f"), 
+                "52W High Ceiling": st.column_config.NumberColumn(format="$%.2f"), 
+                "Proximity to Low": st.column_config.NumberColumn("Distance From Low", format="%.2f%%"), 
+                "RSI Status": st.column_config.NumberColumn(format="%.1f")
+            }
+        )
         
         st.markdown("---")
-        selected_d_ticker = st.selectbox("🛰️ **Select Laboratory Target Scan Node:**", options=discount_tickers, key="d_select_key")
+        selected_d_ticker = st.selectbox("🛰 *Select Laboratory Target Scan Node:*", options=discount_tickers, key="d_select_key")
         if selected_d_ticker in operational_dfs:
-            fallback_name = local_name_map.get(selected_d_ticker, f"{selected_d_ticker} Asset")
-            if st.button(f"➕ Push {selected_d_ticker} into Core Cockpit Targets", key="d_push_btn"):
-                disk_memory["local_name_map"][selected_d_ticker] = fallback_name
-                if sync_changes_to_master_repository(disk_memory):
-                    st.success(f"🚀 Alignment Saved! Remember to save changes on your main cockpit view to push live.")
-                    st.rerun()
-                    
             chart_sliced = operational_dfs[selected_d_ticker].tail(chosen_lookback_days).copy().reset_index()
-            if 'index' in chart_sliced.columns: chart_sliced = chart_sliced.rename(columns={'index': 'Date'})
+            if 'index' in chart_sliced.columns: 
+                chart_sliced = chart_sliced.rename(columns={'index': 'Date'})
             if not chart_sliced.empty and 'Fast_MA' in chart_sliced.columns:
                 chart_sliced['Date'] = pd.to_datetime(chart_sliced['Date']).dt.strftime('%Y-%m-%d')
+                
                 y_scale = alt.Scale(domain=[float(chart_sliced[['Close', 'Fast_MA', 'Slow_MA']].min().min()) * 0.98, float(chart_sliced[['Close', 'Fast_MA', 'Slow_MA']].max().max()) * 1.02], zero=False)
                 base = alt.Chart(chart_sliced).encode(x=alt.X('Date:T', title=None)).properties(width=900, height=320)
-                st.altair_chart(base.mark_line(color='#4A90E2', strokeWidth=3.5).encode(y=alt.Y('Close:Q', scale=y_scale, title='Price ($)')) + base.mark_line(color='#00FF66', strokeWidth=3.0).encode(y=alt.Y('Fast_MA:Q')) + base.mark_line(color='#FF3333', strokeWidth=3.0).encode(y=alt.Y('Slow_MA:Q')), use_container_width=True)
-    else: st.info("No major institutional leaders currently resting inside deep value boundaries.")
+                
+                final_d_chart = (
+                    base.mark_line(color='#4A90E2', strokeWidth=3.5).encode(y=alt.Y('Close:Q', scale=y_scale, title='Price ($)')) + 
+                    base.mark_line(color='#00FF66', strokeWidth=3.0).encode(y=alt.Y('Fast_MA:Q')) + 
+                    base.mark_line(color='#FF3333', strokeWidth=3.0).encode(y=alt.Y('Slow_MA:Q'))
+                )
+                st.altair_chart(final_d_chart, use_container_width=True)
+    else:
+        st.info("No major institutional leaders currently resting inside deep value boundaries.")

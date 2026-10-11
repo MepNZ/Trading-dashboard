@@ -86,6 +86,7 @@ def push_targets_to_github(updated_data):
         return False
 
     file_path = "portfolio_targets.json"
+    # FIXED: Added the mandatory /repos/ sub-path required by GitHub's API
     url = f"https://github.com{repo}/contents/{file_path}"
     
     headers = {

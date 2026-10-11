@@ -72,6 +72,55 @@ if "graph_horizon" not in st.session_state: st.session_state["graph_horizon"] = 
 # ==============================================================================
 # MIKE'S SHARE MARKET DASHBOARD: SIDEBAR RUNTIME CONTROLS (PART 2 OF 4)
 # ==============================================================================
+import requests
+
+def push_targets_to_github(updated_data):
+    """
+    Safely commits and syncs updated portfolio targets directly back 
+    to your private GitHub repository to ensure cross-device persistence.
+    """
+    try:
+        token = st.secrets["GITHUB_TOKEN"]
+        repo = st.secrets["GITHUB_REPO"]
+    except KeyError:
+        # Graceful silence if testing locally offline on your hard drive
+        return False
+
+    file_path = "portfolio_targets.json"
+    url = f"https://github.com{repo}/contents/{file_path}"
+    
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+
+    # Fetch current file SHA hash to prevent version overwrite conflicts
+    try:
+        response = requests.get(url, headers=headers)
+        sha = None
+        if response.status_code == 200:
+            sha = response.json().get("sha")
+    except Exception:
+        return False
+
+    # Format JSON structure cleanly matching your layout matrix
+    json_string = json.dumps(updated_data, indent=4)
+    encoded_content = base64.b64encode(json_string.encode("utf-8")).decode("utf-8")
+
+    payload = {
+        "message": "🔄 Persistent Cloud Sync: Updated portfolio boundary matrix via sidebar",
+        "content": encoded_content,
+        "branch": "main",
+    }
+    if sha:
+        payload["sha"] = sha
+
+    try:
+        requests.put(url, headers=headers, json=payload)
+        return True
+    except Exception:
+        return False
+
 with st.sidebar:
     st.markdown("### 🛠️ Configuration Controls")
     if st.button("🔄 Clear App Cache Memory", use_container_width="stretch"):
@@ -118,9 +167,14 @@ with st.sidebar:
                 if w_input and "EMPTY" not in w_input:
                     live_sidebar_bounds["watchlist_tickers"].append(w_input)
             
-            # 3. Direct Hard Drive Serialization (No cloud dependencies)
+            # 3. Double-Action Core Commit: Save to temporary memory AND push to GitHub permanently
             with open(TARGETS_FILE, 'w') as f:
                 json.dump(live_sidebar_bounds, f, indent=4)
+            
+            # Trigger cloud synchronization seamlessly in the background
+            synced = push_targets_to_github(live_sidebar_bounds)
+            if synced:
+                st.toast("✅ Permanent Cloud Sync Complete! Changes saved to GitHub.")
             
             st.cache_data.clear()
             st.rerun()

@@ -6,17 +6,11 @@
     },
     "sliders": {
         "fast_ma": 10,
-        "slow_ma": 50,
+        "slow_ma": 100,
         "roi_window": "1 Year",
         "graph_horizon": "1 Year"
     },
     "positions": {
-        "V": {
-            "shares": 0.0,
-            "entry": 0.0,
-            "upper": 0.0,
-            "fixed_stop_distance": 0.0
-        },
         "XLE": {
             "shares": 3.05383015,
             "entry": 64.44,
@@ -36,14 +30,15 @@
             "fixed_stop_distance": 0.0
         },
         "TEAM": {
-            "shares": 0.0,
-            "entry": 0.0,
+            "shares": 1.0,
+            "entry": 2.5,
             "upper": 0.0,
             "fixed_stop_distance": 0.0
         }
     },
     "watchlist_tickers": [
-        "SPY",
-        "QQQ"
+        "TSLA",
+        "AIR.NZ",
+        "CBA.AX"
     ]
 }

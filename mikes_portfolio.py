@@ -70,75 +70,17 @@ if "slow_ma" not in st.session_state: st.session_state["slow_ma"] = int(runtime_
 if "roi_window" not in st.session_state: st.session_state["roi_window"] = runtime_sliders.get("roi_window", "1 Year")
 if "graph_horizon" not in st.session_state: st.session_state["graph_horizon"] = runtime_sliders.get("graph_horizon", "1 Year")
 # ==============================================================================
-# MIKE'S SHARE MARKET DASHBOARD: SIDEBAR RUNTIME CONTROLS (PART 2 OF 4)
+# MIKE'S SHARE MARKET DASHBOARD: SIDEBAR RUNTIME CONTROLS (STABLE BUILD)
 # ==============================================================================
-import requests
-
-def push_targets_to_github(updated_data):
-    """
-    Safely commits and syncs updated portfolio targets directly back 
-    to your private GitHub repository to ensure cross-device persistence.
-    """
-    try:
-        token = st.secrets["GITHUB_TOKEN"]
-        repo = st.secrets["GITHUB_REPO"]
-    except KeyError:
-        return False
-
-    file_path = "portfolio_targets.json"
-    # FIXED: Added the mandatory /repos/ sub-path required by GitHub's API
-    url = f"https://github.com{repo}/contents/{file_path}"
-    
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github.v3+json"
-    }
-
-    try:
-        response = requests.get(url, headers=headers)
-        sha = None
-        if response.status_code == 200:
-            sha = response.json().get("sha")
-    except Exception:
-        return False
-
-    json_string = json.dumps(updated_data, indent=4)
-    encoded_content = base64.b64encode(json_string.encode("utf-8")).decode("utf-8")
-
-    payload = {
-        "message": "🔄 Persistent Cloud Sync: Updated portfolio boundary matrix via sidebar",
-        "content": encoded_content,
-        "branch": "main",
-    }
-    if sha:
-        payload["sha"] = sha
-
-    try:
-        put_r = requests.put(url, headers=headers, json=payload)
-        return put_r.status_code in [200, 201]
-    except Exception:
-        return False
 
 with st.sidebar:
     st.markdown("### 🛠️ Configuration Controls")
     
-    # High-Visibility Sticky Save Receipt Status Banner
-    if "last_cloud_save_time" not in st.session_state:
-        st.session_state["last_cloud_save_time"] = None
-
-    if st.session_state["last_cloud_save_time"]:
-        st.markdown(f"""
-            <div style='background-color: #28a745; color: #FFFFFF; padding: 10px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 1.1rem; margin-bottom: 15px; border: 2px solid #1e7e34; box-shadow: 0px 4px 10px rgba(0,0,0,0.3);'>
-                ✅ SYNCED TO GITHUB LIVE<br>
-                <span style='font-size: 0.9rem; font-weight: normal; opacity: 0.9;'>Timestamp: {st.session_state["last_cloud_save_time"]}</span>
-            </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-            <div style='background-color: #1C212A; color: #8B949E; padding: 10px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 1.0rem; margin-bottom: 15px; border: 1px solid #30363D;'>
-                📁 Database Standby: Local Mode
-            </div>
-        """, unsafe_allow_html=True)
+    st.markdown("""
+        <div style='background-color: #1C212A; color: #4A90E2; padding: 10px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 1.0rem; margin-bottom: 15px; border: 1px solid #30363D;'>
+            💾 Active Local Workspace Mode
+        </div>
+    """, unsafe_allow_html=True)
 
     if st.button("🔄 Clear App Cache Memory", use_container_width="stretch"):
         if os.path.exists(CACHE_FILE):
@@ -150,6 +92,7 @@ with st.sidebar:
     @st.fragment
     def render_isolated_sidebar_controls():
         if st.button("💾 Save Matrix Boundary Changes", use_container_width="stretch"):
+            # Construct a clean, predictable state payload to drop directly onto disk
             live_sidebar_bounds = {
                 "wallet_cash": {
                     "NZD": float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 0.00))),
@@ -166,6 +109,7 @@ with st.sidebar:
                 "watchlist_tickers": []
             }
             
+            # 1. Gather exact values from the 6 Portfolio Slots
             for idx in range(6):
                 t_input = st.session_state.get(f"port_slot_{idx}", portfolio_slots[idx]).upper().strip()
                 if t_input and "EMPTY" not in t_input:
@@ -176,27 +120,21 @@ with st.sidebar:
                         "fixed_stop_distance": float(st.session_state.get(f"fixed_stop_{idx}", 15.00))
                     }
             
+            # 2. Gather exact tickers from the 6 Watchlist Slots
             for idx in range(6):
                 w_input = st.session_state.get(f"watch_slot_{idx}", watchlist_slots[idx]).upper().strip()
                 if w_input and "EMPTY" not in w_input:
                     live_sidebar_bounds["watchlist_tickers"].append(w_input)
             
-            # Save directly to the temporary disk container space
+            # 3. Direct Local Workspace Serialization
             with open(TARGETS_FILE, 'w') as f:
                 json.dump(live_sidebar_bounds, f, indent=4)
             
-            # Fire background cloud synchronization out to GitHub API
-            synced_ok = push_targets_to_github(live_sidebar_bounds)
-            
-            if synced_ok:
-                # Stamp the precise moment of completion down to the second
-                st.session_state["last_cloud_save_time"] = datetime.now().strftime("%I:%M:%S %p")
-            else:
-                st.session_state["last_cloud_save_time"] = "⚠️ Internal Sync Blocked"
-            
+            st.toast("✅ Workspace Changes Saved Locally!")
             st.cache_data.clear()
             st.rerun()
 
+        # Discrete selectboxes matching your working local build perfectly
         st.selectbox("ROI Window", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], key="roi_window")
         st.selectbox("Technical Graph Horizon", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], key="graph_horizon")
         st.selectbox("Fast MA Frame", [5, 10, 20, 50], index=[5, 10, 20, 50].index(st.session_state["fast_ma"]) if st.session_state["fast_ma"] in [5, 10, 20, 50] else 1, key="fast_ma")

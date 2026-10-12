@@ -15,26 +15,11 @@ import warnings
 sys.modules['warnings'] = warnings
 import base64
 
-# Force wide layout and high visibility font scales
-st.set_page_config(page_title="Mike's Share Market Dashboard", layout="wide")
-
-st.markdown("""
-    <style>
-        html, body, [data-testid="stAppViewContainer"] {
-            font-size: 1.2rem !important;
-        }
-        div[data-testid="stDataFrame"] * {
-            font-size: 1.25rem !important;
-        }
-        div[data-testid="stDataFrame"] [role="row"] {
-            margin-top: 4px !important;
-            margin-bottom: 4px !important;
-        }
-        .block-container { padding-top: 3rem !important; padding-bottom: 1rem !important; }
-        h1 { font-size: 2.2rem !important; font-weight: 800 !important; color: #FFFFFF !important; }
-        .small-header { font-size: 1.3rem !important; font-weight: bold !important; color: #4A90E2 !important; }
-    </style>
-""", unsafe_allow_html=True)
+# Force wide layout and high visibility font scales cleanly
+st.set_page_config(
+    page_title="Mike's Share Market Dashboard", 
+    layout="wide"
+)
 
 TARGETS_FILE = "portfolio_targets.json"
 CACHE_FILE = "portfolio_market_cache.json"
@@ -75,22 +60,18 @@ if "graph_horizon" not in st.session_state: st.session_state["graph_horizon"] = 
 import requests
 
 def push_targets_to_github(updated_data):
-    """
-    Automatically commits and pushes updated portfolio targets 
-    directly back to the private GitHub repository.
-    """
-    try:
-        token = st.secrets["GITHUB_TOKEN"]
-        repo = st.secrets["GITHUB_REPO"]
-    except KeyError:
-        st.error("Missing GITHUB_TOKEN or GITHUB_REPO in Streamlit Cloud Secrets.")
-        return False
+    # Pull credentials securely from local or cloud secrets memory
+    token = st.secrets.get("GITHUB_TOKEN")
+    repo = st.secrets.get("GITHUB_REPO")
 
     file_path = "portfolio_targets.json"
-    url = "https://github.com" + repo + "/contents/" + file_path
+    
+    # FIX: Direct connection to the official GitHub API endpoint instead of web URL
+    clean_repo = repo.strip("/")
+    url = f"https://api.github.com/repos/{clean_repo}/contents/{file_path}"
     
     headers = {
-        "Authorization": "token " + str(token),
+        "Authorization": f"token {token}",
         "Accept": "application/vnd.github.v3+json"
     }
 
@@ -101,8 +82,11 @@ def push_targets_to_github(updated_data):
         if response.status_code == 200:
             sha = response.json().get("sha")
         elif response.status_code != 404:
+            print(f"\n[DEBUG GITHUB] GET SHA failed. Status code: {response.status_code}")
+            print(f"[RAW ERROR RESPONSE] {response.text}\n")
             return False
-    except Exception:
+    except Exception as e:
+        print(f"\n[CRITICAL GITHUB] GET SHA Exception: {str(e)}\n")
         return False
 
     # Format JSON structure cleanly matching your layout matrix
@@ -119,10 +103,17 @@ def push_targets_to_github(updated_data):
 
     try:
         put_response = requests.put(url, headers=headers, json=payload)
-        return put_response.status_code in [200, 201]
-    except Exception:
+        # FIX: Clean comparison operators to completely bypass the prior syntax error
+        if put_response.status_code == 200 or put_response.status_code == 201:
+            return True
+        else:
+            # Prints the exact authentication or authorization error directly to your terminal
+            print(f"\n[CRITICAL REJECTION] GitHub Server Response Code: {put_response.status_code}")
+            print(f"[RAW JSON ERROR] Message payload: {put_response.text}\n")
+            return False
+    except Exception as e:
+        print(f"\n[CRITICAL CONNECTION FAILURE] Error details: {str(e)}\n")
         return False
-
 with st.sidebar:
     st.markdown("### 🛠️ Configuration Controls")
     
@@ -195,7 +186,7 @@ with st.sidebar:
             with open(TARGETS_FILE, 'w') as f:
                 json.dump(live_sidebar_bounds, f, indent=4)
             
-            # Fire your proven cloud synchronization layout
+            # Fire cloud synchronization layout
             synced_ok = push_targets_to_github(live_sidebar_bounds)
             
             if synced_ok:

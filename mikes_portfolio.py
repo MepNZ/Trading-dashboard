@@ -412,6 +412,9 @@ for ticker in all_active_workspace_tickers:
     sig_val = float(df_calc['Signal_Line'].iloc[-1]) if 'Signal_Line' in df_calc.columns else 0.0
     atr_val = float(df_calc['ATR'].iloc[-1]) if 'ATR' in df_calc.columns else 1.0
     
+        # --- ADDED: CALCULATE TIGHT DAILY PULLBACK LIMIT TARGET (Price - 1x ATR) ---
+    safe_daily_limit_target = round(last_close - (1.0 * atr_val), 2)
+
     if last_close > fast_ma_val and fast_ma_val > slow_ma_val and macd_val > sig_val and rsi_val < 68.0: strategy_status = "🌟 STRONG BUY"
     elif last_close > fast_ma_val and last_close > slow_ma_val: strategy_status = "🟩 BULLISH LONG"
     elif last_close < fast_ma_val and last_close > slow_ma_val: strategy_status = "🟨 MOMENTUM WARNING"
@@ -420,7 +423,8 @@ for ticker in all_active_workspace_tickers:
     assigned_sector = asset_sector_tags.get(ticker, "Other")
     master_unified_rows.append({
         "Ticker": ticker, "Sector": assigned_sector, "Company Name": resolved_name, 
-        "Closing": last_close, "Alert status": strategy_status, "Fast MA": fast_ma_val, 
+        "Closing": last_close, "Limit Entry Target": safe_daily_limit_target, # <-- INJECTED HERE
+        "Alert status": strategy_status, "Fast MA": fast_ma_val, 
         "Slow MA": slow_ma_val, "RSI": rsi_val, "ATR": atr_val
     })
     
@@ -556,7 +560,9 @@ st.markdown("---")
 st.markdown("#### 📊 Layer B: Asset Comparison Grid")
 if master_unified_rows:
     master_df = pd.DataFrame(master_unified_rows)
-    columns_to_show = ["Ticker", "Sector", "Company Name", "Closing", "Alert status", "Fast MA", "Slow MA", "RSI", "ATR"]
+    
+    # --- ADDED 'Limit Entry Target' TO COLS LIST ---
+    columns_to_show = ["Ticker", "Sector", "Company Name", "Closing", "Limit Entry Target", "Alert status", "Fast MA", "Slow MA", "RSI", "ATR"]
     master_df = master_df[columns_to_show]
     
     st.dataframe(
@@ -564,6 +570,7 @@ if master_unified_rows:
         column_config={
             "Sector": st.column_config.TextColumn("Sector ETF", width="small"),
             "Closing": st.column_config.NumberColumn("Price", format="$%.2f"), 
+            "Limit Entry Target": st.column_config.NumberColumn("Daily Pullback Limit", format="$%.2f"), # <-- NEW CONFIG BLOCK
             "Fast MA": st.column_config.NumberColumn(format="$%.2f"), 
             "Slow MA": st.column_config.NumberColumn(format="$%.2f"), 
             "RSI": st.column_config.NumberColumn(format="%.1f"),

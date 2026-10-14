@@ -412,8 +412,11 @@ for ticker in all_active_workspace_tickers:
     sig_val = float(df_calc['Signal_Line'].iloc[-1]) if 'Signal_Line' in df_calc.columns else 0.0
     atr_val = float(df_calc['ATR'].iloc[-1]) if 'ATR' in df_calc.columns else 1.0
     
-        # --- ADDED: CALCULATE TIGHT DAILY PULLBACK LIMIT TARGET (Price - 1x ATR) ---
+        # --- CALCULATE VOLATILITY-ADJUSTED ENTRY AND EXIT TRAILING LIMITS ---
     safe_daily_limit_target = round(last_close - (1.0 * atr_val), 2)
+    
+    # --- ADDED: TAKE-PROFIT LIMIT (2x ATR Wave + 1.2% Round-Trip FX/Fee Friction Premium) ---
+    safe_take_profit_target = round((last_close + (2.0 * atr_val)) * 1.012, 2)
 
     if last_close > fast_ma_val and fast_ma_val > slow_ma_val and macd_val > sig_val and rsi_val < 68.0: strategy_status = "🌟 STRONG BUY"
     elif last_close > fast_ma_val and last_close > slow_ma_val: strategy_status = "🟩 BULLISH LONG"
@@ -423,7 +426,8 @@ for ticker in all_active_workspace_tickers:
     assigned_sector = asset_sector_tags.get(ticker, "Other")
     master_unified_rows.append({
         "Ticker": ticker, "Sector": assigned_sector, "Company Name": resolved_name, 
-        "Closing": last_close, "Limit Entry Target": safe_daily_limit_target, # <-- INJECTED HERE
+        "Closing": last_close, "Limit Entry Target": safe_daily_limit_target, 
+        "Take Profit Target": safe_take_profit_target, # <-- INJECTED HERE
         "Alert status": strategy_status, "Fast MA": fast_ma_val, 
         "Slow MA": slow_ma_val, "RSI": rsi_val, "ATR": atr_val
     })
@@ -447,12 +451,16 @@ for ticker in all_active_workspace_tickers:
             
             current_value_local = custom_saved_shares * last_close
             active_live_positions.append({
-                "Ticker": ticker, "Shares": custom_saved_shares, "Currency": native_currency_label, 
-                "My Entry Price": entry_p, "Live Market Price": last_close, "Investment (Local)": implied_investment_local, 
-                "Investment (NZD)": implied_investment_local * currency_multiplier, "Current Value (Local)": current_value_local, 
-                "Current Value (NZD)": current_value_local * currency_multiplier, "Trailing Floor": calculated_trailing_floor
-            })
-# ==============================================================================
+            "Ticker": ticker, "Shares": custom_saved_shares, "Currency": native_currency_label,
+            "My Entry Price": entry_p, "Live Market Price": last_close, 
+            "Daily Pullback Limit": safe_daily_limit_target,   # <-- INJECTED HERE
+            "Take-Profit Target": safe_take_profit_target,    # <-- INJECTED HERE
+            "Investment (Local)": implied_investment_local,
+            "Investment (NZD)": implied_investment_local * currency_multiplier, 
+            "Current Value (Local)": current_value_local,
+            "Current Value (NZD)": current_value_local * currency_multiplier, 
+            "Trailing Floor": calculated_trailing_floor
+        })
 # MIKE'S SHARE MARKET DASHBOARD: LEDGER METRICS (PART 4A)
 # ==============================================================================
 st.markdown("#### 💼 Layer A: My Portfolio Ledger")
@@ -466,27 +474,29 @@ if active_live_positions:
 
     cols_layer_a = [
         "Ticker", "Company Name", "Shares", "Currency", "My Entry Price", 
-        "Live Market Price", "Investment (Local)", "Investment (NZD)", 
-        "Current Value (Local)", "Current Value (NZD)", "Trailing Floor", 
-        "Net Profit (NZD)", "Live ROI"
+        "Live Market Price", "Daily Pullback Limit", "Take-Profit Target",
+        "Investment (Local)", "Investment (NZD)", "Current Value (Local)", 
+        "Current Value (NZD)", "Trailing Floor", "Net Profit (NZD)", "Live ROI"
     ]
     p_df = p_df[[c for c in cols_layer_a if c in p_df.columns]]
     
     st.dataframe(
-        p_df, use_container_width="stretch", hide_index=True, height=280, 
+        p_df, use_container_width="stretch", hide_index=True, height=280,
         column_config={
             "Ticker": st.column_config.TextColumn("Ticker", width="small"),
             "Company Name": st.column_config.TextColumn("Company Name", width="medium"),
             "Shares": st.column_config.NumberColumn("Shares", format="%.4f"),
             "Currency": st.column_config.TextColumn("Currency", width="small"),
-            "My Entry Price": st.column_config.NumberColumn(format="$%.2f"), 
-            "Live Market Price": st.column_config.NumberColumn(format="$%.2f"), 
+            "My Entry Price": st.column_config.NumberColumn(format="$%.2f"),
+            "Live Market Price": st.column_config.NumberColumn(format="$%.2f"),
+            "Daily Pullback Limit": st.column_config.NumberColumn("Pullback Limit", format="$%.2f"),
+            "Take-Profit Target": st.column_config.NumberColumn("Take-Profit Exit", format="$%.2f"),
             "Investment (Local)": st.column_config.NumberColumn("Investment (Local)", format="$%.2f"),
             "Investment (NZD)": st.column_config.NumberColumn(format="$%.2f"),
-            "Current Value (Local)": st.column_config.NumberColumn("Current Value (Local)", format="$%.2f"), 
-            "Current Value (NZD)": st.column_config.NumberColumn(format="$%.2f"), 
-            "Trailing Floor": st.column_config.NumberColumn("2x ATR Stop Floor", format="$%.2f"), 
-            "Net Profit (NZD)": st.column_config.NumberColumn(format="$%.2f"), 
+            "Current Value (Local)": st.column_config.NumberColumn("Current Value (Local)", format="$%.2f"),
+            "Current Value (NZD)": st.column_config.NumberColumn(format="$%.2f"),
+            "Trailing Floor": st.column_config.NumberColumn("2x ATR Stop Floor", format="$%.2f"),
+            "Net Profit (NZD)": st.column_config.NumberColumn(format="$%.2f"),
             "Live ROI": st.column_config.NumberColumn(format="%.2f%%")
         }
     )
@@ -561,8 +571,8 @@ st.markdown("#### 📊 Layer B: Asset Comparison Grid")
 if master_unified_rows:
     master_df = pd.DataFrame(master_unified_rows)
     
-    # --- ADDED 'Limit Entry Target' TO COLS LIST ---
-    columns_to_show = ["Ticker", "Sector", "Company Name", "Closing", "Limit Entry Target", "Alert status", "Fast MA", "Slow MA", "RSI", "ATR"]
+    # --- ADDED 'Take Profit Target' TO DISPLAY SCHEMA ---
+    columns_to_show = ["Ticker", "Sector", "Company Name", "Closing", "Limit Entry Target", "Take Profit Target", "Alert status", "Fast MA", "Slow MA", "RSI", "ATR"]
     master_df = master_df[columns_to_show]
     
     st.dataframe(
@@ -570,7 +580,8 @@ if master_unified_rows:
         column_config={
             "Sector": st.column_config.TextColumn("Sector ETF", width="small"),
             "Closing": st.column_config.NumberColumn("Price", format="$%.2f"), 
-            "Limit Entry Target": st.column_config.NumberColumn("Daily Pullback Limit", format="$%.2f"), # <-- NEW CONFIG BLOCK
+            "Limit Entry Target": st.column_config.NumberColumn("Daily Pullback Limit", format="$%.2f"), 
+            "Take Profit Target": st.column_config.NumberColumn("Take-Profit Exit Target", format="$%.2f"), # <-- NEW GRID FORMAT
             "Fast MA": st.column_config.NumberColumn(format="$%.2f"), 
             "Slow MA": st.column_config.NumberColumn(format="$%.2f"), 
             "RSI": st.column_config.NumberColumn(format="%.1f"),

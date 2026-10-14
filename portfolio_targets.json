@@ -6,8 +6,8 @@
     },
     "sliders": {
         "fast_ma": 10,
-        "slow_ma": 50,
-        "roi_window": "1 Year",
+        "slow_ma": 100,
+        "roi_window": "1 Month",
         "graph_horizon": "1 Year"
     },
     "positions": {
@@ -37,7 +37,8 @@
         }
     },
     "watchlist_tickers": [
-        "SNAP",
+        "TSLA",
+        "AIR.NZ",
         "CBA.AX"
     ]
 }

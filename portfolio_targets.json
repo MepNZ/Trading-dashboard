@@ -6,8 +6,8 @@
     },
     "sliders": {
         "fast_ma": 10,
-        "slow_ma": 100,
-        "roi_window": "1 Month",
+        "slow_ma": 50,
+        "roi_window": "3 Months",
         "graph_horizon": "1 Year"
     },
     "positions": {

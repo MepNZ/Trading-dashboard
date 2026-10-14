@@ -10,6 +10,9 @@ import os
 import altair as alt
 from datetime import datetime, timedelta
 
+# --- FORCE THE ENTIRE SUB-PAGE GRID AND CHARTS TO STRETCH FULL-SCREEN ---
+st.set_page_config(layout="wide")
+
 # Force wide layout and matching high-visibility font scales
 st.markdown("""
     <style>
@@ -73,8 +76,8 @@ with st.sidebar:
     st.markdown("### 🛰️ Research Settings")
     st.selectbox("Screening Window", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], key="asset_roi")
     st.selectbox("Scanner Chart Horizon", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], key="asset_horizon")
-    st.selectbox("Scanner Fast MA", [5, 10, 20, 50], index=[5, 10, 20, 50].index(st.session_state["asset_fast_ma"]) if st.session_state["asset_fast_ma"] in [5, 10, 20, 50] else 1, key="asset_fast_ma")
-    st.selectbox("Scanner Slow MA", [25, 50, 100, 200], index=[25, 50, 100, 200].index(st.session_state["asset_slow_ma"]) if st.session_state["asset_slow_ma"] in [25, 50, 100, 200] else 2, key="asset_slow_ma")
+    st.selectbox("Fast MA (weeks)", [5, 10, 20, 50], index=[5, 10, 20, 50].index(st.session_state["asset_fast_ma"]) if st.session_state["asset_fast_ma"] in [5, 10, 20, 50] else 1, key="asset_fast_ma")
+    st.selectbox("Slow MA (weeks)", [25, 50, 100], index=[25, 50, 100, 200].index(st.session_state["asset_slow_ma"]) if st.session_state["asset_slow_ma"] in [25, 50, 100, 200] else 2, key="asset_slow_ma")
 
 fast_ma_input = st.session_state["asset_fast_ma"]
 slow_ma_input = st.session_state["asset_slow_ma"]
@@ -145,6 +148,11 @@ def calculate_indicators_only(df, fast_ma, slow_ma):
     df['Fast_MA'] = close_series.rolling(window=int(fast_ma)).mean()
     df['Slow_MA'] = close_series.rolling(window=int(slow_ma)).mean()
     
+    # --- CALCULATE LOWER BOLLINGER BAND ---
+    rolling_mean_20 = close_series.rolling(window=20).mean()
+    rolling_std_20 = close_series.rolling(window=20).std()
+    df['Lower_Bollinger_Band'] = rolling_mean_20 - (2 * rolling_std_20)
+    
     tr1 = high_series - low_series
     tr2, tr3 = (high_series - close_series.shift(1)).abs(), (low_series - close_series.shift(1)).abs()
     df['True_Range'] = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
@@ -176,7 +184,7 @@ def fetch_all_market_data_batch(ticker_list, start_date):
             return df_cached
         except Exception: pass
     try:
-        df_live = yf.download(list(set(ticker_list)), start=start_date, group_by='ticker', actions=False, threads=True, progress=False)
+        df_live = yf.download(list(set(ticker_list)), start=start_date, interval="1wk", group_by='ticker', actions=False, threads=True, progress=False)
         if not df_live.empty:
             df_serializable = df_live.copy()
             df_serializable.columns = [str(col) for col in df_serializable.columns]
@@ -220,12 +228,13 @@ for ticker in unique_scan_pool:
     macd_val = float(df_calc['MACD'].iloc[-1]) if 'MACD' in df_calc.columns else 0.0
     sig_val = float(df_calc['Signal_Line'].iloc[-1]) if 'Signal_Line' in df_calc.columns else 0.0
     atr_val = float(df_calc['ATR'].iloc[-1]) if 'ATR' in df_calc.columns else 0.0
-    
+    bb_lower_val = float(df_calc['Lower_Bollinger_Band'].iloc[-1]) if 'Lower_Bollinger_Band' in df_calc.columns else last_close
+
     current_volume = int(df_calc['Volume'].iloc[-1]) if 'Volume' in df_calc.columns else 0
     avg_volume_20d = float(df_calc['Avg_Volume_20D'].iloc[-1]) if 'Avg_Volume_20D' in df_calc.columns else 1.0
     volume_multiple = current_volume / avg_volume_20d if avg_volume_20d > 0 else 0.0
     
-    hist_365 = df_calc[df_calc.index >= pd.to_datetime(datetime.now() - timedelta(days=365)).tz_localize(df_calc.index.tz)] if not df_calc.empty else df_calc
+    hist_365 = df_calc[df_calc.index >= pd.to_datetime(datetime.now() - timedelta(days=730)).tz_localize(df_calc.index.tz)] if not df_calc.empty else df_calc
     true_52w_high, true_52w_low = float(hist_365['High'].max()), float(hist_365['Low'].min())
     proximity_to_low_pct = ((last_close - true_52w_low) / true_52w_low) * 100
     
@@ -244,14 +253,21 @@ for ticker in unique_scan_pool:
     
     if last_close <= (true_52w_low * 1.10):
         signal_label = "🟢 Bullish Turning" if macd_val > sig_val else "🔴 Bearish Floor"
+        
+        # --- CALCULATE AUTOMATED LIMIT TARGET PRICE (52W Low + 1% Buffer) ---
+        safe_limit_price = round(true_52w_low * 1.01, 2)
+        
         discount_rows.append({
             "Market": market_label, "Ticker": ticker, "Company Name": local_name_map.get(ticker, f"{ticker} Leader"),
-            "Live Price": last_close, "52W Low Floor": true_52w_low, "52W High Ceiling": true_52w_high,
+            "Live Price": last_close, "52W Low Floor": true_52w_low, "Limit Entry Target": safe_limit_price,
+            "Lower Bollinger Band": bb_lower_val, "52W High Ceiling": true_52w_high,
             "Proximity to Low": proximity_to_low_pct, "RSI Status": rsi_val, "MACD Signal": signal_label
         })
+
 # ==============================================================================
 # MIKE'S QUANT ALPHA HUNTER: DASHBOARD INTERFACE LAYOUT (PART 3 OF 3)
 # ==============================================================================
+
 tab_momentum, tab_discount = st.tabs(["🔥 Breakouts", "📉 Possible Value Discounts"])
 
 with tab_momentum:
@@ -299,20 +315,26 @@ with tab_discount:
     if discount_rows:
         discount_df = pd.DataFrame(discount_rows).sort_values(by="Proximity to Low", ascending=True).head(20)
         discount_tickers = sorted(list(set(discount_df["Ticker"].tolist())))
-        cols_discount_order = ["Market", "Ticker", "Company Name", "Live Price", "52W Low Floor", "52W High Ceiling", "Proximity to Low", "RSI Status", "MACD Signal"]
+        
+        # --- UPDATED COLUMN GRID DISPLAY SCHEMATIC ---
+        cols_discount_order = ["Market", "Ticker", "Company Name", "Live Price", "52W Low Floor", "Limit Entry Target", "Lower Bollinger Band", "52W High Ceiling", "Proximity to Low", "RSI Status", "MACD Signal"]
         
         st.dataframe(
             discount_df[[c for c in cols_discount_order if c in discount_df.columns]], 
-            use_container_width=True, hide_index=True, height=280, 
+            use_container_width=True, # Forces grid to use the full page width
+            hide_index=True, 
+            height=250, 
             column_config={
                 "Live Price": st.column_config.NumberColumn(format="$%.2f"), 
                 "52W Low Floor": st.column_config.NumberColumn(format="$%.2f"), 
+                "Limit Entry Target": st.column_config.NumberColumn("Limit Entry Target", format="$%.2f", width="medium"),
+                "Lower Bollinger Band": st.column_config.NumberColumn("Lower BB", format="$%.2f", width="small"),
                 "52W High Ceiling": st.column_config.NumberColumn(format="$%.2f"), 
                 "Proximity to Low": st.column_config.NumberColumn("Distance From Low", format="%.2f%%"), 
                 "RSI Status": st.column_config.NumberColumn(format="%.1f")
             }
         )
-        
+
         st.markdown("---")
         selected_d_ticker = st.selectbox("🛰 *Select Laboratory Target Scan Node:*", options=discount_tickers, key="d_select_key")
         if selected_d_ticker in operational_dfs:

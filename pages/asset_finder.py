@@ -245,12 +245,15 @@ for ticker in unique_scan_pool:
         elif rsi_val >= 68.0: breakout_signal = "🟨 OVEREXTENDED"
         else: breakout_signal = "🟩 BULLISH RIDER"
 
+        # --- CALCULATE SAFE PULLBACK ENTRY LIMIT PRICE ---
+        safe_breakout_limit = round(fast_ma_val, 2)
+
         breakout_rows.append({
             "Market": market_label, "Ticker": ticker, "Company Name": local_name_map.get(ticker, f"{ticker} Leader"),
-            "Live Price": last_close, "Alert Status": breakout_signal, "Vol Multiple": volume_multiple, 
-            "Daily Change %": pct_change, "RSI Momentum": rsi_val, "ATR Volatility": atr_val
+            "Live Price": last_close, "Alert Status": breakout_signal, "Limit Entry Target": safe_breakout_limit,
+            "Vol Multiple": volume_multiple, "Daily Change %": pct_change, "RSI Momentum": rsi_val, "ATR Volatility": atr_val
         })
-    
+
     if last_close <= (true_52w_low * 1.10):
         signal_label = "🟢 Bullish Turning" if macd_val > sig_val else "🔴 Bearish Floor"
         
@@ -275,13 +278,16 @@ with tab_momentum:
     if breakout_rows:
         breakout_df = pd.DataFrame(breakout_rows).sort_values(by="Daily Change %", ascending=False).head(20)
         momentum_tickers = sorted(list(set(breakout_df["Ticker"].tolist())))
-        cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Live Price", "ATR Volatility", "Vol Multiple", "Daily Change %", "RSI Momentum"]
+        cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Live Price", "Limit Entry Target", "ATR Volatility", "Vol Multiple", "Daily Change %", "RSI Momentum"]
         
         st.dataframe(
             apply_alpha_signal_theme(breakout_df[[c for c in cols_order if c in breakout_df.columns]]), 
-            use_container_width=True, hide_index=True, height=280, 
+            use_container_width=True, 
+            hide_index=True, 
+            height=250, 
             column_config={
                 "Live Price": st.column_config.NumberColumn(format="$%.2f"), 
+                "Limit Entry Target": st.column_config.NumberColumn("Pullback Limit Buy", format="$%.2f"),
                 "ATR Volatility": st.column_config.NumberColumn("Daily ATR ($)", format="$%.2f"), 
                 "Vol Multiple": st.column_config.NumberColumn("Volume Surge", format="%.2fx"), 
                 "Daily Change %": st.column_config.NumberColumn(format="%+.2f%%"), 

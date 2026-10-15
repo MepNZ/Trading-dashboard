@@ -19,6 +19,7 @@
         }
     },
     "watchlist_tickers": [
-        "TEAM"
+        "TEAM",
+        "WMT"
     ]
 }

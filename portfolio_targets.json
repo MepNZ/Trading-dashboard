@@ -7,7 +7,7 @@
     "sliders": {
         "fast_ma": 10,
         "slow_ma": 100,
-        "roi_window": "6 Months",
+        "roi_window": "1 Month",
         "graph_horizon": "1 Year"
     },
     "positions": {

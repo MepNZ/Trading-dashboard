@@ -190,7 +190,9 @@ with st.sidebar:
             synced_ok = push_targets_to_github(live_sidebar_bounds)
             
             if synced_ok:
-                st.session_state["last_cloud_save_time"] = datetime.now().strftime("%I:%M:%S %p")
+                from zoneinfo import ZoneInfo
+                nz_tz = ZoneInfo("Pacific/Auckland")
+                st.session_state["last_cloud_save_time"] = datetime.now(nz_tz).strftime("%I:%M:%S %p %Z")
             else:
                 st.session_state["last_cloud_save_time"] = "⚠️ Connection Refused by GitHub"
             
@@ -252,15 +254,22 @@ def get_exchange_status_badge(tz_name, open_hour=9, open_min=30, close_hour=16, 
         return "<span style='color: #dc3545; font-weight: bold;'>🔴 CLOSED</span>"
     except: return "N/A"
 
+from zoneinfo import ZoneInfo
 us_status = get_exchange_status_badge('America/New_York')
 au_status = get_exchange_status_badge('Australia/Sydney', is_nz_au=True)
 nz_status = get_exchange_status_badge('Pacific/Auckland', is_nz_au=True)
+
+# Format the current local clock for your high-visibility status banner
+nz_now_time = datetime.now(ZoneInfo("Pacific/Auckland")).strftime("%d %b %Y, %I:%M %p %Z")
 
 st.markdown(f"""
     <div style='background-color: #161A22; padding: 6px 12px; border-radius: 4px; display: flex; justify-content: center; gap: 40px; font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; border: 1px solid #2d3139;'>
         <span style='color: #FFFFFF;'>🇺🇸 NYSE US: {us_status}</span>
         <span style='color: #FFFFFF;'>🇦🇺 ASX AUS: {au_status}</span>
         <span style='color: #FFFFFF;'>🇳🇿 NZX NZ: {nz_status}</span>
+    </div>
+    <div style='text-align: center; font-size: 0.9rem; color: #8B949E; margin-bottom: 15px;'>
+        🕒 Your Trading Desk Local Time: <strong>{nz_now_time}</strong>
     </div>
 """, unsafe_allow_html=True)
 
@@ -383,10 +392,17 @@ asset_sector_tags = {
     "XLE": "XLE", "SPY": "SPY", "QQQ": "QQQ", "DUK": "XLU", "NEM": "XLB", "PLD": "XLRE", "LIN": "XLB"
 }
 
+roi_cutoff_date = datetime.now() - timedelta(days=lookback_days_map[selected_timeframe])
+
 for sector_symbol, descriptive_name in sector_mapping_dictionary.items():
     s_hist = extract_ticker_dataframe(RAW_MARKET_BATCH, sector_symbol)
     if not s_hist.empty and len(s_hist) >= 5:
-        s_calc = calculate_indicators_only(s_hist, fast_ma_input, slow_ma_input)
+        # SLICE FIX: Filter sector data index to match the ROI timeframe
+        localized_s_cutoff = roi_cutoff_date.tz_localize(s_hist.index.tz) if s_hist.index.tz else roi_cutoff_date
+        s_hist_sliced = s_hist[s_hist.index >= localized_s_cutoff]
+        if s_hist_sliced.empty or len(s_hist_sliced) < 5: s_hist_sliced = s_hist
+        
+        s_calc = calculate_indicators_only(s_hist_sliced, fast_ma_input, slow_ma_input)
         s_close = float(s_calc['Close'].iloc[-1])
         s_rsi = float(s_calc['RSI'].iloc[-1]) if 'RSI' in s_calc.columns else 50.0
         rsi_label = f"{s_rsi:.1f} 🔴 OVERBOUGHT" if s_rsi >= 70.0 else (f"{s_rsi:.1f} 🟢 OVERSOLD" if s_rsi <= 30.0 else f"{s_rsi:.1f} ⚪ Healthy")
@@ -398,10 +414,21 @@ local_name_map = {
     "DUK": "Duke Energy", "PLD": "Prologis Inc", "QQQ": "Nasdaq 100 ETF", "SPY": "S&P 500 ETF", "XLE": "Energy Select ETF"
 }
 
+# Create a cutoff timestamp based on your sidebar's active ROI window choice
+roi_cutoff_date = datetime.now() - timedelta(days=lookback_days_map[selected_timeframe])
+
 for ticker in all_active_workspace_tickers:
     hist_df = extract_ticker_dataframe(RAW_MARKET_BATCH, ticker)
     if hist_df.empty or len(hist_df) < 5: continue
-    df_calc = calculate_indicators_only(hist_df, fast_ma_input, slow_ma_input)
+    
+    # SLICE FIX: Filter the dataframe index to match the ROI timeframe before processing indicators
+    localized_cutoff = roi_cutoff_date.tz_localize(hist_df.index.tz) if hist_df.index.tz else roi_cutoff_date
+    hist_df_sliced = hist_df[hist_df.index >= localized_cutoff]
+    if hist_df_sliced.empty or len(hist_df_sliced) < 5:
+        hist_df_sliced = hist_df # Fallback to prevent crash if data is thin
+        
+    df_calc = calculate_indicators_only(hist_df_sliced, fast_ma_input, slow_ma_input)
+
     operational_dfs[ticker] = df_calc
     resolved_name = disk_memory.get("local_name_map", {}).get(ticker, local_name_map.get(ticker, f"{ticker} Asset"))
     last_close = float(df_calc['Close'].iloc[-1])
@@ -417,7 +444,12 @@ for ticker in all_active_workspace_tickers:
     
     # --- ADDED: TAKE-PROFIT LIMIT (2x ATR Wave + 1.2% Round-Trip FX/Fee Friction Premium) ---
     safe_take_profit_target = round((last_close + (2.0 * atr_val)) * 1.012, 2)
-
+    # --- NEW: CALCULATE TRUE TIMEFRAME PERFORMANCE ROI ---
+    if not hist_df_sliced.empty and len(hist_df_sliced) >= 2:
+        window_start_price = float(hist_df_sliced['Close'].dropna().iloc[0])
+        ticker_timeframe_roi = ((last_close - window_start_price) / window_start_price) * 100
+    else:
+        ticker_timeframe_roi = 0.0
     if last_close > fast_ma_val and fast_ma_val > slow_ma_val and macd_val > sig_val and rsi_val < 68.0: strategy_status = "🌟 STRONG BUY"
     elif last_close > fast_ma_val and last_close > slow_ma_val: strategy_status = "🟩 BULLISH LONG"
     elif last_close < fast_ma_val and last_close > slow_ma_val: strategy_status = "🟨 MOMENTUM WARNING"
@@ -428,6 +460,7 @@ for ticker in all_active_workspace_tickers:
         "Ticker": ticker, "Sector": assigned_sector, "Company Name": resolved_name, 
         "Closing": last_close, "Limit Entry Target": safe_daily_limit_target, 
         "Take Profit Target": safe_take_profit_target, # <-- INJECTED HERE
+        "Timeframe ROI %": ticker_timeframe_roi, 
         "Alert status": strategy_status, "Fast MA": fast_ma_val, 
         "Slow MA": slow_ma_val, "RSI": rsi_val, "ATR": atr_val
     })
@@ -571,8 +604,12 @@ st.markdown("#### 📊 Layer B: Asset Comparison Grid")
 if master_unified_rows:
     master_df = pd.DataFrame(master_unified_rows)
     
-    # --- ADDED 'Take Profit Target' TO DISPLAY SCHEMA ---
-    columns_to_show = ["Ticker", "Sector", "Company Name", "Closing", "Limit Entry Target", "Take Profit Target", "Alert status", "Fast MA", "Slow MA", "RSI", "ATR"]
+    # --- SCHEMA FIX: INJECT THE REACTIVE TIMEFRAME COLUMN RIGHT AFTER THE PRICE ---
+    columns_to_show = [
+        "Ticker", "Sector", "Company Name", "Closing", "Timeframe ROI %", 
+        "Limit Entry Target", "Take Profit Target", "Alert status", 
+        "Fast MA", "Slow MA", "RSI", "ATR"
+    ]
     master_df = master_df[columns_to_show]
     
     st.dataframe(
@@ -580,8 +617,9 @@ if master_unified_rows:
         column_config={
             "Sector": st.column_config.TextColumn("Sector ETF", width="small"),
             "Closing": st.column_config.NumberColumn("Price", format="$%.2f"), 
+            "Timeframe ROI %": st.column_config.NumberColumn(f"Past {selected_timeframe} Return", format="%.2f%%"), # <-- DYNAMIC HEADER LABEL
             "Limit Entry Target": st.column_config.NumberColumn("Daily Pullback Limit", format="$%.2f"), 
-            "Take Profit Target": st.column_config.NumberColumn("Take-Profit Exit Target", format="$%.2f"), # <-- NEW GRID FORMAT
+            "Take Profit Target": st.column_config.NumberColumn("Take-Profit Exit Target", format="$%.2f"), 
             "Fast MA": st.column_config.NumberColumn(format="$%.2f"), 
             "Slow MA": st.column_config.NumberColumn(format="$%.2f"), 
             "RSI": st.column_config.NumberColumn(format="%.1f"),

@@ -18,5 +18,7 @@
             "fixed_stop_distance": 0.0
         }
     },
-    "watchlist_tickers": []
+    "watchlist_tickers": [
+        "TEAM"
+    ]
 }

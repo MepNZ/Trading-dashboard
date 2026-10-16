@@ -37,8 +37,6 @@
         }
     },
     "watchlist_tickers": [
-        "TSLA",
-        "AIR.NZ",
-        "CBA.AX"
+        "TSLA"
     ]
 }

@@ -2,13 +2,13 @@
     "wallet_cash": {
         "NZD": 14.52,
         "AUD": 0.0,
-        "USD": 326.88
+        "USD": 12.49
     },
     "sliders": {
         "fast_ma": 10,
         "slow_ma": 100,
-        "roi_window": "1 Month",
-        "graph_horizon": "1 Year"
+        "roi_window": "1 Year",
+        "graph_horizon": "2 Years"
     },
     "positions": {
         "XLE": {
@@ -16,10 +16,29 @@
             "entry": 64.44,
             "upper": 0.0,
             "fixed_stop_distance": 0.0
+        },
+        "AMD": {
+            "shares": 0.16470777,
+            "entry": 607.732,
+            "upper": 0.0,
+            "fixed_stop_distance": 0.0
+        },
+        "NVDA": {
+            "shares": 1.00406075,
+            "entry": 235.05,
+            "upper": 0.0,
+            "fixed_stop_distance": 0.0
+        },
+        "TEAM": {
+            "shares": 0.0,
+            "entry": 0.0,
+            "upper": 0.0,
+            "fixed_stop_distance": 0.0
         }
     },
     "watchlist_tickers": [
-        "TEAM",
-        "WMT"
+        "TSLA",
+        "AIR.NZ",
+        "CBA.AX"
     ]
 }

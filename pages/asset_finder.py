@@ -62,7 +62,7 @@ if "local_name_map" not in disk_memory:
 # Initialize local sidebar settings or default back to standard values
 runtime_sliders = disk_memory.get("sliders", {})
 default_fast_ma = int(runtime_sliders.get("fast_ma", 10))
-default_slow_ma = int(runtime_sliders.get("slow_ma", 100))
+default_slow_ma = int(runtime_sliders.get("slow_ma", 50))
 default_roi = runtime_sliders.get("roi_window", "1 Year")
 default_horizon = runtime_sliders.get("graph_horizon", "1 Year")
 

@@ -8,7 +8,7 @@
         "fast_ma": 10,
         "slow_ma": 100,
         "roi_window": "1 Year",
-        "graph_horizon": "1 Year"
+        "graph_horizon": "2 Years"
     },
     "positions": {
         "XLE": {

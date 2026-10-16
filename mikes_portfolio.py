@@ -199,8 +199,7 @@ with st.sidebar:
             st.cache_data.clear()
             st.rerun()
 
-        st.selectbox("ROI Window", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], key="roi_window")
-        st.selectbox("Technical Graph Horizon", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], key="graph_horizon")
+        st.selectbox("Chart & ROI grid timeframe", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], key="roi_window")
         st.selectbox("Fast MA Frame", [5, 10, 20, 50], index=[5, 10, 20, 50].index(st.session_state["fast_ma"]) if st.session_state["fast_ma"] in [5, 10, 20, 50] else 1, key="fast_ma")
         st.selectbox("Slow MA Frame", [25, 50, 100, 200], index=[25, 50, 100, 200].index(st.session_state["slow_ma"]) if st.session_state["slow_ma"] in [25, 50, 100, 200] else 2, key="slow_ma")
         
@@ -233,7 +232,7 @@ with st.sidebar:
     render_isolated_sidebar_controls()
 
 selected_timeframe = st.session_state["roi_window"]
-chart_timeframe_choice = st.session_state["graph_horizon"]
+chart_timeframe_choice = st.session_state["roi_window"] # Both systems now look at the same master switch!
 fast_ma_input = st.session_state["fast_ma"]
 slow_ma_input = st.session_state["slow_ma"]
 cash_nzd = float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 0.00)))
@@ -374,8 +373,8 @@ def apply_market_signal_theme(df):
 # --- WORKSPACE RESOLUTION & UNIFICATION ---
 master_unified_rows, active_live_positions, operational_dfs = [], [], {}
 lookback_days_map = {"1 Month": 30, "3 Months": 90, "6 Months": 180, "1 Year": 365, "2 Years": 730}
-lookback_start_date = datetime.now() - timedelta(days=lookback_days_map[selected_timeframe] + 250)
-
+# Force the data download window to always use 2 Years so the chart engine never starves
+lookback_start_date = datetime.now() - timedelta(days=lookback_days_map["2 Years"] + 250)
 macro_sector_rows = []
 sector_mapping_dictionary = {"SPY": "🇺🇸 S&P 500 Index", "XLK": "💻 Technology", "XLY": "📦 Consumer Discretionary", "XLC": "🗣️ Communication", "XLF": "🏦 Financials", "XLV": "🩺 Healthcare", "XLP": "🛒 Consumer Staples", "XLI": "🏗️ Industrials", "XLE": "🛢️ Energy", "XLB": "🧱 Materials", "XLU": "⚡ Utilities", "XLRE": "🏢 Real Estate"}
 
@@ -560,13 +559,17 @@ if unified_chart_list:
     if operational_dfs and selected_portal_ticker in operational_dfs:
         full_df = operational_dfs[selected_portal_ticker]
         chart_tz = full_df.copy()
-        if chart_tz.index.tz is not None: 
-            chart_tz.index = chart_tz.index.tz_localize(None)
-        chart_sliced = chart_tz[chart_tz.index >= (datetime.now() - timedelta(days=lookback_days_map[chart_timeframe_choice]))].copy().reset_index()
-        if 'index' in chart_sliced.columns:
+            # 1. Strip timezone cleanly if it exists, otherwise keep it as-is
+    if chart_tz.index.tz is not None:
+        chart_tz.index = chart_tz.index.tz_localize(None)
+    
+    # 2. Slice the dataframe (Un-indented so it ALWAYS runs!)
+    chart_sliced = chart_tz[chart_tz.index >= (datetime.now() - timedelta(days=lookback_days_map[chart_timeframe_choice]))].copy().reset_index()
+
+    if 'index' in chart_sliced.columns:
             chart_sliced = chart_sliced.rename(columns={'index': 'Date'})
             
-        if not chart_sliced.empty and 'Fast_MA' in chart_sliced.columns:
+    if not chart_sliced.empty and 'Fast_MA' in chart_sliced.columns:
             chart_sliced['Date'] = pd.to_datetime(chart_sliced['Date']).dt.strftime('%Y-%m-%d')
             
             last_row = chart_sliced.iloc[-1]

@@ -2,7 +2,7 @@
     "wallet_cash": {
         "NZD": 14.52,
         "AUD": 0.0,
-        "USD": 326.88
+        "USD": 78.24
     },
     "sliders": {
         "fast_ma": 50,
@@ -16,6 +16,12 @@
             "entry": 64.44,
             "upper": 0.0,
             "fixed_stop_distance": 0.0
+        },
+        "CRM": {
+            "shares": 1.0,
+            "entry": 244.0,
+            "upper": 0.0,
+            "fixed_stop_distance": 15.0
         }
     },
     "watchlist_tickers": [

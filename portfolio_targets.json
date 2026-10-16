@@ -22,6 +22,12 @@
             "entry": 244.0,
             "upper": 0.0,
             "fixed_stop_distance": 15.0
+        },
+        "TEAM": {
+            "shares": 0.0,
+            "entry": 0.0,
+            "upper": 0.0,
+            "fixed_stop_distance": 15.0
         }
     },
     "watchlist_tickers": [

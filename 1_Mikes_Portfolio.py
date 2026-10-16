@@ -430,15 +430,16 @@ for ticker in all_active_workspace_tickers:
     hist_df = extract_ticker_dataframe(RAW_MARKET_BATCH, ticker)
     if hist_df.empty or len(hist_df) < 5: continue
     
-    # SLICE FIX: Filter the dataframe index to match the ROI timeframe before processing indicators
-    localized_cutoff = roi_cutoff_date.tz_localize(hist_df.index.tz) if hist_df.index.tz else roi_cutoff_date
-    hist_df_sliced = hist_df[hist_df.index >= localized_cutoff]
-    if hist_df_sliced.empty or len(hist_df_sliced) < 5:
-        hist_df_sliced = hist_df # Fallback to prevent crash if data is thin
-        
-    df_calc = calculate_indicators_only(hist_df_sliced, fast_ma_input, slow_ma_input)
-
+    # UPGRADE FIX: Run technical indicators on the full dataset so the engine never starves!
+    df_calc = calculate_indicators_only(hist_df, fast_ma_input, slow_ma_input)
     operational_dfs[ticker] = df_calc
+    
+    # Create the short timeframe slice strictly for frontend ROI display calculations
+    localized_cutoff = roi_cutoff_date.tz_localize(df_calc.index.tz) if df_calc.index.tz else roi_cutoff_date
+    hist_df_sliced = df_calc[df_calc.index >= localized_cutoff]
+    if hist_df_sliced.empty or len(hist_df_sliced) < 2:
+        hist_df_sliced = df_calc
+
     resolved_name = disk_memory.get("local_name_map", {}).get(ticker, local_name_map.get(ticker, f"{ticker} Asset"))
     last_close = float(df_calc['Close'].iloc[-1])
     fast_ma_val = float(df_calc['Fast_MA'].iloc[-1]) if 'Fast_MA' in df_calc.columns else last_close
@@ -448,32 +449,52 @@ for ticker in all_active_workspace_tickers:
     sig_val = float(df_calc['Signal_Line'].iloc[-1]) if 'Signal_Line' in df_calc.columns else 0.0
     atr_val = float(df_calc['ATR'].iloc[-1]) if 'ATR' in df_calc.columns else 1.0
     
-        # --- CALCULATE VOLATILITY-ADJUSTED ENTRY AND EXIT TRAILING LIMITS ---
+    # --- CALCULATE VOLATILITY-ADJUSTED ENTRY AND EXIT TRAILING LIMITS ---
     safe_daily_limit_target = round(last_close - (1.0 * atr_val), 2)
-    
-    # --- ADDED: TAKE-PROFIT LIMIT (2x ATR Wave + 1.2% Round-Trip FX/Fee Friction Premium) ---
     safe_take_profit_target = round((last_close + (2.0 * atr_val)) * 1.012, 2)
-    # --- NEW: CALCULATE TRUE TIMEFRAME PERFORMANCE ROI ---
+    
+    # --- CALCULATE TRUE TIMEFRAME PERFORMANCE ROI ---
     if not hist_df_sliced.empty and len(hist_df_sliced) >= 2:
         window_start_price = float(hist_df_sliced['Close'].dropna().iloc[0])
         ticker_timeframe_roi = ((last_close - window_start_price) / window_start_price) * 100
     else:
         ticker_timeframe_roi = 0.0
-    if last_close > fast_ma_val and fast_ma_val > slow_ma_val and macd_val > sig_val and rsi_val < 68.0: strategy_status = "🌟 STRONG BUY"
-    elif last_close > fast_ma_val and last_close > slow_ma_val: strategy_status = "🟩 BULLISH LONG"
-    elif last_close < fast_ma_val and last_close > slow_ma_val: strategy_status = "🟨 MOMENTUM WARNING"
-    else: strategy_status = "⬜ CASH FLAT"
+
+    # --- 4-TIER VOLUME-VERIFIED STATUS ENGINE ---
+    try:
+        current_price = float(last_close)
+        f_ma = float(fast_ma_val)
+        s_ma = float(slow_ma_val)
+        if not df_calc.empty and 'Volume' in df_calc.columns and len(df_calc) >= 20:
+            vol_twenty_avg = df_calc['Volume'].rolling(window=20).mean().iloc[-1]
+            v_surge = float(df_calc['Volume'].iloc[-1] / vol_twenty_avg) if vol_twenty_avg > 0 else 1.0
+        else:
+            v_surge = 1.0
+    except (ValueError, TypeError):
+        current_price, f_ma, s_ma, v_surge = last_close, fast_ma_val, slow_ma_val, 1.0
+
+    if current_price > f_ma and current_price > s_ma:
+        strategy_status = "🌟 STRONG BUY" if v_surge >= 1.5 else "🟡 Bullish Turning (Low Volume)"
+    elif current_price > f_ma and current_price <= s_ma:
+        strategy_status = "🟢 Bullish Turning (High Volume)" if v_surge >= 1.5 else "🟡 Bullish Turning (Low Volume)"
+    elif current_price <= f_ma and current_price > s_ma:
+        strategy_status = "🟡 Bullish Turning (Low Volume)"
+    else:
+        strategy_status = "🔴 Structural Bear"
     
     assigned_sector = asset_sector_tags.get(ticker, "Other")
+    
+    # Append to Master Comparison Grid
     master_unified_rows.append({
         "Ticker": ticker, "Sector": assigned_sector, "Company Name": resolved_name, 
         "Closing": last_close, "Limit Entry Target": safe_daily_limit_target, 
-        "Take Profit Target": safe_take_profit_target, # <-- INJECTED HERE
+        "Take Profit Target": safe_take_profit_target, 
         "Timeframe ROI %": ticker_timeframe_roi, 
         "Alert status": strategy_status, "Fast MA": fast_ma_val, 
         "Slow MA": slow_ma_val, "RSI": rsi_val, "ATR": atr_val
     })
     
+    # Append to Active Portfolio Grid if owned
     if ticker in clean_portfolio_list:
         stored_block = runtime_positions.get(ticker, {})
         custom_saved_shares = float(stored_block.get("shares", 0.0))
@@ -493,17 +514,17 @@ for ticker in all_active_workspace_tickers:
             
             current_value_local = custom_saved_shares * last_close
             active_live_positions.append({
-            "Ticker": ticker, "Shares": custom_saved_shares, "Currency": native_currency_label,
-            "My Entry Price": entry_p, "Live Market Price": last_close, 
-            "Daily Pullback Limit": safe_daily_limit_target,   # <-- INJECTED HERE
-            "Take-Profit Target": safe_take_profit_target,    # <-- INJECTED HERE
-            "Investment (Local)": implied_investment_local,
-            "Investment (NZD)": implied_investment_local * currency_multiplier, 
-            "Current Value (Local)": current_value_local,
-            "Current Value (NZD)": current_value_local * currency_multiplier, 
-            "Trailing Floor": calculated_trailing_floor
-        })
-# MIKE'S SHARE MARKET DASHBOARD: LEDGER METRICS (PART 4A)
+                "Ticker": ticker, "Shares": custom_saved_shares, "Currency": native_currency_label,
+                "My Entry Price": entry_p, "Live Market Price": last_close, 
+                "Daily Pullback Limit": safe_daily_limit_target,   
+                "Take-Profit Target": safe_take_profit_target,    
+                "Investment (Local)": implied_investment_local,
+                "Investment (NZD)": implied_investment_local * currency_multiplier, 
+                "Current Value (Local)": current_value_local,
+                "Current Value (NZD)": current_value_local * currency_multiplier, 
+                "Trailing Floor": calculated_trailing_floor
+            })
+
 # ==============================================================================
 st.markdown("#### 💼 Layer A: My Portfolio Ledger")
 if active_live_positions:

@@ -270,10 +270,7 @@ st.markdown(f"""
     <div style='text-align: center; font-size: 0.9rem; color: #8B949E; margin-bottom: 15px;'>
         🕒 Your Trading Desk Local Time: <strong>{nz_now_time}</strong>
         </div>
-    <div style='text-align: center; font-size: 0.9rem; color: #8B949E; margin-bottom: 15px;'>
-        🕒 Your Trading Desk Local Time: <strong>{nz_now_time}</strong>
-    </div>
-""", unsafe_allow_html=True)
+       """, unsafe_allow_html=True)
 
 # ==============================================================================
 # SURGICAL ADDITION: STICKY FLOATING WORKSPACE CONTROL BAR (SCROLL-RESISTANT)
@@ -732,14 +729,13 @@ if unified_chart_list:
 else:
     st.info("💡 No assets available to plot. Add symbols to your Portfolio or Watchlist slots via the sidebar menu.")
 # ==============================================================================
-# MIKE'S SHARE MARKET DASHBOARD: COMPARISON GRIDS (PART 4C - BLOCK 1)
+# MIKE'S SHARE MARKET DASHBOARD: COMPARISON GRIDS (PART 4C)
 # ==============================================================================
 st.markdown("---")
 st.markdown("#### 📊 Layer B: Asset Comparison Grid")
 if master_unified_rows:
     master_df = pd.DataFrame(master_unified_rows)
     
-    # --- SCHEMA FIX: INJECT THE REACTIVE TIMEFRAME COLUMN RIGHT AFTER THE PRICE ---
     columns_to_show = [
         "Ticker", "Sector", "Company Name", "Closing", "Timeframe ROI %", 
         "Limit Entry Target", "Take Profit Target", "Alert status", 
@@ -752,7 +748,7 @@ if master_unified_rows:
         column_config={
             "Sector": st.column_config.TextColumn("Sector ETF", width="small"),
             "Closing": st.column_config.NumberColumn("Price", format="$%.2f"), 
-            "Timeframe ROI %": st.column_config.NumberColumn(f"Past {selected_timeframe} Return", format="%.2f%%"), # <-- DYNAMIC HEADER LABEL
+            "Timeframe ROI %": st.column_config.NumberColumn(f"Past {selected_timeframe} Return", format="%.2f%%"),
             "Limit Entry Target": st.column_config.NumberColumn("Daily Pullback Limit", format="$%.2f"), 
             "Take Profit Target": st.column_config.NumberColumn("Take-Profit Exit Target", format="$%.2f"), 
             "Fast MA": st.column_config.NumberColumn(format="$%.2f"), 
@@ -762,25 +758,48 @@ if master_unified_rows:
         }
     )
 
-st.markdown("---")
-st.markdown("#### 🔄 Layer C: Institutional Sector Money Flow")
-if macro_sector_rows:
-    sector_df = pd.DataFrame(macro_sector_rows).sort_values(by="RSI Status Value", ascending=False)
-    st.dataframe(
-        sector_df, use_container_width="stretch", hide_index=True, height=250,
-        column_config={
-            "Closing Price": st.column_config.NumberColumn(format="$%.2f"),
-            "RSI Status Value": st.column_config.NumberColumn("RSI Value", format="%.1f"),
-            "RSI Speedometer": st.column_config.TextColumn("Velocity Status")
-        }
-    )
 # ==============================================================================
-# MIKE'S SHARE MARKET DASHBOARD: LAYER E POSITION CALCULATOR (PART 4C - BLOCKS 2 & 3)
+# MIKE'S SHARE MARKET DASHBOARD: LAYER C POSITION CALCULATOR
 # ==============================================================================
 st.markdown("---")
-st.markdown("#### 📐 Layer E: Volatility-Adjusted Position Sizing Calculator")
 
-# 1. Establish a unified, clean list of target assets available for calculation
+st.markdown(
+    """
+    <style>
+    div[data-testid="stMetricLabel"] p {
+        font-size: 0.95rem !important;
+        color: #475569 !important; 
+        font-weight: 600 !important;
+        text-transform: uppercase;
+    }
+    div[data-testid="stMetricValue"] div {
+        font-size: 1.85rem !important; 
+        font-weight: 700 !important;
+        color: #0F172A !important;
+    }
+    .custom-funding-list {
+        margin-top: 12px;
+        margin-bottom: 16px;
+        font-family: inherit;
+    }
+    .custom-funding-item {
+        font-size: 1.05rem !important;
+        color: #1E293B !important;
+        margin-bottom: 8px;
+        line-height: 1.6;
+    }
+    .custom-funding-highlight {
+        color: #0F172A !important;
+        font-weight: 700 !important;
+        font-size: 1.1rem !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+st.markdown("#### 📐 Layer C: Volatility-Adjusted Position Sizing Calculator")
+
 calculator_tickers = [t for t in all_active_workspace_tickers if t in operational_dfs]
 calculator_tickers = [t for t in calculator_tickers if t and "EMPTY" not in t]
 
@@ -790,22 +809,16 @@ if calculator_tickers:
     with calc_col1:
         st.markdown("<p style='font-size: 1.1rem; font-weight: bold; color: #4A90E2; margin-bottom: 2px;'>⚙️ Risk Parameters</p>", unsafe_allow_html=True)
         
-        # Interactive Asset Sizer Selector
         selected_calc_ticker = st.selectbox(
             "Target Execution Asset:", 
             options=calculator_tickers, 
-            key="layer_e_ticker_select"
+            key="layer_c_ticker_select"
         )
         
-        # User defined total account risk parameter in local currency
         max_risk_nzd = st.number_input(
             "Max Account Risk Allowed (NZD $):", 
-            min_value=5.00, 
-            max_value=5000.00, 
-            value=150.00, 
-            step=25.00, 
-            format="%.2f",
-            key="layer_e_max_risk_input"
+            min_value=5.00, max_value=5000.00, value=150.00, step=25.00, 
+            format="%.2f", key="layer_c_max_risk_input"
         )
         
         st.markdown("---")
@@ -814,7 +827,6 @@ if calculator_tickers:
         st.markdown(f"• **AUD Wallet:** ${cash_aud:,.2f}")
         st.markdown(f"• **USD Wallet:** ${cash_usd:,.2f}")
 
-    # Extract historical calculations for selected asset safely
     asset_df = operational_dfs[selected_calc_ticker]
     latest_bar = asset_df.iloc[-1]
     
@@ -823,7 +835,6 @@ if calculator_tickers:
     calc_fast_ma = float(latest_bar['Fast_MA']) if 'Fast_MA' in latest_bar else calc_close
     calc_slow_ma = float(latest_bar['Slow_MA']) if 'Slow_MA' in latest_bar else calc_close
     
-    # Identify native market layer to align currency metrics
     is_nz = selected_calc_ticker.endswith(".NZ")
     is_au = selected_calc_ticker.endswith(".AX")
     is_us = not (is_nz or is_au)
@@ -831,24 +842,18 @@ if calculator_tickers:
     native_currency = "USD" if is_us else ("AUD" if is_au else "NZD")
     fx_multiplier = usd_to_nzd_rate if is_us else (aud_to_nzd_rate if is_au else 1.0)
     
-    # 2. RUN QUANTITATIVE RISK SIZING CALCULATIONS
-    # Enforce strict 2x ATR Volatility noise cushion
     stop_loss_distance_native = 2.0 * calc_atr
     risk_per_share_nzd = stop_loss_distance_native * fx_multiplier
     
-    # Determine maximum mathematical shares to purchase based on risk limits
     computed_shares = max_risk_nzd / risk_per_share_nzd if risk_per_share_nzd > 0 else 0.0
     total_capital_required_native = computed_shares * calc_close
     total_capital_required_nzd = total_capital_required_native * fx_multiplier
     
-    # Derive targeted pullback execution limit boundary
-    limit_entry_target = round(calc_close - (1.0 * calc_atr), 2)
+    limit_entry_target = round(calc_close - (0.5 * calc_atr), 2)
     stop_floor_target = round(calc_close - stop_loss_distance_native, 2)
-
     with calc_col2:
         st.markdown(f"<p style='font-size: 1.1rem; font-weight: bold; color: #00FF66; margin-bottom: 2px;'>⚡ Mathematical Sizing Blueprint ({selected_calc_ticker})</p>", unsafe_allow_html=True)
         
-        # High-visibility metric display cards
         m_col1, m_col2, m_col3 = st.columns(3)
         with m_col1:
             st.metric("Optimal Execution Size", f"{computed_shares:.4f} Shares")
@@ -857,29 +862,61 @@ if calculator_tickers:
         with m_col3:
             st.metric("2x ATR Protective Stop", f"${stop_floor_target:.2f} {native_currency}")
             
-        # Contextual funding summary and currency optimization alerts
         st.markdown("### 🧮 Position Funding & Capital Breakdown")
         
-        # Check if native wallet cash can cover the full deployment cost
         available_native_cash = cash_usd if is_us else (cash_aud if is_au else cash_nzd)
         cash_gap_native = total_capital_required_native - available_native_cash
         
         if cash_gap_native <= 0:
-            funding_status = f"🟩 **Vault Verified:** Your native **{native_currency}** cash wallet handles this full size comfortably."
+            funding_status = f"🟩 <span class='custom-funding-highlight'>Vault Verified:</span> Your native {native_currency} cash wallet handles this full size comfortably."
         else:
             cash_gap_nzd = cash_gap_native * fx_multiplier
-            funding_status = f"🟨 **FX Conversion Buffer Needed:** Convert an additional **${cash_gap_nzd:,.2f} NZD** inside Sharesies to cover this setup."
+            funding_status = f"🟨 <span class='custom-funding-highlight'>FX Conversion Buffer Needed:</span> Convert an additional ${cash_gap_nzd:,.2f} NZD inside Sharesies to cover this setup."
 
-        st.markdown(f"""
-        * **Total Position Capital Sizing:** ${total_capital_required_native:,.2f} {native_currency}  *(Equivalent to ${total_capital_required_nzd:,.2f} NZD)*
-        * **Cushion Distance Risk:** ${stop_loss_distance_native:.2f} {native_currency} per share down to structural floor.
-        * **Portfolio Funding Status:** {funding_status}
-        """)
+        st.markdown(
+            f"""
+            <div class="custom-funding-list">
+                <div class="custom-funding-item">
+                    • <b>Total Position Capital Sizing:</b> 
+                    <span class="custom-funding-highlight">${total_capital_required_native:,.2f} {native_currency}</span> 
+                    (Equivalent to <span class="custom-funding-highlight">${total_capital_required_nzd:,.2f} NZD</span>)
+                </div>
+                <div class="custom-funding-item">
+                    • <b>Cushion Distance Risk:</b> 
+                    <span class="custom-funding-highlight">${stop_loss_distance_native:.2f} {native_currency}</span> per share down to structural floor.
+                </div>
+                <div class="custom-funding-item">
+                    • <b>Portfolio Funding Status:</b> {funding_status}
+                </div>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
         
-        # Traffic Light Signal Warning pass back to verify entry timing
         if calc_close > calc_fast_ma and calc_close > calc_slow_ma:
             st.markdown("""<div style='padding: 8px; background-color: #1A2E3B; border-left: 5px solid #38BDF8; font-size: 0.95rem; font-weight: bold; color: #FFFFFF;'>🌟 ASSET RUNNING CONSTRUCTIVE MOMENTUM: Execution blueprint calibrated to buy structural pullbacks.</div>""", unsafe_allow_html=True)
         else:
             st.markdown("""<div style='padding: 8px; background-color: #2E1A1A; border-left: 5px solid #EF4444; font-size: 0.95rem; font-weight: bold; color: #FFFFFF;'>⚠️ STRUCTURAL BEAR WARNING: Asset is trading underneath core moving average baselines. Scaledown deployment sizes recommended.</div>""", unsafe_allow_html=True)
 else:
-    st.info("💡 Layer E Standby: Add active stock tickers into your Portfolio or Watchlist sidebar slots to run sizing risk simulations.")
+    st.info("💡 Layer C Standby: Add active stock tickers into your Portfolio or Watchlist sidebar slots to run sizing risk simulations.")
+
+# ==============================================================================
+# LINEAR FOOTER: LAYER D INSTITUTIONAL SECTOR MONEY FLOW
+# ==============================================================================
+st.markdown("---")
+st.markdown("#### 🔄 Layer D: Institutional Sector Money Flow")
+if macro_sector_rows:
+    sector_df = pd.DataFrame(macro_sector_rows).sort_values(by="RSI Status Value", ascending=False)
+    
+    # FIXED EXPANDED HEIGHT ENGINE: 480px cleanly presents all 12 sectors inline
+    st.dataframe(
+        sector_df, 
+        use_container_width="stretch", 
+        hide_index=True,
+        height=480,
+        column_config={
+            "Closing Price": st.column_config.NumberColumn(format="$%.2f"),
+            "RSI Status Value": st.column_config.NumberColumn("RSI Value", format="%.1f"),
+            "RSI Speedometer": st.column_config.TextColumn("Velocity Status")
+        }
+    )

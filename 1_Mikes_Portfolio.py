@@ -852,7 +852,7 @@ if calculator_tickers:
     total_capital_required_native = computed_shares * calc_close
     total_capital_required_nzd = total_capital_required_native * fx_multiplier
     
-    limit_entry_target = round(calc_close - (0.5 * calc_atr), 2)
+    limit_entry_target = round(calc_close - (0.75 * calc_atr), 2)
     stop_floor_target = round(calc_close - stop_loss_distance_native, 2)
     with calc_col2:
         st.markdown(f"<p style='font-size: 1.1rem; font-weight: bold; color: #00FF66; margin-bottom: 2px;'>⚡ Mathematical Sizing Blueprint ({selected_calc_ticker})</p>", unsafe_allow_html=True)

@@ -641,23 +641,23 @@ if active_live_positions:
     p_df = p_df[[c for c in cols_layer_a if c in p_df.columns]]
     
     st.dataframe(
-        p_df, use_container_width="stretch", hide_index=True, height=280,
+        p_df, use_container_width="stretch", hide_index=True, height=200,
         column_config={
             "Ticker": st.column_config.TextColumn("Ticker", width="small"),
-            "Company Name": st.column_config.TextColumn("Company Name", width="medium"),
-            "Shares": st.column_config.NumberColumn("Shares", format="%.4f"),
-            "Currency": st.column_config.TextColumn("Currency", width="small"),
-            "My Entry Price": st.column_config.NumberColumn(format="$%.2f"),
-            "Live Market Price": st.column_config.NumberColumn(format="$%.2f"),
-            "Daily Pullback Limit": st.column_config.NumberColumn("Pullback Limit", format="$%.2f"),
-            "Take-Profit Target": st.column_config.NumberColumn("Take-Profit Exit", format="$%.2f"),
-            "Investment (Local)": st.column_config.NumberColumn("Investment (Local)", format="$%.2f"),
-            "Investment (NZD)": st.column_config.NumberColumn(format="$%.2f"),
-            "Current Value (Local)": st.column_config.NumberColumn("Current Value (Local)", format="$%.2f"),
-            "Current Value (NZD)": st.column_config.NumberColumn(format="$%.2f"),
-            "Trailing Floor": st.column_config.NumberColumn("2x ATR Stop Floor", format="$%.2f"),
-            "Net Profit (NZD)": st.column_config.NumberColumn(format="$%.2f"),
-            "Live ROI": st.column_config.NumberColumn(format="%.2f%%")
+            "Company Name": st.column_config.TextColumn("Asset Name", width="small"),
+            "Shares": st.column_config.NumberColumn("Shares", format="%.2f", width="small"),
+            "Currency": st.column_config.TextColumn("CCY", width="small"),
+            "My Entry Price": st.column_config.NumberColumn("Entry", format="$%.2f", width="small"),
+            "Live Market Price": st.column_config.NumberColumn("Live", format="$%.2f", width="small"),
+            "Daily Pullback Limit": st.column_config.NumberColumn("Pull Limit", format="$%.2f", width="small"),
+            "Take-Profit Target": st.column_config.NumberColumn("T/P Exit", format="$%.2f", width="small"),
+            "Investment (Local)": st.column_config.NumberColumn("Cost (Loc)", format="$%.2f", width="small"),
+            "Investment (NZD)": st.column_config.NumberColumn("Cost (NZD)", format="$%.2f", width="small"),
+            "Current Value (Local)": st.column_config.NumberColumn("Val (Loc)", format="$%.2f", width="small"),
+            "Current Value (NZD)": st.column_config.NumberColumn("Val (NZD)", format="$%.2f", width="small"),
+            "Trailing Floor": st.column_config.NumberColumn("ATR Floor", format="$%.2f", width="small"),
+            "Net Profit (NZD)": st.column_config.NumberColumn("P&L (NZD)", format="$%.2f", width="small"),
+            "Live ROI": st.column_config.NumberColumn("ROI", format="%.2f%%", width="small")
         }
     )
 
@@ -744,17 +744,20 @@ if master_unified_rows:
     master_df = master_df[columns_to_show]
     
     st.dataframe(
-        apply_market_signal_theme(master_df), use_container_width="stretch", hide_index=True, height=350, 
+        apply_market_signal_theme(master_df), use_container_width="stretch", hide_index=True, height=200, 
         column_config={
-            "Sector": st.column_config.TextColumn("Sector ETF", width="small"),
-            "Closing": st.column_config.NumberColumn("Price", format="$%.2f"), 
-            "Timeframe ROI %": st.column_config.NumberColumn(f"Past {selected_timeframe} Return", format="%.2f%%"),
-            "Limit Entry Target": st.column_config.NumberColumn("Daily Pullback Limit", format="$%.2f"), 
-            "Take Profit Target": st.column_config.NumberColumn("Take-Profit Exit Target", format="$%.2f"), 
-            "Fast MA": st.column_config.NumberColumn(format="$%.2f"), 
-            "Slow MA": st.column_config.NumberColumn(format="$%.2f"), 
-            "RSI": st.column_config.NumberColumn(format="%.1f"),
-            "ATR": st.column_config.NumberColumn("Daily ATR", format="$%.2f")
+            "Ticker": st.column_config.TextColumn("Ticker", width="small"),
+            "Sector": st.column_config.TextColumn("Sector", width="small"),
+            "Company Name": st.column_config.TextColumn("Asset Name", width="small"),
+            "Closing": st.column_config.NumberColumn("Price", format="$%.2f", width="small"), 
+            "Timeframe ROI %": st.column_config.NumberColumn("Return", format="%.2f%%", width="small"),
+            "Limit Entry Target": st.column_config.NumberColumn("Pull Limit", format="$%.2f", width="small"), 
+            "Take Profit Target": st.column_config.NumberColumn("T/P Exit", format="$%.2f", width="small"), 
+            "Alert status": st.column_config.TextColumn("Status", width="medium"),
+            "Fast MA": st.column_config.NumberColumn("Fast MA", format="$%.2f", width="small"), 
+            "Slow MA": st.column_config.NumberColumn("Slow MA", format="$%.2f", width="small"), 
+            "RSI": st.column_config.NumberColumn("RSI", format="%.1f", width="small"),
+            "ATR": st.column_config.NumberColumn("ATR", format="$%.2f", width="small")
         }
     )
 

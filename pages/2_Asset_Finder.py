@@ -13,7 +13,6 @@ from datetime import datetime, timedelta
 # --- FORCE THE ENTIRE SUB-PAGE GRID AND CHARTS TO STRETCH FULL-SCREEN ---
 st.set_page_config(layout="wide")
 
-# Force wide layout and matching high-visibility font scales
 # Force wide layout and matching high-visibility font scales with aggressive whitespace reduction
 st.markdown("""
     <style>
@@ -55,24 +54,26 @@ def apply_alpha_signal_theme(df):
         vol_multiple = float(row['Vol Multiple']) if 'Vol Multiple' in row.index else 0.0
         alert_status = str(row['Alert Status']) if 'Alert Status' in row.index else ""
         
-        # 3. PRIORITY 1: Check for institutional 2.0x volume spike (Flashes the WHOLE row)
-        if vol_multiple >= 2.0:
+        # 3. PRIORITY 1: Check for institutional 2.0x volume spike (Flashes the WHOLE row neon-blue)
+        elite_statuses = ["🌟 STRONG BUY", "🟢 Bullish Turning (High Volume)"]
+        if alert_status in elite_statuses and vol_multiple >= 2.0:
             # High-visibility deep midnight navy background with electric neon text
-            return ['background-color: #0E1E38; color: #38BDF8; font-weight: 700; border: 1px solid #0284C7;'] * len(row)
+            return ['background-color: #0A1128; color: #00E5FF; font-weight: 700; border: 1px solid #00E5FF;'] * len(row)
             
-        # 4. PRIORITY 2: If volume is normal, apply targeted alert status cell styles instead
+        # 4. PRIORITY 2: Fallback styling rules for target cell modifications
         if 'Alert Status' in row.index:
             idx = row.index.get_loc('Alert Status')
-            if alert_status == "⚡ HYPER MOMENTUM": 
-                styles[idx] = 'background-color: #007bff; color: #ffffff; font-weight: bold;'
-            elif alert_status == "🟩 BULLISH RIDER": 
-                styles[idx] = 'background-color: #d4edda; color: #155724; font-weight: bold;'
-            elif alert_status == "🟨 OVEREXTENDED": 
-                styles[idx] = 'background-color: #ffe8a1; color: #856404; font-weight: bold;'
+            if alert_status == "🌟 STRONG BUY": 
+                styles[idx] = 'background-color: #0A1128; color: #00E5FF; font-weight: bold;'
+            elif alert_status == "🟢 Bullish Turning (High Volume)": 
+                styles[idx] = 'background-color: #1e3a1e; color: #38ef7d; font-weight: bold;'
+            elif alert_status == "🟡 Bullish Turning (Low Volume)": 
+                styles[idx] = 'background-color: #3a351e; color: #f1c40f; font-weight: bold;'
+            elif alert_status == "🔴 Structural Bear":
+                styles[idx] = 'background-color: #3a1e1e; color: #e74c3c; font-weight: bold;'
         return styles
         
     return df.style.apply(style_breakout_rows, axis=1)
-
 TARGETS_FILE = "portfolio_targets.json"
 CACHE_FILE = "alpha_hunter_cache.json"
 CACHE_TTL_MINUTES = 15
@@ -197,23 +198,23 @@ def calculate_indicators_only(df, fast_ma, slow_ma):
     df['MACD'] = close_series.ewm(span=12, adjust=False).mean() - close_series.ewm(span=26, adjust=False).mean()
     df['Signal_Line'] = df['MACD'].ewm(span=9, adjust=False).mean()
     return df
+
 def fetch_all_market_data_batch(ticker_list, start_date):
-    cache_valid = False
+    """
+    Performance Optimized: Reads directly from local JSON disk cache if TTL is valid.
+    Moving average preference changes are calculated strictly in memory to bypass 
+    unnecessary web API bottlenecks.
+    """
     if os.path.exists(CACHE_FILE):
         file_mod_time = datetime.fromtimestamp(os.path.getmtime(CACHE_FILE))
         if datetime.now() - file_mod_time < timedelta(minutes=CACHE_TTL_MINUTES):
-            cache_valid = True
-        # Force an immediate clean live recalculation if the user updates moving average preferences
-    if cache_valid and f"ma_check_{fast_ma_input}_{slow_ma_input}" in st.session_state.get("last_ma_signature", ""):
-        try:
-            df_cached = pd.read_json(CACHE_FILE)
-            df_cached.index = pd.to_datetime(df_cached.index)
-            df_cached.columns = pd.MultiIndex.from_tuples([eval(col) for col in df_cached.columns])
-            return df_cached
-        except Exception: pass
-    else:
-        # Update your configuration baseline memory signature
-        st.session_state["last_ma_signature"] = f"ma_check_{fast_ma_input}_{slow_ma_input}"
+            try:
+                df_cached = pd.read_json(CACHE_FILE)
+                df_cached.index = pd.to_datetime(df_cached.index)
+                df_cached.columns = pd.MultiIndex.from_tuples([eval(col) for col in df_cached.columns])
+                return df_cached
+            except Exception: pass
+            
     try:
         df_live = yf.download(list(set(ticker_list)), start=start_date, interval="1wk", group_by='ticker', actions=False, threads=True, progress=False)
         if not df_live.empty:
@@ -271,13 +272,21 @@ for ticker in unique_scan_pool:
     
     market_label = "NZ" if ticker.endswith(".NZ") else ("AUS" if ticker.endswith(".AX") else "US")
     
-    if last_close > fast_ma_val and last_close > slow_ma_val and rsi_val < 72.0:
-        if volume_multiple >= 2.0 and macd_val > sig_val and rsi_val >= 55.0: breakout_signal = "⚡ HYPER MOMENTUM"
-        elif rsi_val >= 68.0: breakout_signal = "🟨 OVEREXTENDED"
-        else: breakout_signal = "🟩 BULLISH RIDER"
+    # --------------------------------------------------------------------------
+    # ACTIVE 4-TIER TRAFFIC LIGHT STATUS HIERARCHY RULESET (SYNCHRONIZED)
+    # --------------------------------------------------------------------------
+    if last_close > fast_ma_val and last_close > slow_ma_val and volume_multiple >= 1.5:
+        breakout_signal = "🌟 STRONG BUY"
+    elif last_close > fast_ma_val and last_close <= slow_ma_val and volume_multiple >= 1.5:
+        breakout_signal = "🟢 Bullish Turning (High Volume)"
+    elif (last_close > fast_ma_val or last_close > slow_ma_val) and volume_multiple < 1.5:
+        breakout_signal = "🟡 Bullish Turning (Low Volume)"
+    else:
+        breakout_signal = "🔴 Structural Bear"
 
+    # Only include assets inside breakout_rows if they are showing constructive momentum
+    if breakout_signal != "🔴 Structural Bear":
         safe_breakout_limit = round(fast_ma_val, 2)
-
         breakout_rows.append({
             "Market": market_label, "Ticker": ticker, "Company Name": local_name_map.get(ticker, f"{ticker} Leader"),
             "Live Price": last_close, "Alert Status": breakout_signal, "Limit Entry Target": safe_breakout_limit,
@@ -286,7 +295,6 @@ for ticker in unique_scan_pool:
 
     if last_close <= (true_52w_low * 1.10):
         signal_label = "🟢 Bullish Turning" if macd_val > sig_val else "🔴 Bearish Floor"
-        
         safe_limit_price = round(true_52w_low * 1.01, 2)
         
         discount_rows.append({
@@ -298,17 +306,19 @@ for ticker in unique_scan_pool:
 # ==============================================================================
 # MIKE'S QUANT ALPHA HUNTER: DASHBOARD INTERFACE LAYOUT (PART 3 OF 3)
 # ==============================================================================
-
 tab_momentum, tab_discount = st.tabs(["🔥 Breakouts", "📉 Possible Value Discounts"])
 
 with tab_momentum:
     st.markdown("<p class='small-header'>Potential Targets</p>", unsafe_allow_html=True)
     if breakout_rows:
-        # Generate master sorted list of top 20 items
-                # Strict structural mapping to force high-leverage priorities to the top
         raw_m_df = pd.DataFrame(breakout_rows)
-        status_rank_map = {"🌟 STRONG BUY": 0, "⚡ HYPER MOMENTUM": 1, "🟩 BULLISH RIDER": 2, "🟨 OVEREXTENDED": 3, "⬜ CASH FLAT": 4}
-        raw_m_df["Rank_Weight"] = raw_m_df["Alert Status"].map(status_rank_map).fillna(5)
+        # Strict mapping rank weights to ensure top setups hit top of dataframe view
+        status_rank_map = {
+            "🌟 STRONG BUY": 0, 
+            "🟢 Bullish Turning (High Volume)": 1, 
+            "🟡 Bullish Turning (Low Volume)": 2
+        }
+        raw_m_df["Rank_Weight"] = raw_m_df["Alert Status"].map(status_rank_map).fillna(3)
         
         # Sort primarily by Alert tier, and then sub-sort by biggest daily movers
         master_breakout_df = raw_m_df.sort_values(by=["Rank_Weight", "Daily Change %"], ascending=[True, False]).head(20)
@@ -321,12 +331,9 @@ with tab_momentum:
         else:
             sliced_breakout_df = master_breakout_df.iloc[10:20]
             
-        # Dynamically map the horizontal quick-link track directly to the exact visible table sequence
         momentum_tickers_ordered = sliced_breakout_df["Ticker"].tolist()
-        
         cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Live Price", "Limit Entry Target", "ATR Volatility", "Vol Multiple", "Daily Change %", "RSI Momentum"]
         
-        # Fixed 10-row matrix height (380px fits them cleanly with high visibility styling without inner scrollbar tracking)
         st.dataframe(
             apply_alpha_signal_theme(sliced_breakout_df[[c for c in cols_order if c in sliced_breakout_df.columns]]), 
             use_container_width=True, 
@@ -368,12 +375,10 @@ with tab_momentum:
 with tab_discount:
     st.markdown("<p class='small-header'>Mean-Reversion Floor Screening Grid</p>", unsafe_allow_html=True)
     if discount_rows:
-        # Generate master sorted list of top 20 items
         raw_d_df = pd.DataFrame(discount_rows)
         discount_rank_map = {"🟢 Bullish Turning": 0, "🔴 Bearish Floor": 1}
         raw_d_df["Rank_Weight"] = raw_d_df["MACD Signal"].map(discount_rank_map).fillna(2)
         
-        # Sort primarily by turning signals first, then by closest proximity to the 52W floor
         master_discount_df = raw_d_df.sort_values(by=["Rank_Weight", "Proximity to Low"], ascending=[True, True]).head(20)
         
         # --- PAGINATION LOGIC ---
@@ -384,9 +389,7 @@ with tab_discount:
         else:
             sliced_discount_df = master_discount_df.iloc[10:20]
             
-        # Dynamically map the horizontal quick-link track directly to the exact visible table sequence
         discount_tickers_ordered = sliced_discount_df["Ticker"].tolist()
-        
         cols_discount_order = ["Market", "Ticker", "Company Name", "Live Price", "52W Low Floor", "Limit Entry Target", "Lower Bollinger Band", "52W High Ceiling", "Proximity to Low", "RSI Status", "MACD Signal"]
         
         st.dataframe(

@@ -266,11 +266,111 @@ st.markdown(f"""
         <span style='color: #FFFFFF;'>🇺🇸 NYSE US: {us_status}</span>
         <span style='color: #FFFFFF;'>🇦🇺 ASX AUS: {au_status}</span>
         <span style='color: #FFFFFF;'>🇳🇿 NZX NZ: {nz_status}</span>
-    </div>
+        </div>
+    <div style='text-align: center; font-size: 0.9rem; color: #8B949E; margin-bottom: 15px;'>
+        🕒 Your Trading Desk Local Time: <strong>{nz_now_time}</strong>
+        </div>
     <div style='text-align: center; font-size: 0.9rem; color: #8B949E; margin-bottom: 15px;'>
         🕒 Your Trading Desk Local Time: <strong>{nz_now_time}</strong>
     </div>
 """, unsafe_allow_html=True)
+
+# ==============================================================================
+# SURGICAL ADDITION: STICKY FLOATING WORKSPACE CONTROL BAR (SCROLL-RESISTANT)
+# ==============================================================================
+# Inject the CSS to pin this container to the top view screen and forcefully align inner text blocks
+st.markdown("""
+    <style>
+        /* 1. Force the target container block to stick to the absolute top viewport ceiling */
+        div[data-testid="stVerticalBlock"] > div:has(div.floating-action-toolbar) {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            z-index: 999999 !important;
+            background-color: #0E1117 !important; /* Matches Streamlit standard dark theme */
+            padding: 10px 40px !important;
+            border-bottom: 1px solid #30363D !important;
+            box-shadow: 0px 4px 15px rgba(0,0,0,0.5) !important;
+        }
+        
+        /* 2. FORCE PERFECT VERTICAL CENTER AXIS VIA DIRECT INNER PARAGRAPH OVERRIDES */
+        div:has(div.floating-action-toolbar) button p {
+            margin: 0 !important;
+            padding: 0 !important;
+            line-height: 1.0 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transform: translateY(2px) !important; /* Forcefully nudge the string down into the absolute visual center */
+        }
+        
+        /* 3. Push the standard content layout down a fraction so it isn't hidden under our bar */
+        div[data-testid="stAppViewBlockContainer"] {
+            padding-top: 4.5rem !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# Build the layout structural framework inside the sticky viewport container
+floating_container = st.container()
+with floating_container:
+    # Anchor class tag for our custom CSS injector tracking rules
+    st.markdown('<div class="floating-action-toolbar"></div>', unsafe_allow_html=True)
+    
+    toolbar_col1, toolbar_col2 = st.columns([2, 1])
+    with toolbar_col1:
+        st.markdown("<h3 style='margin: 0; padding-top: 4px; font-size: 1.35rem; color: #4A90E2;'>⚡ Live Matrix Workspace Viewport Ledger</h3>", unsafe_allow_html=True)
+    with toolbar_col2:
+        if st.button("💾 SAVE & SYNC WORKSPACE", use_container_width=True, type="primary", key="viewport_sticky_save_btn"):
+            live_sidebar_bounds = {
+                "wallet_cash": {
+                    "NZD": float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 0.00))),
+                    "AUD": float(st.session_state.get("cash_aud_input", runtime_cash.get("AUD", 0.00))),
+                    "USD": float(st.session_state.get("cash_usd_input", runtime_cash.get("USD", 0.00))),
+                },
+                "sliders": {
+                    "fast_ma": int(st.session_state.get("fast_ma", 10)),
+                    "slow_ma": int(st.session_state.get("slow_ma", 100)),
+                    "roi_window": st.session_state.get("roi_window", "1 Year"),
+                    "graph_horizon": st.session_state.get("roi_window", "1 Year")
+                },
+                "positions": {},
+                "watchlist_tickers": []
+            }
+            
+            for idx in range(6):
+                t_input = st.session_state.get(f"port_slot_{idx}", portfolio_slots[idx]).upper().strip()
+                if t_input and "EMPTY" not in t_input:
+                    live_sidebar_bounds["positions"][t_input] = {
+                        "shares": float(st.session_state.get(f"shares_{idx}", 0.0000)),
+                        "entry": float(st.session_state.get(f"entry_{idx}", 0.00)),
+                        "upper": float(st.session_state.get(f"up_{idx}", 0.00)),
+                        "fixed_stop_distance": float(st.session_state.get(f"fixed_stop_{idx}", 15.00))
+                    }
+            
+            for idx in range(6):
+                w_input = st.session_state.get(f"watch_slot_{idx}", watchlist_slots[idx]).upper().strip()
+                if w_input and "EMPTY" not in w_input:
+                    live_sidebar_bounds["watchlist_tickers"].append(w_input)
+            
+            with open(TARGETS_FILE, 'w') as f:
+                json.dump(live_sidebar_bounds, f, indent=4)
+            
+            synced_ok = push_targets_to_github(live_sidebar_bounds)
+            
+            if synced_ok:
+                from zoneinfo import ZoneInfo
+                nz_tz = ZoneInfo("Pacific/Auckland")
+                st.session_state["last_cloud_save_time"] = datetime.now(nz_tz).strftime("%I:%M:%S %p %Z")
+                st.toast("Matrix parameters committed and synced successfully!")
+            else:
+                st.session_state["last_cloud_save_time"] = "⚠️ Connection Refused by GitHub"
+                
+            st.cache_data.clear()
+            st.rerun()
+
+st.markdown("---")
 
 def get_live_fx_rates():
     nzd_rate, aud_rate = 1.6500, 1.1000  
@@ -675,126 +775,111 @@ if macro_sector_rows:
         }
     )
 # ==============================================================================
-# MIKE'S SHARE MARKET DASHBOARD: TRADING JOURNAL LOOPS (PART 4C - BLOCK 2)
+# MIKE'S SHARE MARKET DASHBOARD: LAYER E POSITION CALCULATOR (PART 4C - BLOCKS 2 & 3)
 # ==============================================================================
 st.markdown("---")
-st.markdown("#### 📝 Layer D: Advanced Performance Journal Log")
-JOURNAL_FILE = "trading_journal.json"
+st.markdown("#### 📐 Layer E: Volatility-Adjusted Position Sizing Calculator")
 
-def load_trading_journal():
-    if os.path.exists(JOURNAL_FILE):
-        try:
-            with open(JOURNAL_FILE, 'r') as f: return json.load(f)
-        except: return []
-    return []
+# 1. Establish a unified, clean list of target assets available for calculation
+calculator_tickers = [t for t in all_active_workspace_tickers if t in operational_dfs]
+calculator_tickers = [t for t in calculator_tickers if t and "EMPTY" not in t]
 
-def save_trading_journal(journal_data):
-    with open(JOURNAL_FILE, 'w') as f: json.dump(journal_data, f, indent=4)
+if calculator_tickers:
+    calc_col1, calc_col2 = st.columns([1, 2])
+    
+    with calc_col1:
+        st.markdown("<p style='font-size: 1.1rem; font-weight: bold; color: #4A90E2; margin-bottom: 2px;'>⚙️ Risk Parameters</p>", unsafe_allow_html=True)
+        
+        # Interactive Asset Sizer Selector
+        selected_calc_ticker = st.selectbox(
+            "Target Execution Asset:", 
+            options=calculator_tickers, 
+            key="layer_e_ticker_select"
+        )
+        
+        # User defined total account risk parameter in local currency
+        max_risk_nzd = st.number_input(
+            "Max Account Risk Allowed (NZD $):", 
+            min_value=5.00, 
+            max_value=5000.00, 
+            value=150.00, 
+            step=25.00, 
+            format="%.2f",
+            key="layer_e_max_risk_input"
+        )
+        
+        st.markdown("---")
+        st.markdown("📋 **Your Available Funding Vaults:**")
+        st.markdown(f"• **NZD Wallet:** ${cash_nzd:,.2f}")
+        st.markdown(f"• **AUD Wallet:** ${cash_aud:,.2f}")
+        st.markdown(f"• **USD Wallet:** ${cash_usd:,.2f}")
 
-current_journal = load_trading_journal()
-management_col1, management_col2 = st.columns(2)
+    # Extract historical calculations for selected asset safely
+    asset_df = operational_dfs[selected_calc_ticker]
+    latest_bar = asset_df.iloc[-1]
+    
+    calc_close = float(latest_bar['Close'])
+    calc_atr = float(latest_bar['ATR']) if 'ATR' in latest_bar else (calc_close * 0.02)
+    calc_fast_ma = float(latest_bar['Fast_MA']) if 'Fast_MA' in latest_bar else calc_close
+    calc_slow_ma = float(latest_bar['Slow_MA']) if 'Slow_MA' in latest_bar else calc_close
+    
+    # Identify native market layer to align currency metrics
+    is_nz = selected_calc_ticker.endswith(".NZ")
+    is_au = selected_calc_ticker.endswith(".AX")
+    is_us = not (is_nz or is_au)
+    
+    native_currency = "USD" if is_us else ("AUD" if is_au else "NZD")
+    fx_multiplier = usd_to_nzd_rate if is_us else (aud_to_nzd_rate if is_au else 1.0)
+    
+    # 2. RUN QUANTITATIVE RISK SIZING CALCULATIONS
+    # Enforce strict 2x ATR Volatility noise cushion
+    stop_loss_distance_native = 2.0 * calc_atr
+    risk_per_share_nzd = stop_loss_distance_native * fx_multiplier
+    
+    # Determine maximum mathematical shares to purchase based on risk limits
+    computed_shares = max_risk_nzd / risk_per_share_nzd if risk_per_share_nzd > 0 else 0.0
+    total_capital_required_native = computed_shares * calc_close
+    total_capital_required_nzd = total_capital_required_native * fx_multiplier
+    
+    # Derive targeted pullback execution limit boundary
+    limit_entry_target = round(calc_close - (1.0 * calc_atr), 2)
+    stop_floor_target = round(calc_close - stop_loss_distance_native, 2)
 
-with management_col1:
-    with st.expander("🗑️ Database Administrative Controls (Delete Rows)"):
-        if current_journal:
-            deletion_options = [
-                f"[{i}] {row['Date']} | {row['Ticker']} | {row['Action']} | {row['Shares']} Shares @ ${row['Price']:.2f}"
-                for i, row in enumerate(current_journal)
-            ]
-            selected_row_to_kill = st.selectbox("Select Record Row to Permanently Remove:", options=deletion_options)
-            if st.button("❌ Delete Selected Record Match", use_container_width="stretch"):
-                target_idx = int(selected_row_to_kill.split(']')[0].replace('[', ''))
-                removed_item = current_journal.pop(target_idx)
-                save_trading_journal(current_journal)
-                st.toast(f"Removed record entry for {removed_item['Ticker']} successfully.")
-                st.rerun()
+    with calc_col2:
+        st.markdown(f"<p style='font-size: 1.1rem; font-weight: bold; color: #00FF66; margin-bottom: 2px;'>⚡ Mathematical Sizing Blueprint ({selected_calc_ticker})</p>", unsafe_allow_html=True)
+        
+        # High-visibility metric display cards
+        m_col1, m_col2, m_col3 = st.columns(3)
+        with m_col1:
+            st.metric("Optimal Execution Size", f"{computed_shares:.4f} Shares")
+        with m_col2:
+            st.metric("Limit Entry Trigger", f"${limit_entry_target:.2f} {native_currency}")
+        with m_col3:
+            st.metric("2x ATR Protective Stop", f"${stop_floor_target:.2f} {native_currency}")
+            
+        # Contextual funding summary and currency optimization alerts
+        st.markdown("### 🧮 Position Funding & Capital Breakdown")
+        
+        # Check if native wallet cash can cover the full deployment cost
+        available_native_cash = cash_usd if is_us else (cash_aud if is_au else cash_nzd)
+        cash_gap_native = total_capital_required_native - available_native_cash
+        
+        if cash_gap_native <= 0:
+            funding_status = f"🟩 **Vault Verified:** Your native **{native_currency}** cash wallet handles this full size comfortably."
         else:
-            st.info("No active records available to modify or delete.")
+            cash_gap_nzd = cash_gap_native * fx_multiplier
+            funding_status = f"🟨 **FX Conversion Buffer Needed:** Convert an additional **${cash_gap_nzd:,.2f} NZD** inside Sharesies to cover this setup."
 
-with management_col2:
-    if current_journal:
-        export_rows = []
-        inventory_pool = {}
-        for row in sorted(current_journal, key=lambda x: x['Date']):
-            row_copy = row.copy()
-            tk = row_copy['Ticker']
-            row_copy['Realized PnL'] = "-"
-            row_copy['PnL ROI (%)'] = "-"
-            if "BUY" in row_copy['Action']:
-                if tk not in inventory_pool: inventory_pool[tk] = []
-                inventory_pool[tk].append({'price': row_copy['Price'], 'shares': row_copy['Shares']})
-                export_rows.append(row_copy)
-            elif "SELL" in row_copy['Action']:
-                if tk in inventory_pool and inventory_pool[tk]:
-                    matched_buy = inventory_pool[tk][0]
-                    cost_basis = matched_buy['price']
-                    abs_pnl = (row_copy['Price'] - cost_basis) * row_copy['Shares']
-                    pct_roi = ((row_copy['Price'] - cost_basis) / cost_basis) * 100
-                    row_copy['Realized PnL'] = f"${abs_pnl:.2f}"
-                    row_copy['PnL ROI (%)'] = f"{pct_roi:.2f}%"
-                    if row_copy['Shares'] >= matched_buy['shares']: inventory_pool[tk].pop(0)
-                export_rows.append(row_copy)
-        raw_export_df = pd.DataFrame(export_rows).iloc[::-1]
-        if 'Action' in raw_export_df.columns:
-            raw_export_df['Action'] = raw_export_df['Action'].astype(str).str.replace("🔵 ", "", regex=False).str.replace("🔴 ", "", regex=False)
-        if 'Setup Catalyst' in raw_export_df.columns:
-            raw_export_df['Setup Catalyst'] = raw_export_df['Setup Catalyst'].astype(str).str.replace("🌟 ", "", regex=False).str.replace("🟩 ", "", regex=False).str.replace("📐 ", "", regex=False).str.replace("📈 ", "", regex=False).str.replace("🟢 ", "", regex=False).str.replace("⏱️ ", "", regex=False)
-        if 'Price' in raw_export_df.columns: raw_export_df['Price'] = raw_export_df['Price'].apply(lambda x: f"${float(x):.2f}")
-        if 'Total (Local)' in raw_export_df.columns: raw_export_df['Total (Local)'] = raw_export_df['Total (Local)'].apply(lambda x: f"${float(x):.2f}")
-        csv_buffer = raw_export_df.to_csv(index=False).encode('utf-8-sig')
-        st.download_button(label="📥 Export Ledger to Excel (.CSV)", data=csv_buffer, file_name=f"mikes_trading_journal_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv", use_container_width="stretch")
-    else: st.button("📥 Export Ledger to Excel (.CSV)", disabled=True, use_container_width="stretch")
-# ==============================================================================
-# MIKE'S SHARE MARKET DASHBOARD: TRADING LEDGER FORMS (PART 4C - BLOCK 3)
-# ==============================================================================
-with st.expander("➕ Log a New Trade Execution Entry", expanded=False):
-    form_col1, form_col2, form_col3 = st.columns(3)
-    with form_col1:
-        log_ticker = st.text_input("Ticker Symbol", value="AAPL", placeholder="E.g., AAPL, TSLA", key="journal_ticker_input").upper().strip()
-        log_type = st.selectbox("Action Type", options=["🔵 BUY / ENTRY", "🔴 SELL / EXIT"], key="journal_type")
-        log_date = st.date_input("Execution Date", datetime.now(), key="journal_date_input")
-    with form_col2:
-        log_shares = st.number_input("Shares Transacted", min_value=0.0000, value=0.0000, step=0.0001, format="%.4f", key="journal_shares_input")
-        log_price = st.number_input("Execution Price ($)", min_value=0.00, value=0.00, step=0.01, format="%.2f", key="journal_price_input")
-    with form_col3:
-        log_catalyst = st.selectbox("Indicator Setup Catalyst", options=["🌟 STRONG BUY Ruleset Match", "🟩 Bullish Long MA Crossover", "📐 Chandelier Trailing Floor Invalidation", "📈 RSI Overbought Profit Scale-Out", "🟢 RSI Oversold Bounce Entry", "⏱️ Manual Discretionary Trade"], key="journal_cat_input")
-        log_notes = st.text_area("Session Observations / Compliance Notes", placeholder="E.g., Followed 2x ATR rule cushion perfectly.", key="journal_notes_input")
-    if st.button("🚀 Commit Execution to Local Database", use_container_width="stretch"):
-        if log_shares <= 0 or log_price <= 0: st.error("❌ Submission Denied: Shares and Price must be greater than zero.")
+        st.markdown(f"""
+        * **Total Position Capital Sizing:** ${total_capital_required_native:,.2f} {native_currency}  *(Equivalent to ${total_capital_required_nzd:,.2f} NZD)*
+        * **Cushion Distance Risk:** ${stop_loss_distance_native:.2f} {native_currency} per share down to structural floor.
+        * **Portfolio Funding Status:** {funding_status}
+        """)
+        
+        # Traffic Light Signal Warning pass back to verify entry timing
+        if calc_close > calc_fast_ma and calc_close > calc_slow_ma:
+            st.markdown("""<div style='padding: 8px; background-color: #1A2E3B; border-left: 5px solid #38BDF8; font-size: 0.95rem; font-weight: bold; color: #FFFFFF;'>🌟 ASSET RUNNING CONSTRUCTIVE MOMENTUM: Execution blueprint calibrated to buy structural pullbacks.</div>""", unsafe_allow_html=True)
         else:
-            new_log_entry = {"Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Ticker": log_ticker, "Action": log_type, "Date": log_date.strftime("%Y-%m-%d"), "Shares": float(log_shares), "Price": float(log_price), "Total (Local)": float(log_shares * log_price), "Setup Catalyst": log_catalyst, "Notes": log_notes}
-            current_journal.append(new_log_entry)
-            save_trading_journal(current_journal)
-            st.success(f"✅ Successfully logged execution for {log_ticker}!")
-            st.rerun()
-
-processed_display_rows, running_career_pnl, inventory_buy_pool = [], 0.0, {}
-for row in sorted(current_journal, key=lambda x: x['Date']):
-    row_copy = row.copy()
-    ticker = row_copy['Ticker']
-    row_copy['Realized PnL ($)'] = "-"
-    row_copy['PnL ROI (%)'] = "-"
-    if "BUY" in row_copy['Action']:
-        if ticker not in inventory_buy_pool: inventory_buy_pool[ticker] = []
-        inventory_buy_pool[ticker].append({'price': row_copy['Price'], 'shares': row_copy['Shares']})
-        processed_display_rows.append(row_copy)
-    elif "SELL" in row_copy['Action']:
-        if ticker in inventory_buy_pool and inventory_buy_pool[ticker]:
-            matched_buy_event = inventory_buy_pool[ticker]
-            cost_basis_per_share = matched_buy_event['price']
-            absolute_pnl = (row_copy['Price'] - cost_basis_per_share) * row_copy['Shares']
-            pnl_percentage_efficiency = ((row_copy['Price'] - cost_basis_per_share) / cost_basis_per_share) * 100
-            row_copy['Realized PnL ($)'] = f"${absolute_pnl:,.2f}"
-            row_copy['PnL ROI (%)'] = f"{pnl_percentage_efficiency:.2f}%"
-            running_career_pnl += absolute_pnl
-            if row_copy['Shares'] >= matched_buy_event['shares']: inventory_buy_pool[ticker].pop(0)
-        processed_display_rows.append(row_copy)
-
-st.markdown("<p class='small-header'>📋 Live Execution Ledger & Profit Reconciliations</p>", unsafe_allow_html=True)
-if processed_display_rows:
-    display_df = pd.DataFrame(processed_display_rows).iloc[::-1]
-    st.dataframe(display_df, use_container_width="stretch", hide_index=True, column_config={"Shares": st.column_config.NumberColumn(format="%.4f"), "Price": st.column_config.NumberColumn(format="$%.2f"), "Total (Local)": st.column_config.NumberColumn(format="$%.2f"), "Realized PnL ($)": st.column_config.TextColumn("Realized PnL ($)"), "PnL ROI (%)": st.column_config.TextColumn("PnL ROI (%)")})
-    pnl_banner_color = "#28a745" if running_career_pnl >= 0 else "#dc3545"
-    pnl_sign_symbol = "+" if running_career_pnl >= 0 else ""
-    st.markdown(f"""<div style='background-color: #1A1E24; padding: 10px; border-radius: 4px; border-right: 5px solid {pnl_banner_color}; font-size: 1.05rem; font-weight: bold; color: #FFFFFF;'>📈 Cumulative Career Ledger Trading Performance: <span style='color: {pnl_banner_color};'>{pnl_sign_symbol}${running_career_pnl:,.2f} USD Total Realized Cash Velocity</span></div>""", unsafe_allow_html=True)
-else: st.info("💡 Your trading journal database is empty. Add entries above to construct historical accounting lines.")
+            st.markdown("""<div style='padding: 8px; background-color: #2E1A1A; border-left: 5px solid #EF4444; font-size: 0.95rem; font-weight: bold; color: #FFFFFF;'>⚠️ STRUCTURAL BEAR WARNING: Asset is trading underneath core moving average baselines. Scaledown deployment sizes recommended.</div>""", unsafe_allow_html=True)
+else:
+    st.info("💡 Layer E Standby: Add active stock tickers into your Portfolio or Watchlist sidebar slots to run sizing risk simulations.")

@@ -1,5 +1,5 @@
 # ==============================================================================
-# MIKE'S QUANT ALPHA HUNTER: CONFIG & THEME SETUP (PART 1 OF 3)
+# MIKE'S QUANT ALPHA HUNTER: CONFIG & MASTER STRUCTURAL POOL (PART 1 OF 3)
 # ==============================================================================
 import streamlit as st
 import yfinance as yf
@@ -26,6 +26,11 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+TARGETS_FILE = "portfolio_targets.json"
+CACHE_FILE = "alpha_hunter_cache.json"
+NAMES_CACHE_FILE = "alpha_names_cache.json"
+CACHE_TTL_MINUTES = 120
+
 def apply_alpha_signal_theme(df):
     def style_breakout_rows(row):
         styles = [''] * len(row)
@@ -43,18 +48,12 @@ def apply_alpha_signal_theme(df):
         return styles
     return df.style.apply(style_breakout_rows, axis=1)
 
-TARGETS_FILE = "portfolio_targets.json"
-CACHE_FILE = "alpha_hunter_cache.json"
-NAMES_CACHE_FILE = "alpha_names_cache.json"
-CACHE_TTL_MINUTES = 120
-
+# --- RUNTIME CONTROLS ---
 disk_memory = {}
 if os.path.exists(TARGETS_FILE):
     try:
         with open(TARGETS_FILE, 'r') as f: disk_memory = json.load(f)
-    except Exception: pass
-
-if "local_name_map" not in disk_memory: disk_memory["local_name_map"] = {}
+    except: pass
 
 runtime_sliders = disk_memory.get("sliders", {})
 default_fast_ma = int(runtime_sliders.get("fast_ma", 10))
@@ -66,44 +65,31 @@ if "asset_fast_ma" not in st.session_state: st.session_state["asset_fast_ma"] = 
 if "asset_slow_ma" not in st.session_state: st.session_state["asset_slow_ma"] = default_slow_ma
 if "asset_roi" not in st.session_state: st.session_state["asset_roi"] = default_roi
 if "asset_horizon" not in st.session_state: st.session_state["asset_horizon"] = default_horizon
-
 if "view_mode_choice" not in st.session_state: st.session_state["view_mode_choice"] = "Entire Universe"
 if "max_share_price_cap" not in st.session_state: st.session_state["max_share_price_cap"] = 50.0
 
 with st.sidebar:
     st.markdown("### 🛠️ Research Settings")
-    st.selectbox("Screening Window", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], key="asset_roi", on_change=lambda: st.rerun())
-    st.selectbox("Scanner Chart Horizon", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], key="asset_horizon", on_change=lambda: st.rerun())
-    st.selectbox("Fast MA (weeks)", [5, 10, 20, 50], index=[5, 10, 20, 50].index(st.session_state["asset_fast_ma"]) if st.session_state["asset_fast_ma"] in [5, 10, 20, 50] else 1, key="asset_fast_ma", on_change=lambda: st.rerun())
-    st.selectbox("Slow MA (weeks)", [25, 50, 100], index=[25, 50, 100].index(st.session_state["asset_slow_ma"]) if st.session_state["asset_slow_ma"] in [25, 50, 100] else 1, key="asset_slow_ma", on_change=lambda: st.rerun())
-
+    st.selectbox("Screening Window", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], key="asset_roi")
+    st.selectbox("Scanner Chart Horizon", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], key="asset_horizon")
+    st.selectbox("Fast MA (weeks)", [5, 10, 20, 50], index=[5, 10, 20, 50].index(st.session_state["asset_fast_ma"]) if st.session_state["asset_fast_ma"] in [5, 10, 20, 50] else 1, key="asset_fast_ma")
+    st.selectbox("Slow MA (weeks)", [25, 50, 100], index=[25, 50, 100].index(st.session_state["asset_slow_ma"]) if st.session_state["asset_slow_ma"] in [25, 50, 100] else 1, key="asset_slow_ma")
     st.markdown("---")
     st.markdown("### 🎯 Sizing Filters")
-    st.radio("Viewing Mode:", ["Entire Universe", "Budget-Friendly Assets"], key="view_mode_choice", on_change=lambda: st.rerun())
-    
+    st.radio("Viewing Mode:", ["Entire Universe", "Budget-Friendly Assets"], key="view_mode_choice")
     if st.session_state["view_mode_choice"] == "Budget-Friendly Assets":
-        st.slider("Max Entry Share Price Limit ($):", min_value=2.00, max_value=150.00, value=float(st.session_state["max_share_price_cap"]), step=1.00, format="$%.2f", key="max_share_price_cap", on_change=lambda: st.rerun())
-
-fast_ma_input = st.session_state["asset_fast_ma"]
-slow_ma_input = st.session_state["asset_slow_ma"]
-selected_timeframe = st.session_state["asset_roi"]
-chart_timeframe_choice = st.session_state["asset_horizon"]
+        st.slider("Max Entry Share Price Limit ($):", min_value=2.00, max_value=150.00, value=float(st.session_state["max_share_price_cap"]), step=1.00, format="$%.2f", key="max_share_price_cap")
 
 st.title("🔍 Asset Finder")
 st.caption("Standalone Laboratory Analysis & Market Screeners")
-# ==============================================================================
-# MASTER STRUCTURAL POOL: ALL NZX50, ASX200, & S&P 500 STOCKS (PART A)
-# ==============================================================================
+
 institutional_scan_pool = [
-    # --- FULL NEW ZEALAND S&P/NZX 50 COMPONENTS ---
     "AIA.NZ", "EBO.NZ", "FPH.NZ", "IFT.NZ", "MCY.NZ", "MEL.NZ", "MFT.NZ", "SPK.NZ", 
     "CNU.NZ", "CEN.NZ", "FBU.NZ", "RYM.NZ", "ATM.NZ", "AIR.NZ", "ARG.NZ", "GNE.NZ",
     "KPG.NZ", "OCA.NZ", "PCT.NZ", "PFI.NZ", "SUM.NZ", "THL.NZ", "WHS.NZ", "HGH.NZ", 
     "KMD.NZ", "PEB.NZ", "SAN.NZ", "SKC.NZ", "SKT.NZ", "ANZ.NZ", "ERD.NZ", "FRW.NZ", 
     "IPL.NZ", "NZX.NZ", "POT.NZ", "SCL.NZ", "SKL.NZ", "SKO.NZ", "SML.NZ", "VCT.NZ", 
     "VGL.NZ", "VHP.NZ", "WBC.NZ", "FSF.NZ", "GNZ.NZ", "GTK.NZ", "PFI.NZ", "FRE.NZ",
-
-    # --- S&P/ASX 200 COHORT 1 ---
     "BHP.AX", "CBA.AX", "CSL.AX", "NAB.AX", "WBC.AX", "ANZ.AX", "WDS.AX", "TLS.AX",
     "WOW.AX", "WES.AX", "RIO.AX", "FMG.AX", "MQG.AX", "REA.AX", "XRO.AX", "QAN.AX",
     "APA.AX", "AGL.AX", "AMC.AX", "AMP.AX", "ASX.AX", "BEN.AX", "BOQ.AX", "BSL.AX",
@@ -111,8 +97,6 @@ institutional_scan_pool = [
     "JHX.AX", "LLC.AX", "LYC.AX", "MIN.AX", "MGR.AX", "MPL.AX", "NST.AX", "ORG.AX",
     "ORI.AX", "PLS.AX", "QBE.AX", "RHC.AX", "RMD.AX", "SCG.AX", "SHL.AX", "STO.AX",
     "SUN.AX", "TAH.AX", "TCL.AX", "TNE.AX", "TPG.AX", "TWE.AX", "VCX.AX", "WOR.AX",
-
-    # --- S&P 500 BULK INITIAL COHORT ---
     "AAPL", "MSFT", "GOOGL", "AMZN", "META", "BRK-B", "JNJ", "V", "PG", "WMT",
     "LLY", "UNH", "HD", "XOM", "CVX", "MA", "MRK", "PEP", "KO", "COST",
     "NVDA", "AMD", "AVGO", "QCOM", "ASML", "INTC", "MU", "ARM", "SMCI", "PLTR",
@@ -120,8 +104,7 @@ institutional_scan_pool = [
     "TSLA", "MSTR", "COIN", "HOOD", "DKNG", "SHOP", "NFLX", "DIS", "JPM", "BAC",
     "F", "GM", "AAL", "DAL", "UAL", "KRE", "XBI", "PFE", "KVUE", "T", "VZ", "CMCSA",
     "HPQ", "HPE", "BMY", "NEM", "GOLD", "HBAN", "KEY", "RF", "FITB", "NYCB", "SOFI",
-    "SNAP", "U", "CLF", "X", "AA", "FCX", "SBUX", "CSCO", "ACN", "TXN", "IBM", "AMAT"
-    # --- S&P 500 COHORT 2: FINANCIALS, HEALTHCARE & INDUSTRY ---
+    "SNAP", "U", "CLF", "X", "AA", "FCX", "SBUX", "CSCO", "ACN", "TXN", "IBM", "AMAT",
     "GS", "MS", "WFC", "C", "BLK", "AXP", "INTU", "PGR", "CB", "BX", "SCHW", "MMC",
     "AON", "COR", "CI", "BMY", "AMGN", "GILD", "ABT", "MDT", "ISRG", "REGN", "VRTX",
     "GEV", "WM", "NOC", "GD", "ETN", "PH", "CSX", "NSC", "NKE", "MCD", "TJX", "ORLY",
@@ -129,8 +112,7 @@ institutional_scan_pool = [
     "TMUS", "CHTR", "EA", "TTWO", "RBLX", "OKTA", "SPLK", "APTV", "BWA", "ALV", "MGM",
     "WYNN", "LVS", "RCL", "CCL", "NCLH", "DRI", "YUM", "DPZ", "WEN", "QSR", "LEN",
     "DHI", "PHM", "TOL", "NVR", "GRMN", "HAS", "MAT", "POOL", "TSCO", "BBY", "LCID",
-    "RIVN", "STLA", "HMC", "TM", "BLNK", "CHPT", "TSM", "ON", "NXPI", "MCHP", "MPWR"
-    # --- S&P 500 COHORT 3: ENERGY, UTILITIES & INDUSTRIAL CYCLICALS ---
+    "RIVN", "STLA", "HMC", "TM", "BLNK", "CHPT", "TSM", "ON", "NXPI", "MCHP", "MPWR",
     "MRVL", "SWKS", "QRVO", "WOLF", "INFY", "WIT", "CTSH", "EPAM", "FICO", "GEN",
     "ANSS", "PTC", "ADSK", "CDNS", "SNPS", "VRSN", "AKAM", "DD", "DOW", "ECL",
     "CTVA", "APD", "SHW", "PPG", "GOLD", "AEM", "HMY", "AU", "BTG", "LNG",
@@ -144,190 +126,166 @@ institutional_scan_pool = [
     "CBOE", "NDAQ", "CME", "ICE", "MKTX", "GE", "HON", "UNP", "LMT", "RTX"
 ]
 
-# ==============================================================================
-# MIKE'S QUANT ALPHA HUNTER: DICTIONARY & CACHE ENGINE (PART 2 - HALF 1)
-# ==============================================================================
 local_name_map = {
     "F": "Ford Motor Co.", "GM": "General Motors", "PFE": "Pfizer Inc.", "T": "AT&T Inc.",
     "VZ": "Verizon Communications", "AAL": "American Airlines", "DAL": "Delta Air Lines",
     "SOFI": "SoFi Technologies", "PLTR": "Palantir Technologies", "AIR.NZ": "Air New Zealand",
     "SPK.NZ": "Spark NZ", "FBU.NZ": "Fletcher Building", "TLS.AX": "Telstra Group"
 }
-
+# --- ST.CACHE PERFORMANCE ENGINE MAPS ---
+@st.cache_data(ttl=7200)
 def calculate_indicators_only(df, fast_ma, slow_ma):
     df = df.copy()
     if df.empty or len(df) < max(fast_ma, slow_ma, 30): return df
     close_series, high_series, low_series = df['Close'].astype(float), df['High'].astype(float), df['Low'].astype(float)
-    
     df['Fast_MA'] = close_series.rolling(window=int(fast_ma)).mean()
     df['Slow_MA'] = close_series.rolling(window=int(slow_ma)).mean()
-    
     rolling_mean_20 = close_series.rolling(window=20).mean()
     rolling_std_20 = close_series.rolling(window=20).std()
     df['Lower_Bollinger_Band'] = rolling_mean_20 - (2 * rolling_std_20)
-    
     tr1 = high_series - low_series
     tr2, tr3 = (high_series - close_series.shift(1)).abs(), (low_series - close_series.shift(1)).abs()
     df['True_Range'] = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
     df['ATR'] = df['True_Range'].rolling(window=14).mean()
     df['Avg_Volume_20D'] = df['Volume'].rolling(window=20).mean() if 'Volume' in df.columns else 1.0
-        
     delta = close_series.diff()
     gain, loss = delta.clip(lower=0), -delta.clip(upper=0)
     avg_gain = gain.ewm(alpha=1/14, adjust=False).mean()
     avg_loss = loss.ewm(alpha=1/14, adjust=False).mean()
-    
     rs = avg_gain / avg_loss.replace(0, np.nan)
     df['RSI'] = 100 - (100 / (1 + rs)).fillna(50)
     df['MACD'] = close_series.ewm(span=12, adjust=False).mean() - close_series.ewm(span=26, adjust=False).mean()
     df['Signal_Line'] = df['MACD'].ewm(span=9, adjust=False).mean()
     return df
 
+@st.cache_data(ttl=7200)
 def fetch_all_market_data_batch(ticker_list, start_date):
-    if os.path.exists(CACHE_FILE):
-        file_mod_time = datetime.fromtimestamp(os.path.getmtime(CACHE_FILE))
-        if datetime.now() - file_mod_time < timedelta(minutes=CACHE_TTL_MINUTES):
-            try:
-                df_cached = pd.read_json(CACHE_FILE)
-                df_cached.index = pd.to_datetime(df_cached.index)
-                df_cached.columns = pd.MultiIndex.from_tuples([eval(col) if col.startswith("(") else (col, "Close") for col in df_cached.columns])
-                return df_cached
-            except Exception: pass
-            
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.abspath(os.path.join(current_dir, ".."))
+    resolved_cache_path = os.path.join(project_root, CACHE_FILE)
+    if os.path.exists(resolved_cache_path):
+        try:
+            df_flat = pd.read_json(resolved_cache_path)
+            df_flat.index = pd.to_datetime(df_flat.index)
+            new_tuples = [eval(col) if col.startswith("(") else (col, "Close") for col in df_flat.columns]
+            df_flat.columns = pd.MultiIndex.from_tuples(new_tuples)
+            return df_flat
+        except: pass
     try:
         unique_tickers = list(dict.fromkeys(ticker_list))
         chunk_size = 100
         chunked_dfs = []
-        
-        loading_slot = st.empty()
-        loading_slot.info(f"🔄 Cache expired. Downloading market data in optimized structural chunks...")
-        
         for i in range(0, len(unique_tickers), chunk_size):
             sub_list = unique_tickers[i:i+chunk_size]
             df_chunk = yf.download(sub_list, start=start_date, interval="1wk", group_by='ticker', actions=False, threads=True, progress=False)
-            if not df_chunk.empty:
-                chunked_dfs.append(df_chunk)
-                
-        loading_slot.empty()
-        
+            if not df_chunk.empty: chunked_dfs.append(df_chunk)
         if chunked_dfs:
             df_live = pd.concat(chunked_dfs, axis=1)
             df_serializable = df_live.copy()
             df_serializable.columns = [str(col) for col in df_serializable.columns]
-            df_serializable.to_json(CACHE_FILE)
+            df_serializable.to_json(resolved_cache_path)
             return df_live
-            
-    except Exception as e: 
-        st.sidebar.error(f"Batch Connection Interrupted: {str(e)}")
-        return pd.DataFrame()
-# ==============================================================================
-# MIKE'S QUANT ALPHA HUNTER: SCREENING LOOPS (PART 2 - HALF 2)
-# ==============================================================================
-def extract_ticker_dataframe(df_all, ticker):
+    except: pass
+    return pd.DataFrame()
+# --- INSTANT RUNTIME CORE PROCESSING MATRIX TRAP ---
+@st.cache_data(ttl=7200)
+def process_entire_screening_universe(fast_ma, slow_ma):
+    lookback_start_date = datetime.now() - timedelta(days=730 + 250)
+    raw_batch = fetch_all_market_data_batch(institutional_scan_pool, lookback_start_date)
+    
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.abspath(os.path.join(current_dir, ".."))
+    resolved_names_path = os.path.join(project_root, NAMES_CACHE_FILE)
+    
     try:
-        if df_all.empty or ticker not in df_all.columns.get_level_values(0):
-            return pd.DataFrame(columns=['Open', 'High', 'Low', 'Close', 'Volume'])
-        df = df_all[ticker].copy()
-        df.columns = [str(c).title() for c in df.columns]
-        return df.dropna(subset=['Open', 'High', 'Low', 'Close'])
-    except: return pd.DataFrame(columns=['Open', 'High', 'Low', 'Close', 'Volume'])
-
-lookback_days_map = {"1 Month": 30, "3 Months": 90, "6 Months": 180, "1 Year": 365, "2 Years": 730}
-chosen_lookback_days = lookback_days_map.get(chart_timeframe_choice, 365)
-lookback_start_date = datetime.now() - timedelta(days=lookback_days_map["2 Years"] + 250)
-
-RAW_MARKET_BATCH = fetch_all_market_data_batch(institutional_scan_pool, lookback_start_date)
-breakout_rows, discount_rows, operational_dfs = [], [], {}
-unique_scan_pool = list(dict.fromkeys(institutional_scan_pool))
-
-for ticker in unique_scan_pool:
-    hist_df = extract_ticker_dataframe(RAW_MARKET_BATCH, ticker)
-    if hist_df.empty or len(hist_df) < max(fast_ma_input, slow_ma_input, 30): continue
-    
-    df_calc = calculate_indicators_only(hist_df, fast_ma_input, slow_ma_input)
-    operational_dfs[ticker] = df_calc
-    
-    last_close = float(df_calc['Close'].iloc[-1])
-    if st.session_state.get("view_mode_choice") == "Budget-Friendly Assets":
-        if last_close > float(st.session_state.get("max_share_price_cap", 50.0)):
-            continue
-
-    # --- ACTIVE USER BUDGET PRICE FILTRATION CONTROL ---
-    if st.session_state["view_mode_choice"] == "Budget-Friendly Assets":
-        if last_close > float(st.session_state["max_share_price_cap"]):
-            continue
-
-    prev_close = float(df_calc['Close'].iloc[-2]) if len(df_calc) > 1 else last_close
-    pct_change = ((last_close - prev_close) / prev_close) * 100
-    
-    fast_ma_val = float(df_calc['Fast_MA'].iloc[-1]) if 'Fast_MA' in df_calc.columns else last_close
-    slow_ma_val = float(df_calc['Slow_MA'].iloc[-1]) if 'Slow_MA' in df_calc.columns else last_close
-    rsi_val = float(df_calc['RSI'].iloc[-1]) if 'RSI' in df_calc.columns else 50.0
-    macd_val = float(df_calc['MACD'].iloc[-1]) if 'MACD' in df_calc.columns else 0.0
-    sig_val = float(df_calc['Signal_Line'].iloc[-1]) if 'Signal_Line' in df_calc.columns else 0.0
-    atr_val = float(df_calc['ATR'].iloc[-1]) if 'ATR' in df_calc.columns else 0.0
-    bb_lower_val = float(df_calc['Lower_Bollinger_Band'].iloc[-1]) if 'Lower_Bollinger_Band' in df_calc.columns else last_close
-
-    current_volume = int(df_calc['Volume'].iloc[-1]) if 'Volume' in df_calc.columns else 0
-    avg_volume_20d = float(df_calc['Avg_Volume_20D'].iloc[-1]) if 'Avg_Volume_20D' in df_calc.columns else 1.0
-    volume_multiple = current_volume / avg_volume_20d if avg_volume_20d > 0 else 0.0
-    
-    hist_365 = df_calc[df_calc.index >= pd.to_datetime(datetime.now() - timedelta(days=730)).tz_localize(df_calc.index.tz)] if not df_calc.empty else df_calc
-    true_52w_high, true_52w_low = float(hist_365['High'].max()), float(hist_365['Low'].min())
-    proximity_to_low_pct = ((last_close - true_52w_low) / true_52w_low) * 100
-    
-    market_label = "NZ" if ticker.endswith(".NZ") else ("AUS" if ticker.endswith(".AX") else "US")
-    
-    if last_close > fast_ma_val and last_close > slow_ma_val and volume_multiple >= 1.5:
-        breakout_signal = "🌟 STRONG BUY"
-    elif last_close > fast_ma_val and last_close <= slow_ma_val and volume_multiple >= 1.5:
-        breakout_signal = "🟢 Bullish Turning (High Volume)"
-    elif (last_close > fast_ma_val or last_close > slow_ma_val) and volume_multiple < 1.5:
-        breakout_signal = "🟡 Bullish Turning (Low Volume)"
-    else:
-        breakout_signal = "🔴 Structural Bear"
-         
-        # 1. Initialize permanent names directory on disk if missing
-    if not os.path.exists(NAMES_CACHE_FILE):
-        with open(NAMES_CACHE_FILE, 'w') as f: json.dump({}, f)
-        
-    try:
-        with open(NAMES_CACHE_FILE, 'r') as f: disk_names = json.load(f)
+        with open(resolved_names_path, 'r') as f: disk_names = json.load(f)
     except: disk_names = {}
-
-    # 2. Fast tracking lookup: pull from drive first, pull from web ONLY if empty
-    if ticker in disk_names:
-        resolved_name = disk_names[ticker]
-    else:
-        try:
-            resolved_name = yf.Ticker(ticker).info.get('longName', local_name_map.get(ticker, f"{ticker}"))
-            disk_names[ticker] = resolved_name
-            with open(NAMES_CACHE_FILE, 'w') as f: json.dump(disk_names, f, indent=4)
-        except:
-            resolved_name = local_name_map.get(ticker, f"{ticker}")
-
-    if breakout_signal != "🔴 Structural Bear":
-        safe_breakout_limit = round(fast_ma_val, 2)
-        breakout_rows.append({
-            "Market": market_label, "Ticker": ticker, "Company Name": resolved_name,
-            "Live Price": last_close, "Alert Status": breakout_signal, "Limit Entry Target": safe_breakout_limit,
-            "Vol Multiple": volume_multiple, "Daily Change %": pct_change, "RSI Momentum": rsi_val, "ATR Volatility": atr_val
-        })
-
-    if last_close <= (true_52w_low * 1.10):
-        signal_label = "🟢 Bullish Turning" if macd_val > sig_val else "🔴 Bearish Floor"
-        safe_limit_price = round(true_52w_low * 1.01, 2)
+    
+    b_rows, d_rows = [], []
+    cached_dfs = {}
+    unique_scan_pool = list(dict.fromkeys(institutional_scan_pool))
+    
+    for ticker in unique_scan_pool:
+        if raw_batch.empty or ticker not in raw_batch.columns.get_level_values(0): continue
+        hist_df = raw_batch[ticker].copy().dropna(subset=['Close'])
+        hist_df.columns = [str(c).title() for c in hist_df.columns]
+        if len(hist_df) < max(fast_ma, slow_ma, 30): continue
         
-        discount_rows.append({
-            "Market": market_label, "Ticker": ticker, "Company Name": resolved_name,
-            "Live Price": last_close, "52W Low Floor": true_52w_low, "Limit Entry Target": safe_limit_price,
-            "Lower Bollinger Band": bb_lower_val, "52W High Ceiling": true_52w_high,
-            "Proximity to Low": proximity_to_low_pct, "RSI Status": rsi_val, "MACD Signal": signal_label
-        })
-# ==============================================================================
-# MIKE'S QUANT ALPHA HUNTER: DASHBOARD INTERFACE LAYOUT (PART 3 OF 3)
-# ==============================================================================
-tab_momentum, tab_discount = st.tabs(["🔥 Breakouts", "📉 Possible Value Discounts"])
+        df_calc = calculate_indicators_only(hist_df, fast_ma, slow_ma)
+        cached_dfs[ticker] = df_calc.tail(730).to_json()
+        
+        last_close = float(df_calc['Close'].iloc[-1])
+        prev_close = float(df_calc['Close'].iloc[-2]) if len(df_calc) > 1 else last_close
+        pct_change = ((last_close - prev_close) / prev_close) * 100
+        
+        fast_ma_val = float(df_calc['Fast_MA'].iloc[-1]) if 'Fast_MA' in df_calc.columns else last_close
+        slow_ma_val = float(df_calc['Slow_MA'].iloc[-1]) if 'Slow_MA' in df_calc.columns else last_close
+        rsi_val = float(df_calc['RSI'].iloc[-1]) if 'RSI' in df_calc.columns else 50.0
+        macd_val = float(df_calc['MACD'].iloc[-1]) if 'MACD' in df_calc.columns else 0.0
+        sig_val = float(df_calc['Signal_Line'].iloc[-1]) if 'Signal_Line' in df_calc.columns else 0.0
+        atr_val = float(df_calc['ATR'].iloc[-1]) if 'ATR' in df_calc.columns else 0.0
+        bb_lower_val = float(df_calc['Lower_Bollinger_Band'].iloc[-1]) if 'Lower_Bollinger_Band' in df_calc.columns else last_close
+        current_volume = int(df_calc['Volume'].iloc[-1]) if 'Volume' in df_calc.columns else 0
+        avg_volume_20d = float(df_calc['Avg_Volume_20D'].iloc[-1]) if 'Avg_Volume_20D' in df_calc.columns else 1.0
+        volume_multiple = current_volume / avg_volume_20d if avg_volume_20d > 0 else 0.0
+        
+        hist_365 = df_calc.tail(104)
+        true_52w_high, true_52w_low = float(hist_365['High'].max()), float(hist_365['Low'].min())
+        proximity_to_low_pct = ((last_close - true_52w_low) / true_52w_low) * 100
+        market_label = "NZ" if ticker.endswith(".NZ") else ("AUS" if ticker.endswith(".AX") else "US")
+        resolved_name = disk_names.get(ticker, local_name_map.get(ticker, f"{ticker}"))
+        
+        if last_close > fast_ma_val and last_close > slow_ma_val and volume_multiple >= 1.5: breakout_signal = "🌟 STRONG BUY"
+        elif last_close > fast_ma_val and last_close <= slow_ma_val and volume_multiple >= 1.5: breakout_signal = "🟢 Bullish Turning (High Volume)"
+        elif (last_close > fast_ma_val or last_close > slow_ma_val) and volume_multiple < 1.5: breakout_signal = "🟡 Bullish Turning (Low Volume)"
+        else: breakout_signal = "🔴 Structural Bear"
+        
+        if breakout_signal != "🔴 Structural Bear":
+            b_rows.append({
+                "Market": market_label, "Ticker": ticker, "Company Name": resolved_name, "Live Price": last_close,
+                "Alert Status": breakout_signal, "Limit Entry Target": round(fast_ma_val, 2), "Vol Multiple": volume_multiple,
+                "Daily Change %": pct_change, "RSI Momentum": rsi_val, "ATR Volatility": atr_val
+            })
+        if last_close <= (true_52w_low * 1.10):
+            signal_label = "🟢 Bullish Turning" if macd_val > sig_val else "🔴 Bearish Floor"
+            d_rows.append({
+                "Market": market_label, "Ticker": ticker, "Company Name": resolved_name, "Live Price": last_close,
+                "52W Low Floor": true_52w_low, "Limit Entry Target": round(true_52w_low * 1.01, 2), "Lower Bollinger Band": bb_lower_val,
+                "52W High Ceiling": true_52w_high, "Proximity to Low": proximity_to_low_pct, "RSI Status": rsi_val, "MACD Signal": signal_label
+            })
+    return b_rows, d_rows, cached_dfs
+
+# Execute caching engine instantly
+fast_ma_input = st.session_state["asset_fast_ma"]
+slow_ma_input = st.session_state["asset_slow_ma"]
+all_breakouts, all_discounts, compressed_dfs = process_entire_screening_universe(fast_ma_input, slow_ma_input)
+
+# --- APPLY USER BUDGET FILTERS INSTANTLY IN MEMORY ---
+if st.session_state["view_mode_choice"] == "Budget-Friendly Assets":
+    max_cap = float(st.session_state["max_share_price_cap"])
+    breakout_rows = [r for r in all_breakouts if r["Live Price"] <= max_cap]
+    discount_rows = [r for r in all_discounts if r["Live Price"] <= max_cap]
+else:
+    breakout_rows, discount_rows = list(all_breakouts), list(all_discounts)
+# --- OPTIMIZED CHART FRAGMENT CONTAINER ---
+@st.fragment
+def render_isolated_chart_engine(ticker_list, key_prefix):
+    if ticker_list:
+        selected_ticker = st.radio("🛰 **Global Chart Engine Quick-Link Bar:**", options=ticker_list, horizontal=True, key=f"{key_prefix}_link_key")
+        if selected_ticker in compressed_dfs:
+            df_chart = pd.read_json(compressed_dfs[selected_ticker])
+            lookback_days_map = {"1 Month": 4, "3 Months": 12, "6 Months": 26, "1 Year": 52, "2 Years": 104}
+            weeks_to_show = lookback_days_map.get(st.session_state["asset_horizon"], 52)
+            df_chart = df_chart.tail(weeks_to_show).reset_index().rename(columns={'index': 'Date'})
+            df_chart['Date'] = pd.to_datetime(df_chart['Date']).dt.strftime('%Y-%m-%d')
+            y_scale = alt.Scale(domain=[float(df_chart[['Close', 'Fast_MA', 'Slow_MA']].min().min()) * 0.98, float(df_chart[['Close', 'Fast_MA', 'Slow_MA']].max().max()) * 1.02], zero=False)
+            base = alt.Chart(df_chart).encode(x=alt.X('Date:T', title=None)).properties(width=900, height=320)
+            final_chart = (
+                base.mark_line(color='#4A90E2', strokeWidth=3.5).encode(y=alt.Y('Close:Q', scale=y_scale, title='Price ($)')) + 
+                base.mark_line(color='#00FF66', strokeWidth=3.0).encode(y=alt.Y('Fast_MA:Q')) + 
+                base.mark_line(color='#FF3333', strokeWidth=3.0).encode(y=alt.Y('Slow_MA:Q'))
+            )
+            st.altair_chart(final_chart, use_container_width=True)
 
 with tab_momentum:
     st.markdown("<p class='small-header'>Potential Targets</p>", unsafe_allow_html=True)
@@ -339,14 +297,12 @@ with tab_momentum:
         
         page_m = st.radio("Pagination Window Control:", ["Show Tickers 1–10", "Show Tickers 11–20"], horizontal=True, key="m_page_toggle")
         sliced_breakout_df = master_breakout_df.iloc[0:10] if page_m == "Show Tickers 1–10" else master_breakout_df.iloc[10:20]
-            
-        momentum_tickers_ordered = sliced_breakout_df["Ticker"].tolist() if not sliced_breakout_df.empty else []
-        cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Live Price", "Limit Entry Target", "ATR Volatility", "Vol Multiple", "Daily Change %", "RSI Momentum"]
         
         if not sliced_breakout_df.empty:
+            cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Live Price", "Limit Entry Target", "ATR Volatility", "Vol Multiple", "Daily Change %", "RSI Momentum"]
             st.dataframe(
                 apply_alpha_signal_theme(sliced_breakout_df[[c for c in cols_order if c in sliced_breakout_df.columns]]), 
-                use_container_width=True, hide_index=True, height=440, 
+                use_container_width=True, hide_index=True, height=410, 
                 column_config={
                     "Live Price": st.column_config.NumberColumn(format="$%.2f"), 
                     "Limit Entry Target": st.column_config.NumberColumn("Pullback Limit Buy", format="$%.2f"),
@@ -356,25 +312,10 @@ with tab_momentum:
                     "RSI Momentum": st.column_config.NumberColumn(format="%.1f")
                 }
             )
+            st.markdown("---")
+            render_isolated_chart_engine(sliced_breakout_df["Ticker"].tolist(), "momentum")
         else:
             st.info("No active setups match your budget filters inside this window tier.")
-        
-        st.markdown("---")
-        if momentum_tickers_ordered:
-            selected_m_ticker = st.radio("🛰 **Global Chart Engine Quick-Link Bar:**", options=momentum_tickers_ordered, horizontal=True, key="m_link_key")
-            if selected_m_ticker in operational_dfs:
-                chart_sliced = operational_dfs[selected_m_ticker].tail(chosen_lookback_days).copy().reset_index()
-                if 'index' in chart_sliced.columns: chart_sliced = chart_sliced.rename(columns={'index': 'Date'})
-                if not chart_sliced.empty and 'Fast_MA' in chart_sliced.columns:
-                    chart_sliced['Date'] = pd.to_datetime(chart_sliced['Date']).dt.strftime('%Y-%m-%d')
-                    y_scale = alt.Scale(domain=[float(chart_sliced[['Close', 'Fast_MA', 'Slow_MA']].min().min()) * 0.98, float(chart_sliced[['Close', 'Fast_MA', 'Slow_MA']].max().max()) * 1.02], zero=False)
-                    base = alt.Chart(chart_sliced).encode(x=alt.X('Date:T', title=None)).properties(width=900, height=320)
-                    final_m_chart = (
-                        base.mark_line(color='#4A90E2', strokeWidth=3.5).encode(y=alt.Y('Close:Q', scale=y_scale, title='Price ($)')) + 
-                        base.mark_line(color='#00FF66', strokeWidth=3.0).encode(y=alt.Y('Fast_MA:Q')) + 
-                        base.mark_line(color='#FF3333', strokeWidth=3.0).encode(y=alt.Y('Slow_MA:Q'))
-                    )
-                    st.altair_chart(final_m_chart, use_container_width=True)
     else:
         st.info("No tickers matching crossover momentum velocity rules right now.")
 
@@ -388,42 +329,25 @@ with tab_discount:
         
         page_d = st.radio("Pagination Window Control:", ["Show Tickers 1–10", "Show Tickers 11–20"], horizontal=True, key="d_page_toggle")
         sliced_discount_df = master_discount_df.iloc[0:10] if page_d == "Show Tickers 1–10" else master_discount_df.iloc[10:20]
-            
-        discount_tickers_ordered = sliced_discount_df["Ticker"].tolist() if not sliced_discount_df.empty else []
-        cols_discount_order = ["Market", "Ticker", "Company Name", "Live Price", "52W Low Floor", "Limit Entry Target", "Lower Bollinger Band", "52W High Ceiling", "Proximity to Low", "RSI Status", "MACD Signal"]
         
         if not sliced_discount_df.empty:
+            cols_discount_order = ["Market", "Ticker", "Company Name", "Live Price", "52W Low Floor", "Limit Entry Target", "Lower Bollinger Band", "52W High Ceiling", "Proximity to Low", "RSI Status", "MACD Signal"]
             st.dataframe(
                 sliced_discount_df[[c for c in cols_discount_order if c in sliced_discount_df.columns]], 
-                use_container_width=True, hide_index=True, height=440, 
+                use_container_width=True, hide_index=True, height=410, 
                 column_config={
                     "Live Price": st.column_config.NumberColumn(format="$%.2f"), 
                     "52W Low Floor": st.column_config.NumberColumn(format="$%.2f"), 
-                    "Limit Entry Target": st.column_config.NumberColumn("Limit Entry Target", format="$%.2f", width="medium"),
-                    "Lower Bollinger Band": st.column_config.NumberColumn("Lower BB", format="$%.2f", width="small"),
+                    "Limit Entry Target": st.column_config.NumberColumn("Limit Entry Target", format="$%.2f"),
+                    "Lower Bollinger Band": st.column_config.NumberColumn("Lower BB", format="$%.2f"),
                     "52W High Ceiling": st.column_config.NumberColumn(format="$%.2f"), 
                     "Proximity to Low": st.column_config.NumberColumn("Distance From Low", format="%.2f%%"), 
                     "RSI Status": st.column_config.NumberColumn(format="%.1f")
                 }
             )
+            st.markdown("---")
+            render_isolated_chart_engine(sliced_discount_df["Ticker"].tolist(), "discount")
         else:
             st.info("No deep discount setups match your budget filters inside this window tier.")
-
-        st.markdown("---")
-        if discount_tickers_ordered:
-            selected_d_ticker = st.radio("🛰 **Global Chart Engine Quick-Link Bar:**", options=discount_tickers_ordered, horizontal=True, key="d_link_key")
-            if selected_d_ticker in operational_dfs:
-                chart_sliced = operational_dfs[selected_d_ticker].tail(chosen_lookback_days).copy().reset_index()
-                if 'index' in chart_sliced.columns: chart_sliced = chart_sliced.rename(columns={'index': 'Date'})
-                if not chart_sliced.empty and 'Fast_MA' in chart_sliced.columns:
-                    chart_sliced['Date'] = pd.to_datetime(chart_sliced['Date']).dt.strftime('%Y-%m-%d')
-                    y_scale = alt.Scale(domain=[float(chart_sliced[['Close', 'Fast_MA', 'Slow_MA']].min().min()) * 0.98, float(chart_sliced[['Close', 'Fast_MA', 'Slow_MA']].max().max()) * 1.02], zero=False)
-                    base = alt.Chart(chart_sliced).encode(x=alt.X('Date:T', title=None)).properties(width=900, height=320)
-                    final_d_chart = (
-                        base.mark_line(color='#4A90E2', strokeWidth=3.5).encode(y=alt.Y('Close:Q', scale=y_scale, title='Price ($)')) + 
-                        base.mark_line(color='#00FF66', strokeWidth=3.0).encode(y=alt.Y('Fast_MA:Q')) + 
-                        base.mark_line(color='#FF3333', strokeWidth=3.0).encode(y=alt.Y('Slow_MA:Q'))
-                    )
-                    st.altair_chart(final_d_chart, use_container_width=True)
     else:
         st.info("No major institutional leaders currently resting inside deep value boundaries.")

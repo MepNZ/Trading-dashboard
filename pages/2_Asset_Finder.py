@@ -287,6 +287,7 @@ def render_isolated_chart_engine(ticker_list, key_prefix):
             )
             st.altair_chart(final_chart, use_container_width=True)
 
+tab_momentum, tab_discount = st.tabs(["🔥 Breakouts", "📉 Possible Value Discounts"])
 with tab_momentum:
     st.markdown("<p class='small-header'>Potential Targets</p>", unsafe_allow_html=True)
     if breakout_rows:

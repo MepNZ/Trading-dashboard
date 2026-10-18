@@ -128,7 +128,7 @@ institutional_scan_pool = [
 
 local_name_map = {
     "F": "Ford Motor Co.", "GM": "General Motors", "PFE": "Pfizer Inc.", "T": "AT&T Inc.",
-    "VZ": "Verizon Communications", "AAL": "American Airlines", "DAL": "Delta Air Lines",
+    "MDT": "Medtronic plc","VZ": "Verizon Communications", "AAL": "American Airlines", "DAL": "Delta Air Lines",
     "SOFI": "SoFi Technologies", "PLTR": "Palantir Technologies", "AIR.NZ": "Air New Zealand",
     "SPK.NZ": "Spark NZ", "FBU.NZ": "Fletcher Building", "TLS.AX": "Telstra Group"
 }

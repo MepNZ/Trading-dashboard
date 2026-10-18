@@ -272,20 +272,19 @@ st.markdown(f"""
         </div>
        """, unsafe_allow_html=True)
 
-# ==============================================================================
 # SURGICAL ADDITION: STICKY FLOATING WORKSPACE CONTROL BAR (SCROLL-RESISTANT)
 # ==============================================================================
 # Inject the CSS to pin this container to the top view screen and forcefully align inner text blocks
 st.markdown("""
     <style>
-        /* 1. Force the target container block to stick to the absolute top viewport ceiling */
+        /* 1. Force the target container block to stick to the absolute top viewport ceiling without blocking navigation buttons */
         div[data-testid="stVerticalBlock"] > div:has(div.floating-action-toolbar) {
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
-            width: 100% !important;
-            z-index: 999999 !important;
-            background-color: #0E1117 !important; /* Matches Streamlit standard dark theme */
+            width: calc(100% - 20px) !important; 
+            z-index: 99 !important; /* UPGRADE: Lowered to allow the sidebar navigation toggle to float cleanly on top */
+            background-color: #0E1117 !important; 
             padding: 10px 40px !important;
             border-bottom: 1px solid #30363D !important;
             box-shadow: 0px 4px 15px rgba(0,0,0,0.5) !important;
@@ -299,7 +298,7 @@ st.markdown("""
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
-            transform: translateY(2px) !important; /* Forcefully nudge the string down into the absolute visual center */
+            transform: translateY(2px) !important; 
         }
         
         /* 3. Push the standard content layout down a fraction so it isn't hidden under our bar */
@@ -537,7 +536,14 @@ for ticker in all_active_workspace_tickers:
     if hist_df_sliced.empty or len(hist_df_sliced) < 2:
         hist_df_sliced = df_calc
 
-    resolved_name = disk_memory.get("local_name_map", {}).get(ticker, local_name_map.get(ticker, f"{ticker} Asset"))
+        # Check your custom overrides first, then cross-reference yfinance metadata, defaulting to the raw symbol if empty
+    resolved_name = disk_memory.get("local_name_map", {}).get(ticker, local_name_map.get(ticker, None))
+    if not resolved_name:
+        try:
+            # Safely pulls the live registration identity recorded on Yahoo Finance
+            resolved_name = yf.Ticker(ticker).info.get('longName', f"{ticker}")
+        except Exception:
+            resolved_name = f"{ticker}"
     last_close = float(df_calc['Close'].iloc[-1])
     fast_ma_val = float(df_calc['Fast_MA'].iloc[-1]) if 'Fast_MA' in df_calc.columns else last_close
     slow_ma_val = float(df_calc['Slow_MA'].iloc[-1]) if 'Slow_MA' in df_calc.columns else last_close

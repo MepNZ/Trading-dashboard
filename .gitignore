@@ -218,3 +218,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# =========================================================================
+# Mike's Share Market Suite - Data Caches & Logs
+# =========================================================================
+# Block heavy analytics caches and dynamically updated tracking data
+alpha_hunter_cache
+portfolio_market_cache.json
+trading_journal
+
+# Explicitly ensure the static name mapping dictionary is ALWAYS tracked
+!alpha_names_cache.json

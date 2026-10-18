@@ -184,28 +184,41 @@ def calculate_indicators_only(df, fast_ma, slow_ma):
     return df
 
 def fetch_all_market_data_batch(ticker_list, start_date):
-    # Absolute routing to find data caches regardless of working directories
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.abspath(os.path.join(current_dir, ".."))
     resolved_cache_path = os.path.join(project_root, CACHE_FILE)
 
+    # 1. ATTEMPT BULLETPROOF DISK LOAD
     if os.path.exists(resolved_cache_path):
         file_mod_time = datetime.fromtimestamp(os.path.getmtime(resolved_cache_path))
         if datetime.now() - file_mod_time < timedelta(minutes=CACHE_TTL_MINUTES):
             try:
-                df_cached = pd.read_json(resolved_cache_path)
-                df_cached.index = pd.to_datetime(df_cached.index)
-                df_cached.columns = pd.MultiIndex.from_tuples([eval(col) if col.startswith("(") else (col, "Close") for col in df_cached.columns])
-                return df_cached
-            except Exception: pass
+                # Load flat structure from disk
+                df_flat = pd.read_json(resolved_cache_path)
+                df_flat.index = pd.to_datetime(df_flat.index)
+                
+                # Reconstruct MultiIndex dynamically via explicit split mapping
+                new_tuples = []
+                for col in df_flat.columns:
+                    parts = col.split("---")
+                    if len(parts) == 2:
+                        new_tuples.append((parts[0], parts[1]))
+                    else:
+                        new_tuples.append((col, "Close"))
+                        
+                df_flat.columns = pd.MultiIndex.from_tuples(new_tuples)
+                return df_flat
+            except Exception as e:
+                pass  # Fall back to web download safely if structural definitions vary
             
+    # 2. CHUNKED PARALLEL DOWNLOAD ENGINE
     try:
         unique_tickers = list(dict.fromkeys(ticker_list))
         chunk_size = 100
         chunked_dfs = []
         
         loading_slot = st.empty()
-        loading_slot.info(f"🔄 Cache expired. Downloading market data in optimized structural chunks...")
+        loading_slot.info(f"🔄 Cache refresh required. Initializing structural multi-market chunked downloads...")
         
         for i in range(0, len(unique_tickers), chunk_size):
             sub_list = unique_tickers[i:i+chunk_size]
@@ -217,8 +230,17 @@ def fetch_all_market_data_batch(ticker_list, start_date):
         
         if chunked_dfs:
             df_live = pd.concat(chunked_dfs, axis=1)
+            
+            # Create a flat copy explicitly built for reliable JSON serialization
             df_serializable = df_live.copy()
-            df_serializable.columns = [str(col) for col in df_serializable.columns]
+            flat_cols = []
+            for col in df_serializable.columns:
+                if isinstance(col, tuple):
+                    flat_cols.append(f"{col[0]}---{col[1]}")
+                else:
+                    flat_cols.append(str(col))
+                    
+            df_serializable.columns = flat_cols
             df_serializable.to_json(resolved_cache_path)
             return df_live
             

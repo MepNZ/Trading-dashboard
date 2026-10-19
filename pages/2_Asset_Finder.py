@@ -234,21 +234,29 @@ def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
         df_calc = calculate_indicators_only(hist_df, fast_ma, slow_ma)
         cached_dfs[ticker] = df_calc.tail(730).to_json()
         
-        last_close = float(df_calc['Close'].iloc[-1])
-        prev_close = float(df_calc['Close'].iloc[-2]) if len(df_calc) > 1 else last_close
+                # 🌟 OPTION A FIX: SHIFT ENGINE TO EVALUATE COMPLETED CLOSED WEEKS MID-WEEK
+        # If it is Monday through Thursday, lock onto the last fully closed weekly bar (iloc[-2])
+        # If it is Friday or the weekend, evaluate the current active bar (iloc[-1])
+        is_mid_week = datetime.now().weekday() < 4
+        target_bar = df_calc.iloc[-2] if (is_mid_week and len(df_calc) >= 2) else df_calc.iloc[-1]
+        prev_bar = df_calc.iloc[-3] if (is_mid_week and len(df_calc) >= 3) else df_calc.iloc[-2]
+        
+        last_close = float(target_bar['Close'])
+        prev_close = float(prev_bar['Close']) if 'Close' in prev_bar else last_close
         pct_change = ((last_close - prev_close) / prev_close) * 100
         
-        fast_ma_val = float(df_calc['Fast_MA'].iloc[-1]) if 'Fast_MA' in df_calc.columns else last_close
-        slow_ma_val = float(df_calc['Slow_MA'].iloc[-1]) if 'Slow_MA' in df_calc.columns else last_close
-        rsi_val = float(df_calc['RSI'].iloc[-1]) if 'RSI' in df_calc.columns else 50.0
-        macd_val = float(df_calc['MACD'].iloc[-1]) if 'MACD' in df_calc.columns else 0.0
-        sig_val = float(df_calc['Signal_Line'].iloc[-1]) if 'Signal_Line' in df_calc.columns else 0.0
-        atr_val = float(df_calc['ATR'].iloc[-1]) if 'ATR' in df_calc.columns else 0.0
-        bb_lower_val = float(df_calc['Lower_Bollinger_Band'].iloc[-1]) if 'Lower_Bollinger_Band' in df_calc.columns else last_close
-        current_volume = int(df_calc['Volume'].iloc[-1]) if 'Volume' in df_calc.columns else 0
-        avg_volume_20d = float(df_calc['Avg_Volume_20D'].iloc[-1]) if 'Avg_Volume_20D' in df_calc.columns else 1.0
-        volume_multiple = current_volume / avg_volume_20d if avg_volume_20d > 0 else 0.0
+        fast_ma_val = float(target_bar['Fast_MA']) if 'Fast_MA' in target_bar.index else last_close
+        slow_ma_val = float(target_bar['Slow_MA']) if 'Slow_MA' in target_bar.index else last_close
+        rsi_val = float(target_bar['RSI']) if 'RSI' in target_bar.index else 50.0
+        macd_val = float(target_bar['MACD']) if 'MACD' in target_bar.index else 0.0
+        sig_val = float(target_bar['Signal_Line']) if 'Signal_Line' in target_bar.index else 0.0
+        atr_val = float(target_bar['ATR']) if 'ATR' in target_bar.index else 0.0
+        bb_lower_val = float(target_bar['Lower_Bollinger_Band']) if 'Lower_Bollinger_Band' in target_bar.index else last_close
         
+        current_volume = int(target_bar['Volume']) if 'Volume' in target_bar.index else 0
+        avg_volume_20d = float(target_bar['Avg_Volume_20D']) if 'Avg_Volume_20D' in target_bar.index else 1.0
+        volume_multiple = current_volume / avg_volume_20d if avg_volume_20d > 0 else 0.0
+
         hist_365 = df_calc.tail(104)
         true_52w_high, true_52w_low = float(hist_365['High'].max()), float(hist_365['Low'].min())
         proximity_to_low_pct = ((last_close - true_52w_low) / true_52w_low) * 100

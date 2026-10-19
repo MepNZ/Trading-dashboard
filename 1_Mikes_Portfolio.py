@@ -636,7 +636,8 @@ if active_live_positions:
     p_df["Live ROI"] = (p_df["Net Profit (NZD)"] / p_df["Investment (NZD)"]) * 100
     
     database_names = disk_memory.get("local_name_map", {})
-    p_df["Company Name"] = p_df["Ticker"].map(lambda t: database_names.get(t, local_name_map.get(t, f"{t} Asset")))
+    # Check your local targets first, then your hardcoded map, and fall back cleanly to just the raw ticker symbol
+    p_df["Company Name"] = p_df["Ticker"].map(lambda t: disk_memory.get("local_name_map", {}).get(t, local_name_map.get(t, t)))
 
     cols_layer_a = [
         "Ticker", "Company Name", "Shares", "Currency", "My Entry Price", 

@@ -189,7 +189,7 @@ def fetch_all_market_data_batch(ticker_list, start_date):
     return pd.DataFrame()
 # --- INSTANT RUNTIME CORE PROCESSING MATRIX TRAP ---
 @st.cache_data(ttl=7200)
-def process_entire_screening_universe(fast_ma, slow_ma):
+def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
     lookback_start_date = datetime.now() - timedelta(days=730 + 250)
     raw_batch = fetch_all_market_data_batch(institutional_scan_pool, lookback_start_date)
     
@@ -233,8 +233,20 @@ def process_entire_screening_universe(fast_ma, slow_ma):
         true_52w_high, true_52w_low = float(hist_365['High'].max()), float(hist_365['Low'].min())
         proximity_to_low_pct = ((last_close - true_52w_low) / true_52w_low) * 100
         market_label = "NZ" if ticker.endswith(".NZ") else ("AUS" if ticker.endswith(".AX") else "US")
-        resolved_name = disk_names.get(ticker, local_name_map.get(ticker, f"{ticker}"))
+                # Check hardcoded map first, then disk cache file
+        resolved_name = local_name_map.get(ticker, disk_names.get(ticker, None))
         
+        # If still missing, dynamically fetch from yfinance live and store it!
+        if not resolved_name:
+            try:
+                resolved_name = yf.Ticker(ticker).info.get('longName', f"{ticker}")
+                # Instantly seed the disk memory object so we only ever run this heavy call once
+                disk_names[ticker] = resolved_name
+                with open(resolved_names_path, 'w') as f:
+                    json.dump(disk_names, f, indent=4)
+            except Exception:
+                resolved_name = f"{ticker}"
+
         if last_close > fast_ma_val and last_close > slow_ma_val and volume_multiple >= 1.5: breakout_signal = "🌟 STRONG BUY"
         elif last_close > fast_ma_val and last_close <= slow_ma_val and volume_multiple >= 1.5: breakout_signal = "🟢 Bullish Turning (High Volume)"
         elif (last_close > fast_ma_val or last_close > slow_ma_val) and volume_multiple < 1.5: breakout_signal = "🟡 Bullish Turning (Low Volume)"
@@ -258,7 +270,7 @@ def process_entire_screening_universe(fast_ma, slow_ma):
 # Execute caching engine instantly
 fast_ma_input = st.session_state["asset_fast_ma"]
 slow_ma_input = st.session_state["asset_slow_ma"]
-all_breakouts, all_discounts, compressed_dfs = process_entire_screening_universe(fast_ma_input, slow_ma_input)
+all_breakouts, all_discounts, compressed_dfs = process_entire_screening_universe(fast_ma_input, slow_ma_input, "v2")
 
 # --- APPLY USER BUDGET FILTERS INSTANTLY IN MEMORY ---
 if st.session_state["view_mode_choice"] == "Budget-Friendly Assets":

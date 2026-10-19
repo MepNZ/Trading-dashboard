@@ -197,13 +197,33 @@ def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
     project_root = os.path.abspath(os.path.join(current_dir, ".."))
     resolved_names_path = os.path.join(project_root, NAMES_CACHE_FILE)
     
+    # Load existing resolved name matrix to bypass network requests
     try:
         with open(resolved_names_path, 'r') as f: disk_names = json.load(f)
     except: disk_names = {}
     
+    # 🌟 HIGH-SPEED PATCH: Identify missing names and seed them BEFORE the calculation loop
+    unique_scan_pool = list(dict.fromkeys(institutional_scan_pool))
+    missing_tickers = [t for t in unique_scan_pool if t not in local_name_map and t not in disk_names]
+    
+    if missing_tickers:
+        names_updated = False
+        # Limit live harvesting to a conservative batch per run to prevent app stalling
+        for ticker in missing_tickers[:15]: 
+            try:
+                resolved = yf.Ticker(ticker).info.get('longName', ticker)
+                disk_names[ticker] = resolved
+                names_updated = True
+            except Exception:
+                disk_names[ticker] = ticker # Fallback to symbol safely on API drop
+        if names_updated:
+            try:
+                with open(resolved_names_path, 'w') as f:
+                    json.dump(disk_names, f, indent=4)
+            except: pass
+
     b_rows, d_rows = [], []
     cached_dfs = {}
-    unique_scan_pool = list(dict.fromkeys(institutional_scan_pool))
     
     for ticker in unique_scan_pool:
         if raw_batch.empty or ticker not in raw_batch.columns.get_level_values(0): continue
@@ -233,20 +253,10 @@ def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
         true_52w_high, true_52w_low = float(hist_365['High'].max()), float(hist_365['Low'].min())
         proximity_to_low_pct = ((last_close - true_52w_low) / true_52w_low) * 100
         market_label = "NZ" if ticker.endswith(".NZ") else ("AUS" if ticker.endswith(".AX") else "US")
-                # Check hardcoded map first, then disk cache file
-        resolved_name = local_name_map.get(ticker, disk_names.get(ticker, None))
         
-        # If still missing, dynamically fetch from yfinance live and store it!
-        if not resolved_name:
-            try:
-                resolved_name = yf.Ticker(ticker).info.get('longName', f"{ticker}")
-                # Instantly seed the disk memory object so we only ever run this heavy call once
-                disk_names[ticker] = resolved_name
-                with open(resolved_names_path, 'w') as f:
-                    json.dump(disk_names, f, indent=4)
-            except Exception:
-                resolved_name = f"{ticker}"
-
+        # 🌟 HIGH-SPEED MATCHING: Pull corporate identity entirely from lightning-fast RAM indexes
+        resolved_name = local_name_map.get(ticker, disk_names.get(ticker, f"{ticker}"))
+        
         if last_close > fast_ma_val and last_close > slow_ma_val and volume_multiple >= 1.5: breakout_signal = "🌟 STRONG BUY"
         elif last_close > fast_ma_val and last_close <= slow_ma_val and volume_multiple >= 1.5: breakout_signal = "🟢 Bullish Turning (High Volume)"
         elif (last_close > fast_ma_val or last_close > slow_ma_val) and volume_multiple < 1.5: breakout_signal = "🟡 Bullish Turning (Low Volume)"

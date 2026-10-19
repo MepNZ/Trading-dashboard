@@ -5,8 +5,8 @@
         "USD": 39.76
     },
     "sliders": {
-        "fast_ma": 20,
-        "slow_ma": 50,
+        "fast_ma": 10,
+        "slow_ma": 25,
         "roi_window": "1 Year",
         "graph_horizon": "1 Year"
     },

@@ -285,7 +285,8 @@ def render_isolated_chart_engine(ticker_list, key_prefix):
     if ticker_list:
         selected_ticker = st.radio("🛰 **Global Chart Engine Quick-Link Bar:**", options=ticker_list, horizontal=True, key=f"{key_prefix}_link_key")
         if selected_ticker in compressed_dfs:
-            df_chart = pd.read_json(compressed_dfs[selected_ticker])
+            import io  # Ensure io is available to wrap memory buffers cleanly
+            df_chart = pd.read_json(io.StringIO(compressed_dfs[selected_ticker]))
             lookback_days_map = {"1 Month": 4, "3 Months": 12, "6 Months": 26, "1 Year": 52, "2 Years": 104}
             weeks_to_show = lookback_days_map.get(st.session_state["asset_horizon"], 52)
             df_chart = df_chart.tail(weeks_to_show).reset_index().rename(columns={'index': 'Date'})

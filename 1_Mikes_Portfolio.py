@@ -617,8 +617,12 @@ for ticker in all_active_workspace_tickers:
             
             current_value_local = custom_saved_shares * last_close
             active_live_positions.append({
-                "Ticker": ticker, "Shares": custom_saved_shares, "Currency": native_currency_label,
-                "My Entry Price": entry_p, "Live Market Price": last_close, 
+                "Ticker": ticker, 
+                "Company Name": resolved_name,
+                "Shares": custom_saved_shares, 
+                "Currency": native_currency_label,
+                "My Entry Price": entry_p, 
+                "Live Market Price": last_close, 
                 "Daily Pullback Limit": safe_daily_limit_target,   
                 "Take-Profit Target": safe_take_profit_target,    
                 "Investment (Local)": implied_investment_local,
@@ -637,8 +641,7 @@ if active_live_positions:
     
     database_names = disk_memory.get("local_name_map", {})
     # Check your local targets first, then your hardcoded map, and fall back cleanly to just the raw ticker symbol
-    p_df["Company Name"] = p_df["Ticker"].map(lambda t: disk_memory.get("local_name_map", {}).get(t, local_name_map.get(t, t)))
-
+    
     cols_layer_a = [
         "Ticker", "Company Name", "Shares", "Currency", "My Entry Price", 
         "Live Market Price", "Daily Pullback Limit", "Take-Profit Target",

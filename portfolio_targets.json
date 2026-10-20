@@ -5,7 +5,7 @@
         "USD": 39.76
     },
     "sliders": {
-        "fast_ma": 5,
+        "fast_ma": 10,
         "slow_ma": 25,
         "roi_window": "2 Years",
         "graph_horizon": "2 Years"
@@ -32,6 +32,7 @@
     },
     "watchlist_tickers": [
         "TEAM",
-        "CRM"
+        "CRM",
+        "CBA.AX"
     ]
 }

@@ -251,38 +251,54 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🌟 SURGICAL RE-ENGINEERING: COMPACT STICKY VIEWPORT HEADER ENGINE
+# 🌟 SURGICAL RE-ENGINEERING: PERFECT INSIDE-HEADER FLOATING BAR BUTTON ALIGNMENT
 # ==============================================================================
-# Pull sync values out safely to map into the direct string literal engine
 last_save_time = st.session_state.get("last_cloud_save_time", None)
 
 if last_save_time:
     if "⚠️" in last_save_time:
-        status_html = f"<div style='background-color: #dc3545; color: #FFFFFF; padding: 6px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #bd2130;'>{last_save_time}</div>"
+        status_html = f"<div style='background-color: #dc3545; color: #FFFFFF; padding: 10px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #bd2130;'>{last_save_time}</div>"
     else:
-        status_html = f"<div style='background-color: #28a745; color: #FFFFFF; padding: 4px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.82rem; border: 1px solid #1e7e34; line-height: 1.2;'>✅ SYNCED TO GITHUB LIVE<br><span style='font-size: 0.72rem; font-weight: normal; opacity: 0.85;'>Time: {last_save_time}</span></div>"
+        status_html = f"<div style='background-color: #28a745; color: #FFFFFF; padding: 6px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #1e7e34; line-height: 1.3;'>✅ SYNCED TO GITHUB LIVE<br><span style='font-size: 0.72rem; font-weight: normal; opacity: 0.85;'>Time: {last_save_time}</span></div>"
 else:
-    status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 8px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D;'>📁 Database Standby: Connected</div>"
+    status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D;'>📁 Database Standby: Connected</div>"
 
-# Inject the pure layout block directly into the absolute DOM overlay matrix
+# 1. Inject the background container with an empty right slot calibrated to hold our real button frame overlay
 st.markdown(f"""
-    <div style="position: fixed; top: 0; left: 0; width: 100%; background-color: #0E1117; padding: 10px 40px; border-bottom: 1px solid #30363D; box-shadow: 0px 4px 15px rgba(0,0,0,0.5); z-index: 999999; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
-        <div style="flex: 2;">
-            <h3 style="margin: 0; padding: 0; font-size: 1.35rem; color: #4A90E2; font-family: inherit;">⚡ Live Matrix Workspace Viewport Ledger</h3>
+    <div style="position: fixed; top: 0; left: 0; width: 100%; background-color: #0E1117; padding: 10px 40px; border-bottom: 1px solid #30363D; box-shadow: 0px 4px 15px rgba(0,0,0,0.5); z-index: 9999; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; height: 60px;">
+        <div style="flex: 2; min-width: 320px;">
+            <h3 style="margin: 0; padding: 0; font-size: 1.30rem; color: #4A90E2; font-family: inherit;">⚡ Live Matrix Workspace Viewport Ledger</h3>
         </div>
-        <div style="flex: 1.5; padding: 0 20px;">
+        <div style="flex: 1.5; padding: 0 20px; min-width: 220px;">
             {status_html}
         </div>
-        <div style="flex: 1; text-align: right;" id="save-button-anchor">
+        <div style="flex: 1.2; min-width: 200px; height: 40px;">
+            <!-- This slot is left intentionally transparent to let our real button show through -->
         </div>
     </div>
 """, unsafe_allow_html=True)
 
-# Create an inline split block just for the button execution loop so Streamlit registers the click event handler natively
-col_title, col_space, col_btn = st.columns([2.3, 1.7, 1.2])
+# 2. Force the native Streamlit button block to float to the top layer directly inside our empty slot
+col_title, col_space, col_btn = st.columns([2.0, 1.5, 1.2])
 with col_btn:
-    # Use a small layout padding spacer to align the button perfectly with the floating header background overlay
-    st.markdown("<div style='margin-top: -68px; position: relative; z-index: 1000000;'>", unsafe_allow_html=True)
+    st.markdown("""
+        <style>
+            /* Pin the native column element to the absolute top of the screen right over the header block */
+            div:has(> div button[key="viewport_sticky_save_btn"]) {
+                position: fixed !important;
+                top: 10px !important;
+                right: 40px !important;
+                width: 220px !important;
+                z-index: 10000 !important;
+            }
+            /* Clean up the native button padding so it fills our header frame beautifully */
+            button[key="viewport_sticky_save_btn"] {
+                height: 40px !important;
+                margin: 0 !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+    
     if st.button("💾 SAVE & SYNC WORKSPACE", use_container_width=True, type="primary", key="viewport_sticky_save_btn"):
         live_sidebar_bounds = {
             "wallet_cash": {
@@ -330,7 +346,6 @@ with col_btn:
             
         st.cache_data.clear()
         st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("---")
 

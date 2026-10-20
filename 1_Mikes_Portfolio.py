@@ -251,7 +251,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🌟 UNBREAKABLE ARCHITECTURE: PURE NATIVE STICKY DASHBOARD HEADER (ALIGNMENT REPAIR)
+# 🌟 UNBREAKABLE ARCHITECTURE: PRODUCTION STICKY DASHBOARD HEADER Row
 # ==============================================================================
 last_save_time = st.session_state.get("last_cloud_save_time", None)
 
@@ -263,68 +263,70 @@ if last_save_time:
 else:
     status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D; height: 38px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;'>📁 Database Standby: Connected</div>"
 
-# Inject clean layout styling that targets ONLY our master identity container wrapper
+# Inject precision styling targeting ONLY the immediate container wrapper block
 st.markdown("""
     <style>
-        /* 1. Target specifically our unique header id container block without affecting anything else */
-        #mike-sticky-ceiling {
+        /* 1. Target the vertical container block that contains our unique element marker */
+        div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) {
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
             width: 100% !important;
             z-index: 999991 !important;
             background-color: #0E1117 !important;
-            padding: 0px 40px !important;
+            padding: 12px 40px !important;
             border-bottom: 1px solid #30363D !important;
             box-shadow: 0px 4px 15px rgba(0,0,0,0.5) !important;
             box-sizing: border-box !important;
-            height: 65px !important;
         }
-        
-        /* 2. Force the standard Streamlit macro view page block down cleanly */
-        div[data-testid="stAppViewBlockContainer"] {
-            padding-top: 6.5rem !important;
-        }
-        
-        /* 3. Strip native block padding specifically within our custom alignment layer */
-        #mike-sticky-ceiling div[data-testid="stHorizontalBlock"] {
+
+        /* 2. Force perfect vertical centering inside Streamlit's inner horizontal flex grid */
+        div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) div[data-testid="stHorizontalBlock"] {
             display: flex !important;
-            align-items: center !important; /* Perfect vertical centerline alignment */
-            height: 100% !important;
-        }
-        
-        /* 4. Normalize button margins */
-        #mike-sticky-ceiling .stButton {
+            align-items: center !important;
+            justify-content: center !important;
+            width: 100% !important;
             margin: 0 !important;
+            padding: 0 !important;
+            gap: 1rem !important;
         }
-        #mike-sticky-ceiling .stButton > button {
+
+        /* 3. Normalize native button container layouts and paddings */
+        div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) .stButton {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) .stButton > button {
             height: 38px !important;
             font-size: 0.85rem !important;
             font-weight: bold !important;
             text-transform: uppercase !important;
+            margin: 0 !important;
+        }
+
+        /* 4. Keep standard page data columns shifted down away from under the ceiling bar */
+        div[data-testid="stAppViewBlockContainer"] {
+            padding-top: 6.5rem !important;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# Render the layout wrapper using an isolated container partition block
+# Create an isolated container row acting as our floating dashboard window ceiling anchors
 with st.container():
-    # Inject our isolated target identity directly to lock onto the layout styling rules safely
-    st.markdown('<div id="mike-sticky-ceiling">', unsafe_allow_html=True)
+    # Inject a distinct hidden inline anchor marker to map our CSS positioning targets safely
+    st.markdown('<span id="mike-sticky-marker" style="display:none;"></span>', unsafe_allow_html=True)
     
     head_col1, head_col2, head_col3 = st.columns([2, 1.5, 1.2])
     
     with head_col1:
-        st.markdown("<h3 style='margin: 0; padding: 0; font-size: 1.30rem; color: #4A90E2; line-height: 1.0;'>⚡ Live Matrix Workspace Viewport Ledger</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='margin: 0; padding: 0; font-size: 1.30rem; color: #4A90E2; line-height: 1.2;'>⚡ Live Matrix Workspace Viewport Ledger</h3>", unsafe_allow_html=True)
         
     with head_col2:
         st.markdown(status_html, unsafe_allow_html=True)
         
     with head_col3:
         trigger_sync_active = st.button("💾 SAVE & SYNC WORKSPACE", use_container_width=True, type="primary")
-        
-    st.markdown('</div>', unsafe_allow_html=True)
 
-# Run the backend runtime loop data commits safely when clicked
 if trigger_sync_active:
     live_sidebar_bounds = {
         "wallet_cash": {

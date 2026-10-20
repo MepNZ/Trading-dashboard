@@ -117,32 +117,8 @@ def push_targets_to_github(updated_data):
 with st.sidebar:
     st.markdown("### 🛠️ Configuration Controls")
     
-    # High-Visibility Sync Status Banner
-    if "last_cloud_save_time" not in st.session_state:
-        st.session_state["last_cloud_save_time"] = None
-
-    if st.session_state["last_cloud_save_time"]:
-        if "⚠️" in st.session_state["last_cloud_save_time"]:
-            st.markdown(f"""
-                <div style='background-color: #dc3545; color: #FFFFFF; padding: 10px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 1.1rem; margin-bottom: 15px; border: 2px solid #bd2130;'>
-                    {st.session_state["last_cloud_save_time"]}
-                </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-                <div style='background-color: #28a745; color: #FFFFFF; padding: 10px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 1.1rem; margin-bottom: 15px; border: 2px solid #1e7e34; box-shadow: 0px 4px 10px rgba(0,0,0,0.3);'>
-                    ✅ SYNCED TO GITHUB LIVE<br>
-                    <span style='font-size: 0.9rem; font-weight: normal; opacity: 0.9;'>Timestamp: {st.session_state["last_cloud_save_time"]}</span>
-                </div>
-            """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-            <div style='background-color: #1C212A; color: #8B949E; padding: 10px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 1.0rem; margin-bottom: 15px; border: 1px solid #30363D;'>
-                📁 Database Standby: Connection Ready
-            </div>
-        """, unsafe_allow_html=True)
-
-    if st.button("🔄 Clear App Cache Memory", use_container_width="stretch"):
+    # Clean high-speed cache reset engine anchored at the top
+    if st.button("🔄 Clear App Cache Memory", use_container_width=True):
         if os.path.exists(CACHE_FILE):
             try: os.remove(CACHE_FILE)
             except: pass
@@ -151,54 +127,7 @@ with st.sidebar:
 
     @st.fragment
     def render_isolated_sidebar_controls():
-        if st.button("💾 Save Matrix Boundary Changes", use_container_width="stretch"):
-            live_sidebar_bounds = {
-                "wallet_cash": {
-                    "NZD": float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 0.00))),
-                    "AUD": float(st.session_state.get("cash_aud_input", runtime_cash.get("AUD", 0.00))),
-                    "USD": float(st.session_state.get("cash_usd_input", runtime_cash.get("USD", 0.00))),
-                },
-                "sliders": {
-                    "fast_ma": int(st.session_state.get("fast_ma", 10)),
-                    "slow_ma": int(st.session_state.get("slow_ma", 100)),
-                    "roi_window": st.session_state.get("roi_window", "1 Year"),
-                    "graph_horizon": st.session_state.get("graph_horizon", "1 Year")
-                },
-                "positions": {},
-                "watchlist_tickers": []
-            }
-            
-            for idx in range(6):
-                t_input = st.session_state.get(f"port_slot_{idx}", portfolio_slots[idx]).upper().strip()
-                if t_input and "EMPTY" not in t_input:
-                    live_sidebar_bounds["positions"][t_input] = {
-                        "shares": float(st.session_state.get(f"shares_{idx}", 0.0000)),
-                        "entry": float(st.session_state.get(f"entry_{idx}", 0.00)),
-                        "upper": float(st.session_state.get(f"up_{idx}", 0.00)),
-                        "fixed_stop_distance": float(st.session_state.get(f"fixed_stop_{idx}", 15.00))
-                    }
-            
-            for idx in range(6):
-                w_input = st.session_state.get(f"watch_slot_{idx}", watchlist_slots[idx]).upper().strip()
-                if w_input and "EMPTY" not in w_input:
-                    live_sidebar_bounds["watchlist_tickers"].append(w_input)
-            
-            with open(TARGETS_FILE, 'w') as f:
-                json.dump(live_sidebar_bounds, f, indent=4)
-            
-            # Fire cloud synchronization layout
-            synced_ok = push_targets_to_github(live_sidebar_bounds)
-            
-            if synced_ok:
-                from zoneinfo import ZoneInfo
-                nz_tz = ZoneInfo("Pacific/Auckland")
-                st.session_state["last_cloud_save_time"] = datetime.now(nz_tz).strftime("%I:%M:%S %p %Z")
-            else:
-                st.session_state["last_cloud_save_time"] = "⚠️ Connection Refused by GitHub"
-            
-            st.cache_data.clear()
-            st.rerun()
-
+        # NOTICE: The legacy manual save button block and bulky banners have been cleanly scrubbed from here!
         st.selectbox("Chart & ROI grid timeframe", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], key="roi_window")
         st.selectbox("Fast MA Frame", [5, 10, 20, 50], index=[5, 10, 20, 50].index(st.session_state["fast_ma"]) if st.session_state["fast_ma"] in [5, 10, 20, 50] else 1, key="fast_ma")
         st.selectbox("Slow MA Frame", [25, 50, 100, 200], index=[25, 50, 100, 200].index(st.session_state["slow_ma"]) if st.session_state["slow_ma"] in [25, 50, 100, 200] else 2, key="slow_ma")
@@ -285,7 +214,7 @@ st.markdown("""
             width: calc(100% - 20px) !important; 
             z-index: 99 !important; /* UPGRADE: Lowered to allow the sidebar navigation toggle to float cleanly on top */
             background-color: #0E1117 !important; 
-            padding: 10px 40px !important;
+            padding: 8px 40px !important;
             border-bottom: 1px solid #30363D !important;
             box-shadow: 0px 4px 15px rgba(0,0,0,0.5) !important;
         }
@@ -298,12 +227,25 @@ st.markdown("""
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
-            transform: translateY(2px) !important; 
         }
         
         /* 3. Push the standard content layout down a fraction so it isn't hidden under our bar */
         div[data-testid="stAppViewBlockContainer"] {
-            padding-top: 4.5rem !important;
+            padding-top: 5.2rem !important;
+        }
+
+        /* 4. HIGH-DENSITY CRUNCH: Force compact vertical spacing inside Streamlit inputs and expanders */
+        div[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div {
+            padding-top: 1px !important;
+            padding-bottom: 1px !important;
+            margin-top: 0px !important;
+            margin-bottom: 0px !important;
+        }
+        div[data-testid="stSidebar"] .stNumberInput, div[data-testid="stSidebar"] .stTextInput, div[data-testid="stSidebar"] .stSelectbox {
+            margin-bottom: 2px !important;
+        }
+        div[data-testid="stSidebar"] [data-testid="stExpander"] {
+            margin-bottom: 2px !important;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -314,10 +256,36 @@ with floating_container:
     # Anchor class tag for our custom CSS injector tracking rules
     st.markdown('<div class="floating-action-toolbar"></div>', unsafe_allow_html=True)
     
-    toolbar_col1, toolbar_col2 = st.columns([2, 1])
+    # 🌟 HIGH-SPEED ADJACENT UNIFICATION ROW
+    toolbar_col1, toolbar_col2, toolbar_col3 = st.columns([2.3, 1.7, 1.2])
+    
     with toolbar_col1:
-        st.markdown("<h3 style='margin: 0; padding-top: 4px; font-size: 1.35rem; color: #4A90E2;'>⚡ Live Matrix Workspace Viewport Ledger</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='margin: 0; padding-top: 6px; font-size: 1.35rem; color: #4A90E2;'>⚡ Live Matrix Workspace Viewport Ledger</h3>", unsafe_allow_html=True)
+    
     with toolbar_col2:
+        # Dynamic inline connection status frame pulled directly into center grid position
+        if st.session_state["last_cloud_save_time"]:
+            if "⚠️" in st.session_state["last_cloud_save_time"]:
+                st.markdown(f"""
+                    <div style='background-color: #dc3545; color: #FFFFFF; padding: 4px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #bd2130; margin-top: 4px;'>
+                        {st.session_state["last_cloud_save_time"]}
+                    </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                    <div style='background-color: #28a745; color: #FFFFFF; padding: 2px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.82rem; border: 1px solid #1e7e34; line-height: 1.2; margin-top: 2px;'>
+                        ✅ SYNCED TO GITHUB LIVE<br>
+                        <span style='font-size: 0.72rem; font-weight: normal; opacity: 0.85;'>Time: {st.session_state["last_cloud_save_time"]}</span>
+                    </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+                <div style='background-color: #1C212A; color: #8B949E; padding: 6px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D; margin-top: 4px;'>
+                    📁 Database Standby: Connected
+                </div>
+            """, unsafe_allow_html=True)
+            
+    with toolbar_col3:
         if st.button("💾 SAVE & SYNC WORKSPACE", use_container_width=True, type="primary", key="viewport_sticky_save_btn"):
             live_sidebar_bounds = {
                 "wallet_cash": {

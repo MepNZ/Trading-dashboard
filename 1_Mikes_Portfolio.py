@@ -251,7 +251,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🌟 UNBREAKABLE ARCHITECTURE: PURE NATIVE STICKY DASHBOARD HEADER (VERTICALLY ALIGNED)
+# 🌟 UNBREAKABLE ARCHITECTURE: PURE NATIVE STICKY DASHBOARD HEADER (ALIGNMENT REPAIR)
 # ==============================================================================
 last_save_time = st.session_state.get("last_cloud_save_time", None)
 
@@ -263,64 +263,54 @@ if last_save_time:
 else:
     status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D; height: 38px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;'>📁 Database Standby: Connected</div>"
 
-# Inject high-precision alignment CSS rules directly into the wrapper elements
+# Inject clean layout styling that targets ONLY our master identity container wrapper
 st.markdown("""
     <style>
-        /* 1. Target the fixed container element */
-        div[data-testid="stVerticalBlock"] > div:has(div.native-sticky-header-container) {
+        /* 1. Target specifically our unique header id container block without affecting anything else */
+        #mike-sticky-ceiling {
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
             width: 100% !important;
             z-index: 999991 !important;
             background-color: #0E1117 !important;
-            padding: 0px 40px !important; /* Zero out top/bottom padding to let column height define it */
+            padding: 0px 40px !important;
             border-bottom: 1px solid #30363D !important;
             box-shadow: 0px 4px 15px rgba(0,0,0,0.5) !important;
             box-sizing: border-box !important;
-            height: 65px !important; /* Lock the header height */
-            display: flex !important;
-            align-items: center !important; /* Force flex child container alignment */
+            height: 65px !important;
         }
         
-        /* 2. Force the internal Streamlit layout columns block to span full height and center */
-        div:has(div.native-sticky-header-container) > div[data-testid="stHorizontalBlock"] {
-            width: 100% !important;
-            height: 100% !important;
+        /* 2. Force the standard Streamlit macro view page block down cleanly */
+        div[data-testid="stAppViewBlockContainer"] {
+            padding-top: 6.5rem !important;
+        }
+        
+        /* 3. Strip native block padding specifically within our custom alignment layer */
+        #mike-sticky-ceiling div[data-testid="stHorizontalBlock"] {
             display: flex !important;
-            align-items: center !important; /* Perfect vertical centering across the axis */
+            align-items: center !important; /* Perfect vertical centerline alignment */
+            height: 100% !important;
         }
-
-        /* 3. Strip out default native margin rules injected into the button wrapper */
-        div:has(div.native-sticky-header-container) .stButton {
-            margin-top: 0px !important;
-            margin-bottom: 0px !important;
+        
+        /* 4. Normalize button margins */
+        #mike-sticky-ceiling .stButton {
+            margin: 0 !important;
         }
-
-        /* 4. Match native button text styling precisely to the status banner baseline */
-        div:has(div.native-sticky-header-container) .stButton > button {
+        #mike-sticky-ceiling .stButton > button {
             height: 38px !important;
             font-size: 0.85rem !important;
             font-weight: bold !important;
             text-transform: uppercase !important;
         }
-        
-        /* Keep standard page view elements stepping below our fixed bar */
-        div[data-testid="stAppViewBlockContainer"] {
-            padding-top: 6.0rem !important;
-        }
-        
-        div.native-sticky-header-container div[data-testid="stVerticalBlock"] {
-            gap: 0rem !important;
-        }
     </style>
 """, unsafe_allow_html=True)
 
-# Create anchor block container handling our sticky positioning mapping
+# Render the layout wrapper using an isolated container partition block
 with st.container():
-    st.markdown('<div class="native-sticky-header-container"></div>', unsafe_allow_html=True)
+    # Inject our isolated target identity directly to lock onto the layout styling rules safely
+    st.markdown('<div id="mike-sticky-ceiling">', unsafe_allow_html=True)
     
-    # Map out clean columns matrix natively with vertical alignment forced via flex overrides
     head_col1, head_col2, head_col3 = st.columns([2, 1.5, 1.2])
     
     with head_col1:
@@ -331,6 +321,8 @@ with st.container():
         
     with head_col3:
         trigger_sync_active = st.button("💾 SAVE & SYNC WORKSPACE", use_container_width=True, type="primary")
+        
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # Run the backend runtime loop data commits safely when clicked
 if trigger_sync_active:

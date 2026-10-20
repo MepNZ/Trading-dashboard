@@ -37,6 +37,18 @@
         "HAS": {
             "shares": 1.0,
             "entry": 108.38
+        },
+        "HGH.NZ": {
+            "shares": 1.0,
+            "entry": 108.38
+        },
+        "NAB.AX": {
+            "shares": 1.0,
+            "entry": 39.2
+        },
+        "POT.NZ": {
+            "shares": 1.0,
+            "entry": 8.32
         }
     }
 }

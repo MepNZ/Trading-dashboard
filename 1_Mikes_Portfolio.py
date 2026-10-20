@@ -843,7 +843,7 @@ if calculator_tickers:
         
         max_risk_nzd = st.number_input(
             "Max Account Risk Allowed (NZD $):", 
-            min_value=5.00, max_value=5000.00, value=150.00, step=25.00, 
+            min_value=5.00, max_value=1000.00, value=25.00, step=25.00, 
             format="%.2f", key="layer_c_max_risk_input"
         )
         

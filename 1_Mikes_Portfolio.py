@@ -159,7 +159,7 @@ with st.sidebar:
                 st.number_input("Upper Target ($)", min_value=0.0, value=float(stored.get("upper", 0.0)), key=f"up_{i}")
                 st.number_input("Fixed Stop Distance ($)", min_value=0.0, value=float(stored.get("fixed_stop_distance", 15.0)), key=f"fixed_stop_{i}")
 
-        # ==============================================================================
+                # ==============================================================================
         # CLEANUP MERGE: WATCHLIST REMOVED. TRANSITION DIRECTLY TO LAYER A.2
         # ==============================================================================
         st.markdown("---")
@@ -174,10 +174,24 @@ with st.sidebar:
             p_ticker = paper_slots[i]
             p_stored = runtime_paper.get(p_ticker, {}) if "EMPTY" not in p_ticker else {}
             p_display = p_ticker if "EMPTY" not in p_ticker else "Empty Paper Slot"
+            
+            # Format the stored date string safely back into a native datetime object
+            stored_date_str = p_stored.get("entry_date", None)
+            if stored_date_str:
+                try: default_date = datetime.strptime(stored_date_str, "%Y-%m-%d").date()
+                except: default_date = datetime.today().date()
+            else:
+                default_date = datetime.today().date()
+
             with st.expander(f"Paper Slot {i+1}: {p_display}", expanded=False):
                 st.text_input(f"Paper Ticker Symbol", value="" if "EMPTY" in p_ticker else p_ticker, key=f"paper_slot_{i}")
-                st.number_input("Paper Shares", min_value=0.0000, value=float(p_stored.get("shares", 0.0)), step=0.0001, format="%.4f", key=f"paper_shares_{i}")
+                
+                # FIXED FORCE: Hardcodes 1 share behind the scenes while displaying it cleanly to the user
+                st.markdown("🔒 **Simulated Position Size:** 1 Share (Enforced Layer A.2 Default)")
+                st.hidden = st.text_input("Shares Internal Marker", value="1.0", key=f"paper_shares_{i}", disabled=True)
+                
                 st.number_input("Paper Entry Price ($)", min_value=0.0, value=float(p_stored.get("entry", 0.0)), key=f"paper_entry_{i}")
+                st.date_input("Transaction Calendar Date", value=default_date, key=f"paper_date_{i}")
 
     render_isolated_sidebar_controls()
 
@@ -391,17 +405,21 @@ if trigger_sync_active:
         if w_input and "EMPTY" not in w_input:
             live_sidebar_bounds["watchlist_tickers"].append(w_input)
             
-    # 4. Extract Layer A.2 Paper Position Sandbox slots
+        # 4. Extract Layer A.2 Paper Position Sandbox slots
     paper_positions_to_save = {}
     for idx in range(6):
         slot_ticker = st.session_state.get(f"paper_slot_{idx}", "").strip().upper()
-        slot_shares = st.session_state.get(f"paper_shares_{idx}", 0.0)
         slot_entry  = st.session_state.get(f"paper_entry_{idx}", 0.0)
         
-        if slot_ticker and slot_shares > 0.0:
+        # Safely convert calendar date into standardized ISO format text strings
+        slot_date   = st.session_state.get(f"paper_date_{idx}", datetime.today().date())
+        slot_date_str = slot_date.strftime("%Y-%m-%d") if hasattr(slot_date, "strftime") else str(slot_date)
+        
+        if slot_ticker and "EMPTY" not in slot_ticker:
             paper_positions_to_save[slot_ticker] = {
-                "shares": float(slot_shares),
-                "entry": float(slot_entry)
+                "shares": 1.0, # Enforced single unit baseline asset tracker
+                "entry": float(slot_entry),
+                "entry_date": slot_date_str
             }
     # Mount the paper portfolio array directly to the primary payload mapping
     live_sidebar_bounds["paper_positions"] = paper_positions_to_save
@@ -751,39 +769,44 @@ else:
 st.markdown("---")
 st.markdown("#### 🧪 Layer A.2: Paper Trading Forward-Testing Ledger")
 
-# Read current active layout bounds straight from memory matrix
 runtime_paper_data = disk_memory.get("paper_positions", {})
 active_paper_positions = []
 
 for idx in range(6):
-    # Check session state first to capture real-time user inputs instantly
     p_ticker = st.session_state.get(f"paper_slot_{idx}", "").strip().upper()
-    p_shares = float(st.session_state.get(f"paper_shares_{idx}", 0.0))
     p_entry_price = float(st.session_state.get(f"paper_entry_{idx}", 0.0))
+    p_date = st.session_state.get(f"paper_date_{idx}", None)
+    p_shares = 1.0 # Strict single-share architecture rule override
     
-    # If session state was blanked out by a cache clear, look into disk database memory
-    if not p_ticker or p_shares == 0.0:
-        # Get individual tickers from keys safely mapping across slots
+    if not p_ticker or "EMPTY" in p_ticker:
         temp_keys = list(runtime_paper_data.keys())
         if idx < len(temp_keys):
             p_ticker = temp_keys[idx]
             p_stored_block = runtime_paper_data.get(p_ticker, {})
-            p_shares = float(p_stored_block.get("shares", 0.0))
             p_entry_price = float(p_stored_block.get("entry", 0.0))
+            stored_date_str = p_stored_block.get("entry_date", None)
+            if stored_date_str:
+                try: p_date = datetime.strptime(stored_date_str, "%Y-%m-%d").date()
+                except: p_date = datetime.today().date()
 
-    # Render row metrics if the slot contains active positions
-    if p_ticker and "EMPTY" not in p_ticker and p_shares > 0.0:
-        # Pull live close and volatility spreads from historical matrix dictionary
+    if p_ticker and "EMPTY" not in p_ticker and p_entry_price > 0.0:
         if p_ticker in operational_dfs and not operational_dfs[p_ticker].empty:
             p_calc = operational_dfs[p_ticker]
             p_latest = p_calc.iloc[-1]
             p_close = float(p_latest['Close'])
             p_atr = float(p_latest['ATR']) if 'ATR' in p_latest else (p_close * 0.02)
         else:
-            # Emergency fall-back values if market cache data isn't compiled yet
-            p_close = p_entry_price if p_entry_price > 0.0 else 1.0
+            p_close = p_entry_price
             p_atr = p_close * 0.02
             
+        # CALCULATE ELAPSED HORIZON DAYS RUNNING
+        if p_date:
+            try: days_active = (datetime.today().date() - p_date).days
+            except: days_active = 0
+        else:
+            days_active = 0
+            
+        # 1-SHARE DRIFT RETURN CALCULATIONS
         p_cost = p_shares * p_entry_price
         p_val = p_shares * p_close
         p_pnl = p_val - p_cost
@@ -791,12 +814,12 @@ for idx in range(6):
         
         active_paper_positions.append({
             "Paper Ticker": p_ticker,
-            "Simulated Shares": p_shares,
+            "Days Active": f"{days_active} Days" if days_active >= 0 else "0 Days",
             "Simulated Entry": p_entry_price,
             "Live Price": p_close,
             "Current Value": p_val,
-            "Paper P&L ($)": p_pnl,
-            "Paper ROI": p_roi,
+            "$ ROI": p_pnl,
+            "% ROI": p_roi,
             "ATR Noise Stop": p_close - (2.0 * p_atr)
         })
 
@@ -806,12 +829,12 @@ if active_paper_positions:
         paper_df, use_container_width="stretch", hide_index=True, height=180,
         column_config={
             "Paper Ticker": st.column_config.TextColumn("Ticker", width="small"),
-            "Simulated Shares": st.column_config.NumberColumn("Shares", format="%.4f", width="small"),
+            "Days Active": st.column_config.TextColumn("Days Active", width="small"),
             "Simulated Entry": st.column_config.NumberColumn("Paper Entry", format="$%.2f", width="small"),
-            "Live Price": st.column_config.NumberColumn("Live", format="$%.2f", width="small"),
+            "Live Price": st.column_config.NumberColumn("Live Close", format="$%.2f", width="small"),
             "Current Value": st.column_config.NumberColumn("Sim Value", format="$%.2f", width="small"),
-            "Paper P&L ($)": st.column_config.NumberColumn("P&L ($)", format="$%.2f", width="small"),
-            "Paper ROI": st.column_config.NumberColumn("ROI", format="%.2f%%", width="small"),
+            "$ ROI": st.column_config.NumberColumn("$ ROI", format="$%.2f", width="small"),
+            "% ROI": st.column_config.NumberColumn("% ROI", format="%.2f%%", width="small"),
             "ATR Noise Stop": st.column_config.NumberColumn("Stop Floor", format="$%.2f", width="small")
         }
     )

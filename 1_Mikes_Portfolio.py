@@ -264,6 +264,10 @@ with floating_container:
     
     with toolbar_col2:
         # Dynamic inline connection status frame pulled directly into center grid position
+        # 🌟 SURGICAL SAFEGUARD: Initialize the state key if it doesn't exist on page boot
+        if "last_cloud_save_time" not in st.session_state:
+            st.session_state["last_cloud_save_time"] = None
+
         if st.session_state["last_cloud_save_time"]:
             if "⚠️" in st.session_state["last_cloud_save_time"]:
                 st.markdown(f"""

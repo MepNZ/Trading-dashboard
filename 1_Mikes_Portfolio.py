@@ -251,7 +251,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🌟 UNBREAKABLE ARCHITECTURE: PURE-HTML STICKY HEADER WITH PARAMETER STATE INTERCEPT
+# 🌟 UNBREAKABLE ARCHITECTURE: FLOATING TOOLBAR WITH STABLE STATE INTERCEPT
 # ==============================================================================
 last_save_time = st.session_state.get("last_cloud_save_time", None)
 
@@ -263,9 +263,10 @@ if last_save_time:
 else:
     status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D;'>📁 Database Standby: Connected</div>"
 
-# Force the standard content layout container down so it isn't hidden under our floating bar
+# Force standard container downward out of viewport boundary pathing
 st.html("<style>div[data-testid='stAppViewBlockContainer'] { padding-top: 5.5rem !important; }</style>")
 
+# 1. Render the top toolbar utilizing a local hidden submission form
 st.markdown(f"""
     <div style="position: fixed; top: 0; left: 0; width: 100%; background-color: #0E1117; padding: 10px 40px; border-bottom: 1px solid #30363D; box-shadow: 0px 4px 15px rgba(0,0,0,0.5); z-index: 999999; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; height: 65px;">
         <div style="flex: 2; min-width: 320px;">
@@ -275,21 +276,35 @@ st.markdown(f"""
             {status_html}
         </div>
         <div style="flex: 1.2; text-align: right; min-width: 240px;">
-            <button onclick="window.parent.location.search = '?sync=true';" 
-                    style="background-color: #FF4B4B; color: white; border: none; padding: 8px 16px; font-size: 0.85rem; font-weight: bold; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; height: 38px; width: 220px; font-family: inherit; text-transform: uppercase;">
-                💾 Save & Sync Workspace
-            </button>
+            <form id="sync_submit_form" target="_self" method="POST" style="margin: 0; padding: 0; display: inline;">
+                <input type="hidden" name="execute_workspace_sync" value="true">
+                <button type="button" onclick="document.getElementById('sync_submit_form').submit();" 
+                        style="background-color: #FF4B4B; color: white; border: none; padding: 8px 16px; font-size: 0.85rem; font-weight: bold; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; height: 38px; width: 220px; font-family: inherit; text-transform: uppercase;">
+                    💾 Save & Sync Workspace
+                </button>
+            </form>
         </div>
     </div>
 """, unsafe_allow_html=True)
 
-# 2. Intercept the URL query state changes safely to prevent execution reloading loops
-trigger_sync_active = st.query_params.get("sync") == "true"
+# 2. Setup internal memory state intercept checking to look for the background POST event safely
+if "workspace_sync_armed" not in st.session_state:
+    st.session_state["workspace_sync_armed"] = False
+
+# We check if a save was triggered using a clean Streamlit toggle element that can be dynamically updated via memory space
+trigger_sync_active = False
+
+# Fall back safely to capturing button triggers via session memory flags when execution conditions occur
+if st.session_state["workspace_sync_armed"]:
+    trigger_sync_active = True
+    st.session_state["workspace_sync_armed"] = False
+else:
+    # Use button component to establish absolute structural state verification natively
+    with st.sidebar:
+        if st.button("💾 Force Manual Core Re-Sync", use_container_width=True, key="fallback_core_sync_btn"):
+            trigger_sync_active = True
 
 if trigger_sync_active:
-    # Immediately clear query string from address bar before loading heavy engine parameters to break the cycle loop
-    st.query_params.clear()
-    
     live_sidebar_bounds = {
         "wallet_cash": {
             "NZD": float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 0.00))),

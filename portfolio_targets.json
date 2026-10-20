@@ -32,5 +32,6 @@
     },
     "watchlist_tickers": [
         "CLF"
-    ]
+    ],
+    "paper_positions": {}
 }

@@ -251,7 +251,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🌟 UNBREAKABLE ARCHITECTURE: PURE-HTML STICKY HEADER WITH JAVASCRIPT TRIPPED TRIGGER
+# 🌟 UNBREAKABLE ARCHITECTURE: PURE-HTML STICKY HEADER WITH PARAMETER STATE INTERCEPT
 # ==============================================================================
 last_save_time = st.session_state.get("last_cloud_save_time", None)
 
@@ -263,7 +263,7 @@ if last_save_time:
 else:
     status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D;'>📁 Database Standby: Connected</div>"
 
-# 1. Render the entire header alongside a beautifully embedded HTML button that triggers our hidden checkbox click handler
+# Force the standard content layout container down so it isn't hidden under our floating bar
 st.html("<style>div[data-testid='stAppViewBlockContainer'] { padding-top: 5.5rem !important; }</style>")
 
 st.markdown(f"""
@@ -275,7 +275,7 @@ st.markdown(f"""
             {status_html}
         </div>
         <div style="flex: 1.2; text-align: right; min-width: 240px;">
-            <button onclick="const wrapper = parent.document.getElementById('hidden-sync-trigger'); if(wrapper) {{ const cb = wrapper.querySelector('input[type=\\'checkbox\\']'); if(cb) cb.click(); }}" 
+            <button onclick="window.parent.location.search = '?sync=true';" 
                     style="background-color: #FF4B4B; color: white; border: none; padding: 8px 16px; font-size: 0.85rem; font-weight: bold; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; height: 38px; width: 220px; font-family: inherit; text-transform: uppercase;">
                 💾 Save & Sync Workspace
             </button>
@@ -283,26 +283,13 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# 2. Inject a hidden Streamlit primitive inside an un-targeted area to safely catch and process click events natively
-st.markdown("""
-    <style>
-        #hidden-sync-trigger {
-            position: absolute !important;
-            left: -9999px !important;
-            top: -9999px !important;
-            visibility: hidden !important;
-            height: 0px !important;
-            width: 0px !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
+# 2. Intercept the URL query state changes safely to prevent execution reloading loops
+trigger_sync_active = st.query_params.get("sync") == "true"
 
-st.markdown('<div id="hidden-sync-trigger">', unsafe_allow_html=True)
-trigger_sync_active = st.checkbox("hidden_github_sync_trigger", value=False, key="hidden_github_sync_trigger")
-st.markdown('</div>', unsafe_allow_html=True)
-
-# 3. Fire the execution runtime logic when the user clicks the floating bar button
 if trigger_sync_active:
+    # Immediately clear query string from address bar before loading heavy engine parameters to break the cycle loop
+    st.query_params.clear()
+    
     live_sidebar_bounds = {
         "wallet_cash": {
             "NZD": float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 0.00))),

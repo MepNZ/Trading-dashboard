@@ -251,22 +251,22 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🌟 UNBREAKABLE ARCHITECTURE: PURE NATIVE STICKY DASHBOARD HEADER
+# 🌟 UNBREAKABLE ARCHITECTURE: PURE NATIVE STICKY DASHBOARD HEADER (VERTICALLY ALIGNED)
 # ==============================================================================
 last_save_time = st.session_state.get("last_cloud_save_time", None)
 
 if last_save_time:
     if "⚠️" in last_save_time:
-        status_html = f"<div style='background-color: #dc3545; color: #FFFFFF; padding: 8px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #bd2130;'>{last_save_time}</div>"
+        status_html = f"<div style='background-color: #dc3545; color: #FFFFFF; padding: 8px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #bd2130; height: 38px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;'>{last_save_time}</div>"
     else:
-        status_html = f"<div style='background-color: #28a745; color: #FFFFFF; padding: 4px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.82rem; border: 1px solid #1e7e34; line-height: 1.3;'>✅ SYNCED TO GITHUB LIVE<br><span style='font-size: 0.72rem; font-weight: normal; opacity: 0.85;'>Time: {last_save_time}</span></div>"
+        status_html = f"<div style='background-color: #28a745; color: #FFFFFF; padding: 4px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.82rem; border: 1px solid #1e7e34; line-height: 1.2; height: 38px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box;'>✅ SYNCED TO GITHUB LIVE<span style='font-size: 0.70rem; font-weight: normal; opacity: 0.85; margin-top: 1px;'>Time: {last_save_time}</span></div>"
 else:
-    status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D;'>📁 Database Standby: Connected</div>"
+    status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D; height: 38px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;'>📁 Database Standby: Connected</div>"
 
-# Inject clean CSS to fix this exact structural container wrapper to the ceiling of the layout grid
+# Inject high-precision alignment CSS rules directly into the wrapper elements
 st.markdown("""
     <style>
-        /* Target the container block holding our top header row assets */
+        /* 1. Target the fixed container element */
         div[data-testid="stVerticalBlock"] > div:has(div.native-sticky-header-container) {
             position: fixed !important;
             top: 0 !important;
@@ -274,39 +274,62 @@ st.markdown("""
             width: 100% !important;
             z-index: 999991 !important;
             background-color: #0E1117 !important;
-            padding: 10px 40px !important;
+            padding: 0px 40px !important; /* Zero out top/bottom padding to let column height define it */
             border-bottom: 1px solid #30363D !important;
             box-shadow: 0px 4px 15px rgba(0,0,0,0.5) !important;
             box-sizing: border-box !important;
+            height: 65px !important; /* Lock the header height */
+            display: flex !important;
+            align-items: center !important; /* Force flex child container alignment */
         }
         
-        /* Force standard page view container elements to step down below our fixed layout space */
+        /* 2. Force the internal Streamlit layout columns block to span full height and center */
+        div:has(div.native-sticky-header-container) > div[data-testid="stHorizontalBlock"] {
+            width: 100% !important;
+            height: 100% !important;
+            display: flex !important;
+            align-items: center !important; /* Perfect vertical centering across the axis */
+        }
+
+        /* 3. Strip out default native margin rules injected into the button wrapper */
+        div:has(div.native-sticky-header-container) .stButton {
+            margin-top: 0px !important;
+            margin-bottom: 0px !important;
+        }
+
+        /* 4. Match native button text styling precisely to the status banner baseline */
+        div:has(div.native-sticky-header-container) .stButton > button {
+            height: 38px !important;
+            font-size: 0.85rem !important;
+            font-weight: bold !important;
+            text-transform: uppercase !important;
+        }
+        
+        /* Keep standard page view elements stepping below our fixed bar */
         div[data-testid="stAppViewBlockContainer"] {
             padding-top: 6.0rem !important;
         }
         
-        /* Eliminate vertical container padding blocks specifically inside our header space */
         div.native-sticky-header-container div[data-testid="stVerticalBlock"] {
             gap: 0rem !important;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# Create an anchor block container that handles our sticky ceiling position mapping
+# Create anchor block container handling our sticky positioning mapping
 with st.container():
     st.markdown('<div class="native-sticky-header-container"></div>', unsafe_allow_html=True)
     
-    # Map out clean columns matrix natively to handle alignment
-    head_col1, head_col2, head_col3 = st.columns([2, 1.5, 1.2], vertical_alignment="center")
+    # Map out clean columns matrix natively with vertical alignment forced via flex overrides
+    head_col1, head_col2, head_col3 = st.columns([2, 1.5, 1.2])
     
     with head_col1:
-        st.markdown("<h3 style='margin: 0; padding: 0; font-size: 1.30rem; color: #4A90E2;'>⚡ Live Matrix Workspace Viewport Ledger</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='margin: 0; padding: 0; font-size: 1.30rem; color: #4A90E2; line-height: 1.0;'>⚡ Live Matrix Workspace Viewport Ledger</h3>", unsafe_allow_html=True)
         
     with head_col2:
         st.markdown(status_html, unsafe_allow_html=True)
         
     with head_col3:
-        # 100% native execution button completely safe from iframe sandbox blocks
         trigger_sync_active = st.button("💾 SAVE & SYNC WORKSPACE", use_container_width=True, type="primary")
 
 # Run the backend runtime loop data commits safely when clicked

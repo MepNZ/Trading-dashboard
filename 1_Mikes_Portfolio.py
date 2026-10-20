@@ -265,6 +265,7 @@ else:
 
 # Inject precision styling targeting ONLY the immediate container wrapper block
 # Inject precision styling targeting ONLY the immediate container wrapper block
+# Inject precision styling targeting ONLY the immediate container wrapper block
 st.markdown("""
     <style>
         /* 1. Target the vertical container block that contains our unique element marker */
@@ -275,31 +276,28 @@ st.markdown("""
             width: 100% !important;
             z-index: 999991 !important;
             background-color: #0E1117 !important;
-            padding: 0px 40px !important; /* Managed purely by fixed height for centering */
+            padding: 12px 40px !important; /* Balanced padding that ensures visibility */
             border-bottom: 1px solid #30363D !important;
             box-shadow: 0px 4px 15px rgba(0,0,0,0.5) !important;
             box-sizing: border-box !important;
-            height: 65px !important; /* Explicitly sets the header row container height */
         }
 
-        /* 2. Force perfect vertical centering inside Streamlit's inner horizontal flex grid */
+        /* 2. Handle simple flex layout mapping across the row grid */
         div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             align-items: center !important;
-            justify-content: center !important;
             width: 100% !important;
-            height: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
             gap: 1rem !important;
         }
 
-        /* 3. Normalize native button container layouts and paddings */
+        /* 3. PRECISION ALIGNMENT: Nudge button downward to match the text center line */
         div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) .stButton {
             margin: 0 !important;
             padding: 0 !important;
-            display: flex !important;
-            align-items: center !important;
+            position: relative !important;
+            top: 3px !important; /* Moves the button down perfectly into the center axis */
         }
         
         div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) .stButton > button {
@@ -308,22 +306,9 @@ st.markdown("""
             font-weight: bold !important;
             text-transform: uppercase !important;
             margin: 0 !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
         }
 
-        /* 4. FORCE THE INNER SCRIPT TEXT BLOCKS TO ALIGN DEAD-CENTER ON VERTICAL AXIS */
-        div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) .stButton > button div[data-testid="stMarkdownContainer"] p {
-            margin: 0 !important;
-            padding: 0 !important;
-            line-height: 1.0 !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-        }
-
-        /* 5. Keep standard page data columns shifted down away from under the ceiling bar */
+        /* 4. Keep standard page data columns shifted down away from under the ceiling bar */
         div[data-testid="stAppViewBlockContainer"] {
             padding-top: 6.5rem !important;
         }

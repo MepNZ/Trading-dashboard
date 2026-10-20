@@ -127,11 +127,18 @@ with st.sidebar:
 
     @st.fragment
     def render_isolated_sidebar_controls():
-        # NOTICE: The legacy manual save button block and bulky banners have been cleanly scrubbed from here!
-        st.selectbox("Chart & ROI grid timeframe", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], key="roi_window")
-        st.selectbox("Fast MA Frame", [5, 10, 20, 50], index=[5, 10, 20, 50].index(st.session_state["fast_ma"]) if st.session_state["fast_ma"] in [5, 10, 20, 50] else 1, key="fast_ma")
-        st.selectbox("Slow MA Frame", [25, 50, 100, 200], index=[25, 50, 100, 200].index(st.session_state["slow_ma"]) if st.session_state["slow_ma"] in [25, 50, 100, 200] else 2, key="slow_ma")
+        # 1. Safe Timeframe Check
+        current_roi = st.session_state.get("roi_window", runtime_sliders.get("roi_window", "1 Year"))
+        st.selectbox("Chart & ROI grid timeframe", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], index=["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"].index(current_roi) if current_roi in ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"] else 3, key="roi_window")
         
+        # 2. Safe Fast MA Check (Uses .get() fallback to bypass the KeyError)
+        current_fast = st.session_state.get("fast_ma", int(runtime_sliders.get("fast_ma", 10)))
+        st.selectbox("Fast MA Frame", [5, 10, 20, 50], index=[5, 10, 20, 50].index(current_fast) if current_fast in [5, 10, 20, 50] else 1, key="fast_ma")
+        
+        # 3. Safe Slow MA Check (Uses .get() fallback to bypass the KeyError)
+        current_slow = st.session_state.get("slow_ma", int(runtime_sliders.get("slow_ma", 100)))
+        st.selectbox("Slow MA Frame", [25, 50, 100, 200], index=[25, 50, 100, 200].index(current_slow) if current_slow in [25, 50, 100, 200] else 2, key="slow_ma")
+
         st.markdown("---")
         st.markdown("### 💼 Sharesies Wallet Cash")
         st.number_input("Cash Held (NZD)", min_value=0.00, value=float(runtime_cash.get("NZD", 0.00)), step=1.00, format="%.2f", key="cash_nzd_input")
@@ -140,6 +147,7 @@ with st.sidebar:
         
         st.markdown("---")
         st.markdown("### 📐 Layer A: Fixed Portfolio Slots")
+                # --- Layer A: Fixed Portfolio Slots ---
         for i in range(6):
             ticker = portfolio_slots[i]
             stored = runtime_positions.get(ticker, {}) if "EMPTY" not in ticker else {}
@@ -151,12 +159,25 @@ with st.sidebar:
                 st.number_input("Upper Target ($)", min_value=0.0, value=float(stored.get("upper", 0.0)), key=f"up_{i}")
                 st.number_input("Fixed Stop Distance ($)", min_value=0.0, value=float(stored.get("fixed_stop_distance", 15.0)), key=f"fixed_stop_{i}")
 
+        # ==============================================================================
+        # CLEANUP MERGE: WATCHLIST REMOVED. TRANSITION DIRECTLY TO LAYER A.2
+        # ==============================================================================
         st.markdown("---")
-        st.markdown("### 🛰️ Layer B: Watchlist Tickers (Symbols Only)")
+        st.markdown("### 🧪 Layer A.2: Paper Trading Slots")
+        runtime_paper = disk_memory.get("paper_positions", {})
+        
+        paper_slots = list(runtime_paper.keys())[:6]
+        while len(paper_slots) < 6:
+            paper_slots.append(f"EMPTY_PAPER_{len(paper_slots)+1}")
+
         for i in range(6):
-            ticker = watchlist_slots[i]
-            val_to_show = "" if "EMPTY" in ticker else ticker
-            st.text_input(f"Watchlist Slot {i+1}", value=val_to_show, key=f"watch_slot_{i}")
+            p_ticker = paper_slots[i]
+            p_stored = runtime_paper.get(p_ticker, {}) if "EMPTY" not in p_ticker else {}
+            p_display = p_ticker if "EMPTY" not in p_ticker else "Empty Paper Slot"
+            with st.expander(f"Paper Slot {i+1}: {p_display}", expanded=False):
+                st.text_input(f"Paper Ticker Symbol", value="" if "EMPTY" in p_ticker else p_ticker, key=f"paper_slot_{i}")
+                st.number_input("Paper Shares", min_value=0.0000, value=float(p_stored.get("shares", 0.0)), step=0.0001, format="%.4f", key=f"paper_shares_{i}")
+                st.number_input("Paper Entry Price ($)", min_value=0.0, value=float(p_stored.get("entry", 0.0)), key=f"paper_entry_{i}")
 
     render_isolated_sidebar_controls()
 
@@ -331,12 +352,16 @@ with st.container():
     with head_col3:
         trigger_sync_active = st.button("💾 SAVE & SYNC WORKSPACE", use_container_width=True, type="primary")
 
+# ==============================================================================
+# UNBREAKABLE SYNC ENGINE & LAYER A.2 PAPER PORTFOLIO STORAGE EXTRACTION
+# ==============================================================================
 if trigger_sync_active:
+    # 1. Initialize master dictionary matrix using unified form parameters
     live_sidebar_bounds = {
         "wallet_cash": {
             "NZD": float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 0.00))),
             "AUD": float(st.session_state.get("cash_aud_input", runtime_cash.get("AUD", 0.00))),
-            "USD": float(st.session_state.get("cash_usd_input", runtime_cash.get("USD", 0.00))),
+            "USD": float(st.session_state.get("cash_usd_input", runtime_cash.get("USD", 0.00)))
         },
         "sliders": {
             "fast_ma": int(st.session_state.get("fast_ma", 10)),
@@ -345,9 +370,11 @@ if trigger_sync_active:
             "graph_horizon": st.session_state.get("roi_window", "1 Year")
         },
         "positions": {},
-        "watchlist_tickers": []
+        "watchlist_tickers": [],
+        "paper_positions": {}
     }
     
+    # 2. Extract standard owned assets slots
     for idx in range(6):
         t_input = st.session_state.get(f"port_slot_{idx}", portfolio_slots[idx]).upper().strip()
         if t_input and "EMPTY" not in t_input:
@@ -358,13 +385,36 @@ if trigger_sync_active:
                 "fixed_stop_distance": float(st.session_state.get(f"fixed_stop_{idx}", 15.00))
             }
     
+    # 3. Extract standard watchlist tracking slots
     for idx in range(6):
         w_input = st.session_state.get(f"watch_slot_{idx}", watchlist_slots[idx]).upper().strip()
         if w_input and "EMPTY" not in w_input:
             live_sidebar_bounds["watchlist_tickers"].append(w_input)
-    
+            
+    # 4. Extract Layer A.2 Paper Position Sandbox slots
+    paper_positions_to_save = {}
+    for idx in range(6):
+        slot_ticker = st.session_state.get(f"paper_slot_{idx}", "").strip().upper()
+        slot_shares = st.session_state.get(f"paper_shares_{idx}", 0.0)
+        slot_entry  = st.session_state.get(f"paper_entry_{idx}", 0.0)
+        
+        if slot_ticker and slot_shares > 0.0:
+            paper_positions_to_save[slot_ticker] = {
+                "shares": float(slot_shares),
+                "entry": float(slot_entry)
+            }
+    # Mount the paper portfolio array directly to the primary payload mapping
+    live_sidebar_bounds["paper_positions"] = paper_positions_to_save
+
+        # 5. Flush state to disk and push out upstream GitHub repository sync 
     with open(TARGETS_FILE, 'w') as f:
         json.dump(live_sidebar_bounds, f, indent=4)
+        
+    # ==============================================================================
+    # FIX: IMMEDIATELY SYNC THE RUNTIME MEMORY SO THE LOCAL GRID UPDATES INSTANTLY
+    # ==============================================================================
+    for key, value in live_sidebar_bounds.items():
+        disk_memory[key] = value
     
     synced_ok = push_targets_to_github(live_sidebar_bounds)
     
@@ -374,7 +424,9 @@ if trigger_sync_active:
         st.session_state["last_cloud_save_time"] = datetime.now(nz_tz).strftime("%I:%M:%S %p %Z")
         st.toast("Matrix parameters committed and synced successfully!")
     else:
-        st.session_state["last_cloud_save_time"] = "⚠️ Connection Refused by GitHub"
+        # Since you are offline/local, we track that it saved locally anyway
+        st.session_state["last_cloud_save_time"] = "💾 Saved Locally (GitHub Offline)"
+        st.toast("Saved locally to database!")
         
     st.cache_data.clear()
     st.rerun()
@@ -482,23 +534,23 @@ def apply_market_signal_theme(df):
 # --- WORKSPACE RESOLUTION & UNIFICATION ---
 master_unified_rows, active_live_positions, operational_dfs = [], [], {}
 lookback_days_map = {"1 Month": 30, "3 Months": 90, "6 Months": 180, "1 Year": 365, "2 Years": 730}
-# Force the data download window to always use 2 Years so the chart engine never starves
 lookback_start_date = datetime.now() - timedelta(days=lookback_days_map["2 Years"] + 250)
 macro_sector_rows = []
 sector_mapping_dictionary = {"SPY": "🇺🇸 S&P 500 Index", "XLK": "💻 Technology", "XLY": "📦 Consumer Discretionary", "XLC": "🗣️ Communication", "XLF": "🏦 Financials", "XLV": "🩺 Healthcare", "XLP": "🛒 Consumer Staples", "XLI": "🏗️ Industrials", "XLE": "🛢️ Energy", "XLB": "🧱 Materials", "XLU": "⚡ Utilities", "XLRE": "🏢 Real Estate"}
 
 clean_portfolio_list = [t for t in portfolio_slots if t and "EMPTY" not in t]
-clean_watchlist_list = [t for t in watchlist_slots if t and "EMPTY" not in t]
 
-# STRICT PERSISTENT SEQUENCE ORDER ENFORCEMENT
+# Extract simulated tickers cleanly
+runtime_paper = disk_memory.get("paper_positions", {})
+clean_paper_list = [t for t in runtime_paper.keys() if t and "EMPTY" not in t]
+
+# STRICT PERSISTENT SEQUENCE ORDER ENFORCEMENT (Watchlist reference scrubbed)
 all_active_workspace_tickers = []
-# 1. Loop through clean portfolio items first to preserve active workspace slots
 for t in clean_portfolio_list:
-    if t not in all_active_workspace_tickers:
+    if t not in all_active_workspace_tickers: 
         all_active_workspace_tickers.append(t)
-# 2. Append secondary watchlist rows next without duplicating elements
-for t in clean_watchlist_list:
-    if t not in all_active_workspace_tickers:
+for t in clean_paper_list:
+    if t not in all_active_workspace_tickers: 
         all_active_workspace_tickers.append(t)
 
 extended_fetching_tickers = list(set(all_active_workspace_tickers + list(sector_mapping_dictionary.keys())))
@@ -693,6 +745,78 @@ if active_live_positions:
     st.markdown(f"""<div style='background-color: #f8f9fa; padding: 10px 14px; border-radius: 4px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; font-size: 0.88rem; font-weight: bold; margin-bottom: 20px; border: 1px solid #e9ecef;'><div>🌎 FX: <span style='color: #007bff;'>US/NZD: {usd_to_nzd_rate:.4f}</span></div><div>📋 Invested: <span style='color: #333333;'>${total_investment_nzd:,.2f} NZD</span></div><div>💰 Cash: <span style='color: #007bff;'>${integrated_cash_nzd:,.2f} NZD</span></div><div style='background-color: #eef1f6;'>👑 TOTAL VALUE:<br><span style='color: #111111; font-size: 1.15rem;'>${total_app_value:,.2f} NZD</span></div><div>📈 Return: <span style='color: {pnl_color};'>{pnl_sign}${total_equity_profit_nzd:,.2f} ({pnl_sign}{total_roi_nzd:.2f}%)</span></div></div>""", unsafe_allow_html=True)
 else:
     st.info("💡 Your Portfolio Ledger is currently empty. Populate tickers in your Layer A sidebar slots to track your invested capital positions.")
+# ==============================================================================
+# VISUAL RENDERING ENGINE: LAYER A.2 PAPER PORTFOLIO LEDGER GRID
+# ==============================================================================
+st.markdown("---")
+st.markdown("#### 🧪 Layer A.2: Paper Trading Forward-Testing Ledger")
+
+# Read current active layout bounds straight from memory matrix
+runtime_paper_data = disk_memory.get("paper_positions", {})
+active_paper_positions = []
+
+for idx in range(6):
+    # Check session state first to capture real-time user inputs instantly
+    p_ticker = st.session_state.get(f"paper_slot_{idx}", "").strip().upper()
+    p_shares = float(st.session_state.get(f"paper_shares_{idx}", 0.0))
+    p_entry_price = float(st.session_state.get(f"paper_entry_{idx}", 0.0))
+    
+    # If session state was blanked out by a cache clear, look into disk database memory
+    if not p_ticker or p_shares == 0.0:
+        # Get individual tickers from keys safely mapping across slots
+        temp_keys = list(runtime_paper_data.keys())
+        if idx < len(temp_keys):
+            p_ticker = temp_keys[idx]
+            p_stored_block = runtime_paper_data.get(p_ticker, {})
+            p_shares = float(p_stored_block.get("shares", 0.0))
+            p_entry_price = float(p_stored_block.get("entry", 0.0))
+
+    # Render row metrics if the slot contains active positions
+    if p_ticker and "EMPTY" not in p_ticker and p_shares > 0.0:
+        # Pull live close and volatility spreads from historical matrix dictionary
+        if p_ticker in operational_dfs and not operational_dfs[p_ticker].empty:
+            p_calc = operational_dfs[p_ticker]
+            p_latest = p_calc.iloc[-1]
+            p_close = float(p_latest['Close'])
+            p_atr = float(p_latest['ATR']) if 'ATR' in p_latest else (p_close * 0.02)
+        else:
+            # Emergency fall-back values if market cache data isn't compiled yet
+            p_close = p_entry_price if p_entry_price > 0.0 else 1.0
+            p_atr = p_close * 0.02
+            
+        p_cost = p_shares * p_entry_price
+        p_val = p_shares * p_close
+        p_pnl = p_val - p_cost
+        p_roi = (p_pnl / p_cost) * 100 if p_cost > 0 else 0.0
+        
+        active_paper_positions.append({
+            "Paper Ticker": p_ticker,
+            "Simulated Shares": p_shares,
+            "Simulated Entry": p_entry_price,
+            "Live Price": p_close,
+            "Current Value": p_val,
+            "Paper P&L ($)": p_pnl,
+            "Paper ROI": p_roi,
+            "ATR Noise Stop": p_close - (2.0 * p_atr)
+        })
+
+if active_paper_positions:
+    paper_df = pd.DataFrame(active_paper_positions)
+    st.dataframe(
+        paper_df, use_container_width="stretch", hide_index=True, height=180,
+        column_config={
+            "Paper Ticker": st.column_config.TextColumn("Ticker", width="small"),
+            "Simulated Shares": st.column_config.NumberColumn("Shares", format="%.4f", width="small"),
+            "Simulated Entry": st.column_config.NumberColumn("Paper Entry", format="$%.2f", width="small"),
+            "Live Price": st.column_config.NumberColumn("Live", format="$%.2f", width="small"),
+            "Current Value": st.column_config.NumberColumn("Sim Value", format="$%.2f", width="small"),
+            "Paper P&L ($)": st.column_config.NumberColumn("P&L ($)", format="$%.2f", width="small"),
+            "Paper ROI": st.column_config.NumberColumn("ROI", format="%.2f%%", width="small"),
+            "ATR Noise Stop": st.column_config.NumberColumn("Stop Floor", format="$%.2f", width="small")
+        }
+    )
+else:
+    st.info("💡 Paper Ledger Standby: Populate tickers in your Layer A.2 sidebar slots to monitor simulated positions safely.")
 # ==============================================================================
 # MIKE'S SHARE MARKET DASHBOARD: CHART ANALYTICS (PART 4B)
 # ==============================================================================

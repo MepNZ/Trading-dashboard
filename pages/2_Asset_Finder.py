@@ -294,7 +294,7 @@ def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
 # Execute caching engine instantly
 fast_ma_input = st.session_state["asset_fast_ma"]
 slow_ma_input = st.session_state["asset_slow_ma"]
-all_breakouts, all_discounts, compressed_dfs = process_entire_screening_universe(fast_ma_input, slow_ma_input, "v2")
+all_breakouts, all_discounts, compressed_dfs = process_entire_screening_universe(fast_ma_input, slow_ma_input, "v3")
 
 # --- APPLY USER BUDGET FILTERS INSTANTLY IN MEMORY ---
 if st.session_state["view_mode_choice"] == "Budget-Friendly Assets":

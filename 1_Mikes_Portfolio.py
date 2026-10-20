@@ -251,120 +251,96 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🌟 SURGICAL RE-ENGINEERING: STABLE INLINE FLOATING BAR TOOLBAR ENGINE
+# 🌟 UNBREAKABLE ARCHITECTURE: PURE-HTML STICKY HEADER WITH JAVASCRIPT TRIPPED TRIGGER
 # ==============================================================================
 last_save_time = st.session_state.get("last_cloud_save_time", None)
 
 if last_save_time:
     if "⚠️" in last_save_time:
-        status_html = f"<div style='background-color: #dc3545; color: #FFFFFF; padding: 10px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #bd2130;'>{last_save_time}</div>"
+        status_html = f"<div style='background-color: #dc3545; color: #FFFFFF; padding: 8px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #bd2130;'>{last_save_time}</div>"
     else:
-        status_html = f"<div style='background-color: #28a745; color: #FFFFFF; padding: 6px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #1e7e34; line-height: 1.3;'>✅ SYNCED TO GITHUB LIVE<br><span style='font-size: 0.72rem; font-weight: normal; opacity: 0.85;'>Time: {last_save_time}</span></div>"
+        status_html = f"<div style='background-color: #28a745; color: #FFFFFF; padding: 4px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.82rem; border: 1px solid #1e7e34; line-height: 1.3;'>✅ SYNCED TO GITHUB LIVE<br><span style='font-size: 0.72rem; font-weight: normal; opacity: 0.85;'>Time: {last_save_time}</span></div>"
 else:
-    status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D;'>📁 Database Standby: Connected</div>"
+    status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D;'>📁 Database Standby: Connected</div>"
 
-# 1. Inject the Master CSS Overrides to trap and lock BOTH the header row and native Streamlit button container to the ceiling viewport
-st.markdown("""
+# 1. Render the entire header alongside a beautifully embedded HTML button that triggers our hidden checkbox click handler
+st.markdown(f"""
     <style>
-        /* Pin our structural background bar to the top ceiling */
-        .master-floating-header-container {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            background-color: #0E1117 !important;
-            padding: 10px 40px !important;
-            border-bottom: 1px solid #30363D !important;
-            box-shadow: 0px 4px 15px rgba(0,0,0,0.5) !important;
-            z-index: 9999 !important;
-            display: flex !important;
-            justify-content: space-between !important;
-            align-items: center !important;
-            box-sizing: border-box !important;
-            height: 65px !important;
-        }
-        
-        /* Force the native Streamlit button block to break out of the page layout flow and lock into our header box coordinate space */
-        div[data-testid="stAppViewBlockContainer"] div[data-testid="stHorizontalBlock"] > div:last-child {
-            position: fixed !important;
-            top: 12px !important;
-            right: 40px !important;
-            width: 240px !important;
-            z-index: 10005 !important;
-        }
-
-        /* Adjust the global page container top cushion padding rule so the standard page charts don't tuck under our bar */
-        div[data-testid="stAppViewBlockContainer"] {
+        /* Push the standard content layout down a fraction so it isn't hidden under our bar */
+        div[data-testid="stAppViewBlockContainer"] {{
             padding-top: 5.5rem !important;
         }
     </style>
-""", unsafe_allow_html=True)
 
-# 2. Render the background block element cleanly across the top view line
-st.markdown(f"""
-    <div class="master-floating-header-container">
+    <div style="position: fixed; top: 0; left: 0; width: 100%; background-color: #0E1117; padding: 10px 40px; border-bottom: 1px solid #30363D; box-shadow: 0px 4px 15px rgba(0,0,0,0.5); z-index: 999999; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; height: 65px;">
         <div style="flex: 2; min-width: 320px;">
             <h3 style="margin: 0; padding: 0; font-size: 1.30rem; color: #4A90E2; font-family: inherit;">⚡ Live Matrix Workspace Viewport Ledger</h3>
         </div>
-        <div style="flex: 1.5; padding: 0 40px; min-width: 220px;">
+        <div style="flex: 1.5; padding: 0 20px; min-width: 220px;">
             {status_html}
         </div>
-        <div style="width: 240px;">
-            <!-- Anchor pocket matching our button alignment coordinates -->
+        <div style="flex: 1.2; text-align: right; min-width: 240px;">
+            <button onclick="parent.document.querySelector('div[data-testid=\\'stCheckbox\\'] input').click();" 
+                    style="background-color: #FF4B4B; color: white; border: none; padding: 8px 16px; font-size: 0.85rem; font-weight: bold; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; height: 38px; width: 220px; font-family: inherit; text-transform: uppercase;">
+                💾 Save & Sync Workspace
+            </button>
         </div>
     </div>
 """, unsafe_allow_html=True)
 
-# 3. Create a clean structure just for the button execution loops to interact seamlessly with Streamlit's event loops
-col_title, col_space, col_btn = st.columns([2.0, 1.5, 1.2])
-with col_btn:
-    if st.button("💾 SAVE & SYNC WORKSPACE", use_container_width=True, type="primary", key="viewport_sticky_save_btn"):
-        live_sidebar_bounds = {
-            "wallet_cash": {
-                "NZD": float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 0.00))),
-                "AUD": float(st.session_state.get("cash_aud_input", runtime_cash.get("AUD", 0.00))),
-                "USD": float(st.session_state.get("cash_usd_input", runtime_cash.get("USD", 0.00))),
-            },
-            "sliders": {
-                "fast_ma": int(st.session_state.get("fast_ma", 10)),
-                "slow_ma": int(st.session_state.get("slow_ma", 100)),
-                "roi_window": st.session_state.get("roi_window", "1 Year"),
-                "graph_horizon": st.session_state.get("roi_window", "1 Year")
-            },
-            "positions": {},
-            "watchlist_tickers": []
-        }
+# 2. Inject a hidden Streamlit primitive inside an un-targeted area to safely catch and process click events natively
+st.markdown("<div style='position: absolute; left: -9999px; top: -9999px; visibility: hidden; height: 0px; width: 0px;'>", unsafe_allow_html=True)
+trigger_sync_active = st.checkbox("hidden_github_sync_trigger", value=False, key="hidden_github_sync_trigger")
+st.markdown("</div>", unsafe_allow_html=True)
+
+# 3. Fire the execution runtime logic when the user clicks the floating bar button
+if trigger_sync_active:
+    live_sidebar_bounds = {
+        "wallet_cash": {
+            "NZD": float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 0.00))),
+            "AUD": float(st.session_state.get("cash_aud_input", runtime_cash.get("AUD", 0.00))),
+            "USD": float(st.session_state.get("cash_usd_input", runtime_cash.get("USD", 0.00))),
+        },
+        "sliders": {
+            "fast_ma": int(st.session_state.get("fast_ma", 10)),
+            "slow_ma": int(st.session_state.get("slow_ma", 100)),
+            "roi_window": st.session_state.get("roi_window", "1 Year"),
+            "graph_horizon": st.session_state.get("roi_window", "1 Year")
+        },
+        "positions": {},
+        "watchlist_tickers": []
+    }
+    
+    for idx in range(6):
+        t_input = st.session_state.get(f"port_slot_{idx}", portfolio_slots[idx]).upper().strip()
+        if t_input and "EMPTY" not in t_input:
+            live_sidebar_bounds["positions"][t_input] = {
+                "shares": float(st.session_state.get(f"shares_{idx}", 0.0000)),
+                "entry": float(st.session_state.get(f"entry_{idx}", 0.00)),
+                "upper": float(st.session_state.get(f"up_{idx}", 0.00)),
+                "fixed_stop_distance": float(st.session_state.get(f"fixed_stop_{idx}", 15.00))
+            }
+    
+    for idx in range(6):
+        w_input = st.session_state.get(f"watch_slot_{idx}", watchlist_slots[idx]).upper().strip()
+        if w_input and "EMPTY" not in w_input:
+            live_sidebar_bounds["watchlist_tickers"].append(w_input)
+    
+    with open(TARGETS_FILE, 'w') as f:
+        json.dump(live_sidebar_bounds, f, indent=4)
+    
+    synced_ok = push_targets_to_github(live_sidebar_bounds)
+    
+    if synced_ok:
+        from zoneinfo import ZoneInfo
+        nz_tz = ZoneInfo("Pacific/Auckland")
+        st.session_state["last_cloud_save_time"] = datetime.now(nz_tz).strftime("%I:%M:%S %p %Z")
+        st.toast("Matrix parameters committed and synced successfully!")
+    else:
+        st.session_state["last_cloud_save_time"] = "⚠️ Connection Refused by GitHub"
         
-        for idx in range(6):
-            t_input = st.session_state.get(f"port_slot_{idx}", portfolio_slots[idx]).upper().strip()
-            if t_input and "EMPTY" not in t_input:
-                live_sidebar_bounds["positions"][t_input] = {
-                    "shares": float(st.session_state.get(f"shares_{idx}", 0.0000)),
-                    "entry": float(st.session_state.get(f"entry_{idx}", 0.00)),
-                    "upper": float(st.session_state.get(f"up_{idx}", 0.00)),
-                    "fixed_stop_distance": float(st.session_state.get(f"fixed_stop_{idx}", 15.00))
-                }
-        
-        for idx in range(6):
-            w_input = st.session_state.get(f"watch_slot_{idx}", watchlist_slots[idx]).upper().strip()
-            if w_input and "EMPTY" not in w_input:
-                live_sidebar_bounds["watchlist_tickers"].append(w_input)
-        
-        with open(TARGETS_FILE, 'w') as f:
-            json.dump(live_sidebar_bounds, f, indent=4)
-        
-        synced_ok = push_targets_to_github(live_sidebar_bounds)
-        
-        if synced_ok:
-            from zoneinfo import ZoneInfo
-            nz_tz = ZoneInfo("Pacific/Auckland")
-            st.session_state["last_cloud_save_time"] = datetime.now(nz_tz).strftime("%I:%M:%S %p %Z")
-            st.toast("Matrix parameters committed and synced successfully!")
-        else:
-            st.session_state["last_cloud_save_time"] = "⚠️ Connection Refused by GitHub"
-            
-        st.cache_data.clear()
-        st.rerun()
+    st.cache_data.clear()
+    st.rerun()
 
 st.markdown("---")
 

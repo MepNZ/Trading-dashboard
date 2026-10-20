@@ -158,40 +158,55 @@ def calculate_indicators_only(df, fast_ma, slow_ma):
     df['Signal_Line'] = df['MACD'].ewm(span=9, adjust=False).mean()
     return df
 
-@st.cache_data(ttl=7200)
-def fetch_all_market_data_batch(ticker_list, start_date):
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.abspath(os.path.join(current_dir, ".."))
-    resolved_cache_path = os.path.join(project_root, CACHE_FILE)
-    if os.path.exists(resolved_cache_path):
-        try:
-            df_flat = pd.read_json(resolved_cache_path)
-            df_flat.index = pd.to_datetime(df_flat.index)
-            new_tuples = [eval(col) if col.startswith("(") else (col, "Close") for col in df_flat.columns]
-            df_flat.columns = pd.MultiIndex.from_tuples(new_tuples)
-            return df_flat
-        except: pass
+@st.cache_data(ttl=28800)  # Lock down heavy weekly data for 8 hours to enable instant page switching
+def fetch_all_market_data_batch_historical(ticker_list, start_date):
+    """Downloads long-term historical weekly data frames using independent chunking."""
     try:
         unique_tickers = list(dict.fromkeys(ticker_list))
-        chunk_size = 100
+        chunk_size = 120
         chunked_dfs = []
         for i in range(0, len(unique_tickers), chunk_size):
             sub_list = unique_tickers[i:i+chunk_size]
-            df_chunk = yf.download(sub_list, start=start_date, interval="1wk", group_by='ticker', actions=False, threads=True, progress=False)
+            # Download historical weekly records up to yesterday
+            df_chunk = yf.download(sub_list, start=start_date, end=datetime.now() - timedelta(days=1), interval="1wk", group_by='ticker', actions=False, threads=True, progress=False)
             if not df_chunk.empty: chunked_dfs.append(df_chunk)
         if chunked_dfs:
-            df_live = pd.concat(chunked_dfs, axis=1)
-            df_serializable = df_live.copy()
-            df_serializable.columns = [str(col) for col in df_serializable.columns]
-            df_serializable.to_json(resolved_cache_path)
-            return df_live
-    except: pass
+            return pd.concat(chunked_dfs, axis=1)
+    except Exception as e:
+        st.sidebar.error(f"Historical engine error: {str(e)}")
     return pd.DataFrame()
+@st.cache_data(ttl=10)  # Live prices refresh every 10 seconds without hitting historical latency bounds
+def fetch_ultra_live_prices(ticker_list):
+    """Fetches a lean snapshot of today's live price and real-time volume."""
+    try:
+        unique_tickers = list(dict.fromkeys(ticker_list))
+        # Request a highly compressed 1-day lookback window across the global pool
+        df_live = yf.download(unique_tickers, period="1d", group_by='ticker', actions=False, threads=True, progress=False)
+        
+        live_prices_map = {}
+        if not df_live.empty:
+            for ticker in unique_tickers:
+                try:
+                    if ticker in df_live.columns.get_level_values(0):
+                        t_df = df_live[ticker].dropna()
+                        if not t_df.empty:
+                            live_prices_map[ticker] = {
+                                "Live_Close": float(t_df['Close'].iloc[-1]),
+                                "Live_Volume": int(t_df['Volume'].iloc[-1])
+                            }
+                except: pass
+        return live_prices_map
+    except:
+        return {}
 # --- INSTANT RUNTIME CORE PROCESSING MATRIX TRAP ---
 @st.cache_data(ttl=7200)
 def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
+    # 1. Fetch long-term historical base charts (Stays locked instantly in background memory)
     lookback_start_date = datetime.now() - timedelta(days=730 + 250)
-    raw_batch = fetch_all_market_data_batch(institutional_scan_pool, lookback_start_date)
+    raw_batch = fetch_all_market_data_batch_historical(institutional_scan_pool, lookback_start_date)
+    
+    # 2. Fetch real-time price snapshot matrix (Runs instantly in 10-second intervals)
+    live_feeds = fetch_ultra_live_prices(institutional_scan_pool)
     
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.abspath(os.path.join(current_dir, ".."))
@@ -202,35 +217,12 @@ def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
     except: disk_names = {}
     
     unique_scan_pool = list(dict.fromkeys(institutional_scan_pool))
-    missing_tickers = [t for t in unique_scan_pool if t not in local_name_map and t not in disk_names]
-    
-    if missing_tickers:
-        names_updated = False
-        for ticker in missing_tickers[:15]: 
-            try:
-                resolved = yf.Ticker(ticker).info.get('longName', ticker)
-                disk_names[ticker] = resolved
-                names_updated = True
-            except Exception:
-                disk_names[ticker] = ticker
-        if names_updated:
-            try:
-                with open(resolved_names_path, 'w') as f: json.dump(disk_names, f, indent=4)
-            except: pass
-
     b_rows, d_rows = [], []
     cached_dfs = {}
     
-    # Calculate current weekly elapsed time fraction for pro-rata volume pacing
     now_dt = datetime.now()
-    weekday = now_dt.weekday() # 0=Monday, 4=Friday
-    
-    # Pace factor: maps out how much of the trading week has passed
-    if weekday >= 4: 
-        vol_pace_factor = 1.0  # Friday or weekend, bar is complete
-    else:
-        # Estimate progress through a 5-day trading window
-        vol_pace_factor = max(0.1, (weekday + 1) / 5.0)
+    weekday = now_dt.weekday()
+    vol_pace_factor = 1.0 if weekday >= 4 else max(0.1, (weekday + 1) / 5.0)
 
     for ticker in unique_scan_pool:
         if raw_batch.empty or ticker not in raw_batch.columns.get_level_values(0): continue
@@ -238,14 +230,21 @@ def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
         hist_df.columns = [str(c).title() for c in hist_df.columns]
         if len(hist_df) < max(fast_ma, slow_ma, 30): continue
         
+        # Pull processed calculations cleanly out of RAM cache layers
         df_calc = calculate_indicators_only(hist_df, fast_ma, slow_ma)
-        cached_dfs[ticker] = df_calc.tail(730).to_json()
         
-        # ALWAYS evaluate the current active live bar for accurate price crossovers
+        # --- LIVE PRICE OVERRIDE INTERACTION LAYER ---
         target_bar = df_calc.iloc[-1]
         prev_bar = df_calc.iloc[-2] if len(df_calc) >= 2 else target_bar
         
-        last_close = float(target_bar['Close'])
+        # Inject the 10-second price feed over the historical record if available
+        if ticker in live_feeds:
+            last_close = live_feeds[ticker]["Live_Close"]
+            current_volume = live_feeds[ticker]["Live_Volume"]
+        else:
+            last_close = float(target_bar['Close'])
+            current_volume = int(target_bar['Volume']) if 'Volume' in target_bar.index else 0
+            
         prev_close = float(prev_bar['Close']) if 'Close' in prev_bar else last_close
         pct_change = ((last_close - prev_close) / prev_close) * 100
         
@@ -256,11 +255,13 @@ def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
         sig_val = float(target_bar['Signal_Line']) if 'Signal_Line' in target_bar.index else 0.0
         atr_val = float(target_bar['ATR']) if 'ATR' in target_bar.index else 0.0
         bb_lower_val = float(target_bar['Lower_Bollinger_Band']) if 'Lower_Bollinger_Band' in target_bar.index else last_close
-        
-        current_volume = int(target_bar['Volume']) if 'Volume' in target_bar.index else 0
         avg_volume_20d = float(target_bar['Avg_Volume_20D']) if 'Avg_Volume_20D' in target_bar.index else 1.0
         
-        # PRO-RATA VOLUME ENGINE: Scales incomplete mid-week volume up to match historical bars fairly
+        # Update chart tracking arrays on the fly to include live plots
+        df_chart_display = df_calc.copy()
+        df_chart_display.iloc[-1, df_chart_display.columns.get_loc('Close')] = last_close
+        cached_dfs[ticker] = df_chart_display.tail(730).to_json()
+
         projected_volume = current_volume / vol_pace_factor
         volume_multiple = projected_volume / avg_volume_20d if avg_volume_20d > 0 else 0.0
 
@@ -268,7 +269,6 @@ def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
         true_52w_high, true_52w_low = float(hist_365['High'].max()), float(hist_365['Low'].min())
         proximity_to_low_pct = ((last_close - true_52w_low) / true_52w_low) * 100
         market_label = "NZ" if ticker.endswith(".NZ") else ("AUS" if ticker.endswith(".AX") else "US")
-        
         resolved_name = local_name_map.get(ticker, disk_names.get(ticker, f"{ticker}"))
         
         if last_close > fast_ma_val and last_close > slow_ma_val and volume_multiple >= 1.5: breakout_signal = "🌟 STRONG BUY"

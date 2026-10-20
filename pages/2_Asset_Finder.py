@@ -197,34 +197,41 @@ def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
     project_root = os.path.abspath(os.path.join(current_dir, ".."))
     resolved_names_path = os.path.join(project_root, NAMES_CACHE_FILE)
     
-    # Load existing resolved name matrix to bypass network requests
     try:
         with open(resolved_names_path, 'r') as f: disk_names = json.load(f)
     except: disk_names = {}
     
-    # 🌟 HIGH-SPEED PATCH: Identify missing names and seed them BEFORE the calculation loop
     unique_scan_pool = list(dict.fromkeys(institutional_scan_pool))
     missing_tickers = [t for t in unique_scan_pool if t not in local_name_map and t not in disk_names]
     
     if missing_tickers:
         names_updated = False
-        # Limit live harvesting to a conservative batch per run to prevent app stalling
         for ticker in missing_tickers[:15]: 
             try:
                 resolved = yf.Ticker(ticker).info.get('longName', ticker)
                 disk_names[ticker] = resolved
                 names_updated = True
             except Exception:
-                disk_names[ticker] = ticker # Fallback to symbol safely on API drop
+                disk_names[ticker] = ticker
         if names_updated:
             try:
-                with open(resolved_names_path, 'w') as f:
-                    json.dump(disk_names, f, indent=4)
+                with open(resolved_names_path, 'w') as f: json.dump(disk_names, f, indent=4)
             except: pass
 
     b_rows, d_rows = [], []
     cached_dfs = {}
     
+    # Calculate current weekly elapsed time fraction for pro-rata volume pacing
+    now_dt = datetime.now()
+    weekday = now_dt.weekday() # 0=Monday, 4=Friday
+    
+    # Pace factor: maps out how much of the trading week has passed
+    if weekday >= 4: 
+        vol_pace_factor = 1.0  # Friday or weekend, bar is complete
+    else:
+        # Estimate progress through a 5-day trading window
+        vol_pace_factor = max(0.1, (weekday + 1) / 5.0)
+
     for ticker in unique_scan_pool:
         if raw_batch.empty or ticker not in raw_batch.columns.get_level_values(0): continue
         hist_df = raw_batch[ticker].copy().dropna(subset=['Close'])
@@ -234,12 +241,9 @@ def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
         df_calc = calculate_indicators_only(hist_df, fast_ma, slow_ma)
         cached_dfs[ticker] = df_calc.tail(730).to_json()
         
-                # 🌟 OPTION A FIX: SHIFT ENGINE TO EVALUATE COMPLETED CLOSED WEEKS MID-WEEK
-        # If it is Monday through Thursday, lock onto the last fully closed weekly bar (iloc[-2])
-        # If it is Friday or the weekend, evaluate the current active bar (iloc[-1])
-        is_mid_week = datetime.now().weekday() < 4
-        target_bar = df_calc.iloc[-2] if (is_mid_week and len(df_calc) >= 2) else df_calc.iloc[-1]
-        prev_bar = df_calc.iloc[-3] if (is_mid_week and len(df_calc) >= 3) else df_calc.iloc[-2]
+        # ALWAYS evaluate the current active live bar for accurate price crossovers
+        target_bar = df_calc.iloc[-1]
+        prev_bar = df_calc.iloc[-2] if len(df_calc) >= 2 else target_bar
         
         last_close = float(target_bar['Close'])
         prev_close = float(prev_bar['Close']) if 'Close' in prev_bar else last_close
@@ -255,14 +259,16 @@ def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
         
         current_volume = int(target_bar['Volume']) if 'Volume' in target_bar.index else 0
         avg_volume_20d = float(target_bar['Avg_Volume_20D']) if 'Avg_Volume_20D' in target_bar.index else 1.0
-        volume_multiple = current_volume / avg_volume_20d if avg_volume_20d > 0 else 0.0
+        
+        # PRO-RATA VOLUME ENGINE: Scales incomplete mid-week volume up to match historical bars fairly
+        projected_volume = current_volume / vol_pace_factor
+        volume_multiple = projected_volume / avg_volume_20d if avg_volume_20d > 0 else 0.0
 
         hist_365 = df_calc.tail(104)
         true_52w_high, true_52w_low = float(hist_365['High'].max()), float(hist_365['Low'].min())
         proximity_to_low_pct = ((last_close - true_52w_low) / true_52w_low) * 100
         market_label = "NZ" if ticker.endswith(".NZ") else ("AUS" if ticker.endswith(".AX") else "US")
         
-        # 🌟 HIGH-SPEED MATCHING: Pull corporate identity entirely from lightning-fast RAM indexes
         resolved_name = local_name_map.get(ticker, disk_names.get(ticker, f"{ticker}"))
         
         if last_close > fast_ma_val and last_close > slow_ma_val and volume_multiple >= 1.5: breakout_signal = "🌟 STRONG BUY"

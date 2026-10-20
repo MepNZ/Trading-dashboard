@@ -23,29 +23,11 @@
             "upper": 0.0,
             "fixed_stop_distance": 15.0
         },
-        "TEAM": {
-            "shares": 0.0,
-            "entry": 0.0,
-            "upper": 0.0,
-            "fixed_stop_distance": 15.0
-        },
         "MDT": {
             "shares": 1.0,
             "entry": 93.0,
             "upper": 0.0,
             "fixed_stop_distance": 0.0
-        },
-        "EME": {
-            "shares": 0.0,
-            "entry": 0.0,
-            "upper": 0.0,
-            "fixed_stop_distance": 15.0
-        },
-        "CRWD": {
-            "shares": 0.0,
-            "entry": 0.0,
-            "upper": 0.0,
-            "fixed_stop_distance": 15.0
         }
     },
     "watchlist_tickers": [

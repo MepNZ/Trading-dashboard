@@ -251,22 +251,76 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🌟 UNBREAKABLE ARCHITECTURE: NATIVE ALIGNED DASHBOARD HEADER ROW
+# 🌟 UNBREAKABLE ARCHITECTURE: PRODUCTION STICKY DASHBOARD HEADER Row
 # ==============================================================================
 last_save_time = st.session_state.get("last_cloud_save_time", None)
 
 if last_save_time:
     if "⚠️" in last_save_time:
-        status_html = f"<div style='background-color: #dc3545; color: #FFFFFF; padding: 8px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #bd2130;'>{last_save_time}</div>"
+        status_html = f"<div style='background-color: #dc3545; color: #FFFFFF; padding: 8px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #bd2130; height: 38px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;'>{last_save_time}</div>"
     else:
-        status_html = f"<div style='background-color: #28a745; color: #FFFFFF; padding: 4px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.82rem; border: 1px solid #1e7e34; line-height: 1.2; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 38px; box-sizing: border-box;'>✅ SYNCED TO GITHUB LIVE<span style='font-size: 0.70rem; font-weight: normal; opacity: 0.85; margin-top: 1px;'>Time: {last_save_time}</span></div>"
+        status_html = f"<div style='background-color: #28a745; color: #FFFFFF; padding: 4px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.82rem; border: 1px solid #1e7e34; line-height: 1.2; height: 38px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box;'>✅ SYNCED TO GITHUB LIVE<span style='font-size: 0.70rem; font-weight: normal; opacity: 0.85; margin-top: 1px;'>Time: {last_save_time}</span></div>"
 else:
-    status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D; display: flex; align-items: center; justify-content: center; height: 38px; box-sizing: border-box;'>📁 Database Standby: Connected</div>"
+    status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D; height: 38px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;'>📁 Database Standby: Connected</div>"
 
-# Use a standard Streamlit container to frame the row cleanly without fragile structural overrides
-with st.container(border=True):
-    # Leverage the official Streamlit layout alignment engine to centralize all internal columns natively
-    head_col1, head_col2, head_col3 = st.columns([2, 1.5, 1.2], vertical_alignment="center")
+# Inject precision styling targeting ONLY the immediate container wrapper block
+# Inject precision styling targeting ONLY the immediate container wrapper block
+# Inject precision styling targeting ONLY the immediate container wrapper block
+st.markdown("""
+    <style>
+        /* 1. Target the vertical container block that contains our unique element marker */
+        div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            z-index: 999991 !important;
+            background-color: #0E1117 !important;
+            padding: 12px 40px !important; /* Balanced padding that ensures visibility */
+            border-bottom: 1px solid #30363D !important;
+            box-shadow: 0px 4px 15px rgba(0,0,0,0.5) !important;
+            box-sizing: border-box !important;
+        }
+
+        /* 2. Handle simple flex layout mapping across the row grid */
+        div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) div[data-testid="stHorizontalBlock"] {
+            display: flex !important;
+            align-items: center !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            gap: 1rem !important;
+        }
+
+        /* 3. PRECISION ALIGNMENT: Nudge button downward to match the text center line */
+        div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) .stButton {
+            margin: 0 !important;
+            padding: 0 !important;
+            position: relative !important;
+            top: 3px !important; /* Moves the button down perfectly into the center axis */
+        }
+        
+        div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) .stButton > button {
+            height: 38px !important;
+            font-size: 0.85rem !important;
+            font-weight: bold !important;
+            text-transform: uppercase !important;
+            margin: 0 !important;
+        }
+
+        /* 4. Keep standard page data columns shifted down away from under the ceiling bar */
+        div[data-testid="stAppViewBlockContainer"] {
+            padding-top: 6.5rem !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# Create an isolated container row acting as our floating dashboard window ceiling anchors
+with st.container():
+    # Inject a distinct hidden inline anchor marker to map our CSS positioning targets safely
+    st.markdown('<span id="mike-sticky-marker" style="display:none;"></span>', unsafe_allow_html=True)
+    
+    head_col1, head_col2, head_col3 = st.columns([2, 1.5, 1.2])
     
     with head_col1:
         st.markdown("<h3 style='margin: 0; padding: 0; font-size: 1.30rem; color: #4A90E2; line-height: 1.2;'>⚡ Live Matrix Workspace Viewport Ledger</h3>", unsafe_allow_html=True)

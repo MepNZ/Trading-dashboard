@@ -33,5 +33,10 @@
     "watchlist_tickers": [
         "CLF"
     ],
-    "paper_positions": {}
+    "paper_positions": {
+        "HAS": {
+            "shares": 1.0,
+            "entry": 108.38
+        }
+    }
 }

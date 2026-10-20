@@ -275,7 +275,7 @@ st.markdown(f"""
             {status_html}
         </div>
         <div style="flex: 1.2; text-align: right; min-width: 240px;">
-            <button onclick="parent.document.querySelector('div[data-testid=\\'stCheckbox\\'] input').click();" 
+            <button onclick="const wrapper = parent.document.getElementById('hidden-sync-trigger'); if(wrapper) {{ const cb = wrapper.querySelector('input[type=\\'checkbox\\']'); if(cb) cb.click(); }}" 
                     style="background-color: #FF4B4B; color: white; border: none; padding: 8px 16px; font-size: 0.85rem; font-weight: bold; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; height: 38px; width: 220px; font-family: inherit; text-transform: uppercase;">
                 💾 Save & Sync Workspace
             </button>
@@ -284,9 +284,22 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # 2. Inject a hidden Streamlit primitive inside an un-targeted area to safely catch and process click events natively
-st.markdown("<div style='position: absolute; left: -9999px; top: -9999px; visibility: hidden; height: 0px; width: 0px;'>", unsafe_allow_html=True)
+st.markdown("""
+    <style>
+        #hidden-sync-trigger {
+            position: absolute !important;
+            left: -9999px !important;
+            top: -9999px !important;
+            visibility: hidden !important;
+            height: 0px !important;
+            width: 0px !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown('<div id="hidden-sync-trigger">', unsafe_allow_html=True)
 trigger_sync_active = st.checkbox("hidden_github_sync_trigger", value=False, key="hidden_github_sync_trigger")
-st.markdown("</div>", unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
 # 3. Fire the execution runtime logic when the user clicks the floating bar button
 if trigger_sync_active:

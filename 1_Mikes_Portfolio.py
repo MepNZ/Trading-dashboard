@@ -251,7 +251,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🌟 SURGICAL RE-ENGINEERING: PERFECT INSIDE-HEADER FLOATING BAR BUTTON ALIGNMENT
+# 🌟 SURGICAL RE-ENGINEERING: STABLE INLINE FLOATING BAR TOOLBAR ENGINE
 # ==============================================================================
 last_save_time = st.session_state.get("last_cloud_save_time", None)
 
@@ -263,42 +263,61 @@ if last_save_time:
 else:
     status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D;'>📁 Database Standby: Connected</div>"
 
-# 1. Inject the background container with an empty right slot calibrated to hold our real button frame overlay
+# 1. Inject the Master CSS Overrides to trap and lock BOTH the header row and native Streamlit button container to the ceiling viewport
+st.markdown("""
+    <style>
+        /* Pin our structural background bar to the top ceiling */
+        .master-floating-header-container {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            background-color: #0E1117 !important;
+            padding: 10px 40px !important;
+            border-bottom: 1px solid #30363D !important;
+            box-shadow: 0px 4px 15px rgba(0,0,0,0.5) !important;
+            z-index: 9999 !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            box-sizing: border-box !important;
+            height: 65px !important;
+        }
+        
+        /* Force the native Streamlit button block to break out of the page layout flow and lock into our header box coordinate space */
+        div[data-testid="stAppViewBlockContainer"] div[data-testid="stHorizontalBlock"] > div:last-child {
+            position: fixed !important;
+            top: 12px !important;
+            right: 40px !important;
+            width: 240px !important;
+            z-index: 10005 !important;
+        }
+
+        /* Adjust the global page container top cushion padding rule so the standard page charts don't tuck under our bar */
+        div[data-testid="stAppViewBlockContainer"] {
+            padding-top: 5.5rem !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# 2. Render the background block element cleanly across the top view line
 st.markdown(f"""
-    <div style="position: fixed; top: 0; left: 0; width: 100%; background-color: #0E1117; padding: 10px 40px; border-bottom: 1px solid #30363D; box-shadow: 0px 4px 15px rgba(0,0,0,0.5); z-index: 9999; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; height: 60px;">
+    <div class="master-floating-header-container">
         <div style="flex: 2; min-width: 320px;">
             <h3 style="margin: 0; padding: 0; font-size: 1.30rem; color: #4A90E2; font-family: inherit;">⚡ Live Matrix Workspace Viewport Ledger</h3>
         </div>
-        <div style="flex: 1.5; padding: 0 20px; min-width: 220px;">
+        <div style="flex: 1.5; padding: 0 40px; min-width: 220px;">
             {status_html}
         </div>
-        <div style="flex: 1.2; min-width: 200px; height: 40px;">
-            <!-- This slot is left intentionally transparent to let our real button show through -->
+        <div style="width: 240px;">
+            <!-- Anchor pocket matching our button alignment coordinates -->
         </div>
     </div>
 """, unsafe_allow_html=True)
 
-# 2. Force the native Streamlit button block to float to the top layer directly inside our empty slot
+# 3. Create a clean structure just for the button execution loops to interact seamlessly with Streamlit's event loops
 col_title, col_space, col_btn = st.columns([2.0, 1.5, 1.2])
 with col_btn:
-    st.markdown("""
-        <style>
-            /* Pin the native column element to the absolute top of the screen right over the header block */
-            div:has(> div button[key="viewport_sticky_save_btn"]) {
-                position: fixed !important;
-                top: 10px !important;
-                right: 40px !important;
-                width: 220px !important;
-                z-index: 10000 !important;
-            }
-            /* Clean up the native button padding so it fills our header frame beautifully */
-            button[key="viewport_sticky_save_btn"] {
-                height: 40px !important;
-                margin: 0 !important;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-    
     if st.button("💾 SAVE & SYNC WORKSPACE", use_container_width=True, type="primary", key="viewport_sticky_save_btn"):
         live_sidebar_bounds = {
             "wallet_cash": {

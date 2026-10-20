@@ -36,19 +36,23 @@
     "paper_positions": {
         "HAS": {
             "shares": 1.0,
-            "entry": 108.38
+            "entry": 108.38,
+            "entry_date": "2026-10-20"
         },
         "HGH.NZ": {
             "shares": 1.0,
-            "entry": 1.26
+            "entry": 1.26,
+            "entry_date": "2026-10-20"
         },
         "NAB.AX": {
             "shares": 1.0,
-            "entry": 39.2
+            "entry": 39.2,
+            "entry_date": "2026-10-20"
         },
         "POT.NZ": {
             "shares": 1.0,
-            "entry": 8.32
+            "entry": 8.32,
+            "entry_date": "2026-10-20"
         }
     }
 }

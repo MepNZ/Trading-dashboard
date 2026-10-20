@@ -250,93 +250,87 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Build the layout structural framework inside the sticky viewport container
-floating_container = st.container()
-with floating_container:
-    # Anchor class tag for our custom CSS injector tracking rules
-    st.markdown('<div class="floating-action-toolbar"></div>', unsafe_allow_html=True)
-    
-    # 🌟 HIGH-SPEED ADJACENT UNIFICATION ROW
-    toolbar_col1, toolbar_col2, toolbar_col3 = st.columns([2.3, 1.7, 1.2])
-    
-    with toolbar_col1:
-        st.markdown("<h3 style='margin: 0; padding-top: 6px; font-size: 1.35rem; color: #4A90E2;'>⚡ Live Matrix Workspace Viewport Ledger</h3>", unsafe_allow_html=True)
-    
-    with toolbar_col2:
-        # Dynamic inline connection status frame pulled directly into center grid position
-        # 🌟 SURGICAL SAFEGUARD: Initialize the state key if it doesn't exist on page boot
-        if "last_cloud_save_time" not in st.session_state:
-            st.session_state["last_cloud_save_time"] = None
+# ==============================================================================
+# 🌟 SURGICAL RE-ENGINEERING: COMPACT STICKY VIEWPORT HEADER ENGINE
+# ==============================================================================
+# Pull sync values out safely to map into the direct string literal engine
+last_save_time = st.session_state.get("last_cloud_save_time", None)
 
-        if st.session_state["last_cloud_save_time"]:
-            if "⚠️" in st.session_state["last_cloud_save_time"]:
-                st.markdown(f"""
-                    <div style='background-color: #dc3545; color: #FFFFFF; padding: 4px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #bd2130; margin-top: 4px;'>
-                        {st.session_state["last_cloud_save_time"]}
-                    </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                    <div style='background-color: #28a745; color: #FFFFFF; padding: 2px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.82rem; border: 1px solid #1e7e34; line-height: 1.2; margin-top: 2px;'>
-                        ✅ SYNCED TO GITHUB LIVE<br>
-                        <span style='font-size: 0.72rem; font-weight: normal; opacity: 0.85;'>Time: {st.session_state["last_cloud_save_time"]}</span>
-                    </div>
-                """, unsafe_allow_html=True)
+if last_save_time:
+    if "⚠️" in last_save_time:
+        status_html = f"<div style='background-color: #dc3545; color: #FFFFFF; padding: 6px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #bd2130;'>{last_save_time}</div>"
+    else:
+        status_html = f"<div style='background-color: #28a745; color: #FFFFFF; padding: 4px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.82rem; border: 1px solid #1e7e34; line-height: 1.2;'>✅ SYNCED TO GITHUB LIVE<br><span style='font-size: 0.72rem; font-weight: normal; opacity: 0.85;'>Time: {last_save_time}</span></div>"
+else:
+    status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 8px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D;'>📁 Database Standby: Connected</div>"
+
+# Inject the pure layout block directly into the absolute DOM overlay matrix
+st.markdown(f"""
+    <div style="position: fixed; top: 0; left: 0; width: 100%; background-color: #0E1117; padding: 10px 40px; border-bottom: 1px solid #30363D; box-shadow: 0px 4px 15px rgba(0,0,0,0.5); z-index: 999999; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+        <div style="flex: 2;">
+            <h3 style="margin: 0; padding: 0; font-size: 1.35rem; color: #4A90E2; font-family: inherit;">⚡ Live Matrix Workspace Viewport Ledger</h3>
+        </div>
+        <div style="flex: 1.5; padding: 0 20px;">
+            {status_html}
+        </div>
+        <div style="flex: 1; text-align: right;" id="save-button-anchor">
+        </div>
+    </div>
+""", unsafe_allow_html=True)
+
+# Create an inline split block just for the button execution loop so Streamlit registers the click event handler natively
+col_title, col_space, col_btn = st.columns([2.3, 1.7, 1.2])
+with col_btn:
+    # Use a small layout padding spacer to align the button perfectly with the floating header background overlay
+    st.markdown("<div style='margin-top: -68px; position: relative; z-index: 1000000;'>", unsafe_allow_html=True)
+    if st.button("💾 SAVE & SYNC WORKSPACE", use_container_width=True, type="primary", key="viewport_sticky_save_btn"):
+        live_sidebar_bounds = {
+            "wallet_cash": {
+                "NZD": float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 0.00))),
+                "AUD": float(st.session_state.get("cash_aud_input", runtime_cash.get("AUD", 0.00))),
+                "USD": float(st.session_state.get("cash_usd_input", runtime_cash.get("USD", 0.00))),
+            },
+            "sliders": {
+                "fast_ma": int(st.session_state.get("fast_ma", 10)),
+                "slow_ma": int(st.session_state.get("slow_ma", 100)),
+                "roi_window": st.session_state.get("roi_window", "1 Year"),
+                "graph_horizon": st.session_state.get("roi_window", "1 Year")
+            },
+            "positions": {},
+            "watchlist_tickers": []
+        }
+        
+        for idx in range(6):
+            t_input = st.session_state.get(f"port_slot_{idx}", portfolio_slots[idx]).upper().strip()
+            if t_input and "EMPTY" not in t_input:
+                live_sidebar_bounds["positions"][t_input] = {
+                    "shares": float(st.session_state.get(f"shares_{idx}", 0.0000)),
+                    "entry": float(st.session_state.get(f"entry_{idx}", 0.00)),
+                    "upper": float(st.session_state.get(f"up_{idx}", 0.00)),
+                    "fixed_stop_distance": float(st.session_state.get(f"fixed_stop_{idx}", 15.00))
+                }
+        
+        for idx in range(6):
+            w_input = st.session_state.get(f"watch_slot_{idx}", watchlist_slots[idx]).upper().strip()
+            if w_input and "EMPTY" not in w_input:
+                live_sidebar_bounds["watchlist_tickers"].append(w_input)
+        
+        with open(TARGETS_FILE, 'w') as f:
+            json.dump(live_sidebar_bounds, f, indent=4)
+        
+        synced_ok = push_targets_to_github(live_sidebar_bounds)
+        
+        if synced_ok:
+            from zoneinfo import ZoneInfo
+            nz_tz = ZoneInfo("Pacific/Auckland")
+            st.session_state["last_cloud_save_time"] = datetime.now(nz_tz).strftime("%I:%M:%S %p %Z")
+            st.toast("Matrix parameters committed and synced successfully!")
         else:
-            st.markdown("""
-                <div style='background-color: #1C212A; color: #8B949E; padding: 6px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D; margin-top: 4px;'>
-                    📁 Database Standby: Connected
-                </div>
-            """, unsafe_allow_html=True)
+            st.session_state["last_cloud_save_time"] = "⚠️ Connection Refused by GitHub"
             
-    with toolbar_col3:
-        if st.button("💾 SAVE & SYNC WORKSPACE", use_container_width=True, type="primary", key="viewport_sticky_save_btn"):
-            live_sidebar_bounds = {
-                "wallet_cash": {
-                    "NZD": float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 0.00))),
-                    "AUD": float(st.session_state.get("cash_aud_input", runtime_cash.get("AUD", 0.00))),
-                    "USD": float(st.session_state.get("cash_usd_input", runtime_cash.get("USD", 0.00))),
-                },
-                "sliders": {
-                    "fast_ma": int(st.session_state.get("fast_ma", 10)),
-                    "slow_ma": int(st.session_state.get("slow_ma", 100)),
-                    "roi_window": st.session_state.get("roi_window", "1 Year"),
-                    "graph_horizon": st.session_state.get("roi_window", "1 Year")
-                },
-                "positions": {},
-                "watchlist_tickers": []
-            }
-            
-            for idx in range(6):
-                t_input = st.session_state.get(f"port_slot_{idx}", portfolio_slots[idx]).upper().strip()
-                if t_input and "EMPTY" not in t_input:
-                    live_sidebar_bounds["positions"][t_input] = {
-                        "shares": float(st.session_state.get(f"shares_{idx}", 0.0000)),
-                        "entry": float(st.session_state.get(f"entry_{idx}", 0.00)),
-                        "upper": float(st.session_state.get(f"up_{idx}", 0.00)),
-                        "fixed_stop_distance": float(st.session_state.get(f"fixed_stop_{idx}", 15.00))
-                    }
-            
-            for idx in range(6):
-                w_input = st.session_state.get(f"watch_slot_{idx}", watchlist_slots[idx]).upper().strip()
-                if w_input and "EMPTY" not in w_input:
-                    live_sidebar_bounds["watchlist_tickers"].append(w_input)
-            
-            with open(TARGETS_FILE, 'w') as f:
-                json.dump(live_sidebar_bounds, f, indent=4)
-            
-            synced_ok = push_targets_to_github(live_sidebar_bounds)
-            
-            if synced_ok:
-                from zoneinfo import ZoneInfo
-                nz_tz = ZoneInfo("Pacific/Auckland")
-                st.session_state["last_cloud_save_time"] = datetime.now(nz_tz).strftime("%I:%M:%S %p %Z")
-                st.toast("Matrix parameters committed and synced successfully!")
-            else:
-                st.session_state["last_cloud_save_time"] = "⚠️ Connection Refused by GitHub"
-                
-            st.cache_data.clear()
-            st.rerun()
+        st.cache_data.clear()
+        st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("---")
 

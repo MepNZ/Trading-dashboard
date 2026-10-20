@@ -267,7 +267,7 @@ else:
 st.markdown(f"""
     <style>
         /* Push the standard content layout down a fraction so it isn't hidden under our bar */
-        div[data-testid="stAppViewBlockContainer"] {{
+        div[data-testid="stAppViewBlockContainer"] {
             padding-top: 5.5rem !important;
         }
     </style>

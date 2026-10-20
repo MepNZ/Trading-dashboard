@@ -264,14 +264,9 @@ else:
     status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D;'>📁 Database Standby: Connected</div>"
 
 # 1. Render the entire header alongside a beautifully embedded HTML button that triggers our hidden checkbox click handler
-st.markdown(f"""
-    <style>
-        /* Push the standard content layout down a fraction so it isn't hidden under our bar */
-        div[data-testid="stAppViewBlockContainer"] {
-            padding-top: 5.5rem !important;
-        }
-    </style>
+st.html("<style>div[data-testid='stAppViewBlockContainer'] { padding-top: 5.5rem !important; }</style>")
 
+st.markdown(f"""
     <div style="position: fixed; top: 0; left: 0; width: 100%; background-color: #0E1117; padding: 10px 40px; border-bottom: 1px solid #30363D; box-shadow: 0px 4px 15px rgba(0,0,0,0.5); z-index: 999999; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; height: 65px;">
         <div style="flex: 2; min-width: 320px;">
             <h3 style="margin: 0; padding: 0; font-size: 1.30rem; color: #4A90E2; font-family: inherit;">⚡ Live Matrix Workspace Viewport Ledger</h3>

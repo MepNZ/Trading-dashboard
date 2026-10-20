@@ -264,6 +264,7 @@ else:
     status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D; height: 38px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;'>📁 Database Standby: Connected</div>"
 
 # Inject precision styling targeting ONLY the immediate container wrapper block
+# Inject precision styling targeting ONLY the immediate container wrapper block
 st.markdown("""
     <style>
         /* 1. Target the vertical container block that contains our unique element marker */
@@ -274,10 +275,11 @@ st.markdown("""
             width: 100% !important;
             z-index: 999991 !important;
             background-color: #0E1117 !important;
-            padding: 12px 40px !important;
+            padding: 0px 40px !important; /* Managed purely by fixed height for centering */
             border-bottom: 1px solid #30363D !important;
             box-shadow: 0px 4px 15px rgba(0,0,0,0.5) !important;
             box-sizing: border-box !important;
+            height: 65px !important; /* Explicitly sets the header row container height */
         }
 
         /* 2. Force perfect vertical centering inside Streamlit's inner horizontal flex grid */
@@ -286,6 +288,7 @@ st.markdown("""
             align-items: center !important;
             justify-content: center !important;
             width: 100% !important;
+            height: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
             gap: 1rem !important;
@@ -295,16 +298,32 @@ st.markdown("""
         div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) .stButton {
             margin: 0 !important;
             padding: 0 !important;
+            display: flex !important;
+            align-items: center !important;
         }
+        
         div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) .stButton > button {
             height: 38px !important;
             font-size: 0.85rem !important;
             font-weight: bold !important;
             text-transform: uppercase !important;
             margin: 0 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
         }
 
-        /* 4. Keep standard page data columns shifted down away from under the ceiling bar */
+        /* 4. FORCE THE INNER SCRIPT TEXT BLOCKS TO ALIGN DEAD-CENTER ON VERTICAL AXIS */
+        div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) .stButton > button div[data-testid="stMarkdownContainer"] p {
+            margin: 0 !important;
+            padding: 0 !important;
+            line-height: 1.0 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        /* 5. Keep standard page data columns shifted down away from under the ceiling bar */
         div[data-testid="stAppViewBlockContainer"] {
             padding-top: 6.5rem !important;
         }

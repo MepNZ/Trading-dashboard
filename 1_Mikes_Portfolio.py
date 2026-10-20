@@ -251,7 +251,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🌟 UNBREAKABLE ARCHITECTURE: PRODUCTION STICKY DASHBOARD HEADER ROW
+# 🌟 UNBREAKABLE ARCHITECTURE: PRODUCTION STICKY DASHBOARD HEADER ROW (PRECISION ALIGNED)
 # ==============================================================================
 last_save_time = st.session_state.get("last_cloud_save_time", None)
 
@@ -263,7 +263,7 @@ if last_save_time:
 else:
     status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D; height: 38px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;'>📁 Database Standby: Connected</div>"
 
-# Inject precision styling targeting ONLY the layout position of our header block
+# Inject precision styling targeting BOTH the outer header wrapper AND the inner flex layout columns
 st.markdown("""
     <style>
         /* 1. Target the vertical container block that contains our unique element marker */
@@ -274,13 +274,23 @@ st.markdown("""
             width: 100% !important;
             z-index: 999991 !important;
             background-color: #0E1117 !important;
-            padding: 14px 40px !important;
+            padding: 12px 40px !important;
             border-bottom: 1px solid #30363D !important;
             box-shadow: 0px 4px 15px rgba(0,0,0,0.5) !important;
             box-sizing: border-box !important;
+            height: 65px !important; /* Explicit layout ceiling restriction */
         }
 
-        /* 2. Keep standard page data columns shifted down away from under the ceiling bar */
+        /* 2. FORCE STREMLIT'S HORIZONTAL COLUMN FLEX CONTAINER TO CENTRALIZE ALL INTERNAL COMPONENTS */
+        div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) div[data-testid="stHorizontalBlock"] {
+            display: flex !important;
+            align-items: center !important; /* Forces the structural columns onto a dead-center vertical axis */
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        /* 3. Keep standard page data columns shifted down away from under the ceiling bar */
         div[data-testid="stAppViewBlockContainer"] {
             padding-top: 6.5rem !important;
         }
@@ -292,11 +302,11 @@ with st.container():
     # Inject a distinct hidden inline anchor marker to map our CSS positioning targets safely
     st.markdown('<span id="mike-sticky-marker" style="display:none;"></span>', unsafe_allow_html=True)
     
-    head_col1, head_col2, head_col3 = st.columns([2, 1.5, 1.2], vertical_alignment="center")
+    # Let standard column processing flow cleanly inside our synchronized flex baseline override
+    head_col1, head_col2, head_col3 = st.columns([2, 1.5, 1.2])
     
     with head_col1:
-        # Using st.html with an explicit flex container height matches the button height perfectly
-        st.html("<div style='height: 38px; display: flex; align-items: center; margin: 0; padding: 0;'><h3 style='margin: 0; padding: 0; font-size: 1.30rem; color: #4A90E2; font-family: inherit;'>⚡ Live Matrix Workspace Viewport Ledger</h3></div>")
+        st.markdown("<h3 style='margin: 0; padding: 0; font-size: 1.30rem; color: #4A90E2; line-height: 1.0;'>⚡ Live Matrix Workspace Viewport Ledger</h3>", unsafe_allow_html=True)
         
     with head_col2:
         st.markdown(status_html, unsafe_allow_html=True)

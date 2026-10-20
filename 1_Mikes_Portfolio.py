@@ -251,7 +251,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🌟 UNBREAKABLE ARCHITECTURE: FLOATING TOOLBAR WITH STABLE STATE INTERCEPT
+# 🌟 UNBREAKABLE ARCHITECTURE: PURE NATIVE STICKY DASHBOARD HEADER
 # ==============================================================================
 last_save_time = st.session_state.get("last_cloud_save_time", None)
 
@@ -263,47 +263,53 @@ if last_save_time:
 else:
     status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D;'>📁 Database Standby: Connected</div>"
 
-# Force standard container downward out of viewport boundary pathing
-st.html("<style>div[data-testid='stAppViewBlockContainer'] { padding-top: 5.5rem !important; }</style>")
-
-# 1. Render the top toolbar utilizing a local hidden submission form
-st.markdown(f"""
-    <div style="position: fixed; top: 0; left: 0; width: 100%; background-color: #0E1117; padding: 10px 40px; border-bottom: 1px solid #30363D; box-shadow: 0px 4px 15px rgba(0,0,0,0.5); z-index: 999999; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; height: 65px;">
-        <div style="flex: 2; min-width: 320px;">
-            <h3 style="margin: 0; padding: 0; font-size: 1.30rem; color: #4A90E2; font-family: inherit;">⚡ Live Matrix Workspace Viewport Ledger</h3>
-        </div>
-        <div style="flex: 1.5; padding: 0 20px; min-width: 220px;">
-            {status_html}
-        </div>
-        <div style="flex: 1.2; text-align: right; min-width: 240px;">
-            <form id="sync_submit_form" target="_self" method="POST" style="margin: 0; padding: 0; display: inline;">
-                <input type="hidden" name="execute_workspace_sync" value="true">
-                <button type="button" onclick="document.getElementById('sync_submit_form').submit();" 
-                        style="background-color: #FF4B4B; color: white; border: none; padding: 8px 16px; font-size: 0.85rem; font-weight: bold; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; height: 38px; width: 220px; font-family: inherit; text-transform: uppercase;">
-                    💾 Save & Sync Workspace
-                </button>
-            </form>
-        </div>
-    </div>
+# Inject clean CSS to fix this exact structural container wrapper to the ceiling of the layout grid
+st.markdown("""
+    <style>
+        /* Target the container block holding our top header row assets */
+        div[data-testid="stVerticalBlock"] > div:has(div.native-sticky-header-container) {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            z-index: 999991 !important;
+            background-color: #0E1117 !important;
+            padding: 10px 40px !important;
+            border-bottom: 1px solid #30363D !important;
+            box-shadow: 0px 4px 15px rgba(0,0,0,0.5) !important;
+            box-sizing: border-box !important;
+        }
+        
+        /* Force standard page view container elements to step down below our fixed layout space */
+        div[data-testid="stAppViewBlockContainer"] {
+            padding-top: 6.0rem !important;
+        }
+        
+        /* Eliminate vertical container padding blocks specifically inside our header space */
+        div.native-sticky-header-container div[data-testid="stVerticalBlock"] {
+            gap: 0rem !important;
+        }
+    </style>
 """, unsafe_allow_html=True)
 
-# 2. Setup internal memory state intercept checking to look for the background POST event safely
-if "workspace_sync_armed" not in st.session_state:
-    st.session_state["workspace_sync_armed"] = False
+# Create an anchor block container that handles our sticky ceiling position mapping
+with st.container():
+    st.markdown('<div class="native-sticky-header-container"></div>', unsafe_allow_html=True)
+    
+    # Map out clean columns matrix natively to handle alignment
+    head_col1, head_col2, head_col3 = st.columns([2, 1.5, 1.2], vertical_alignment="center")
+    
+    with head_col1:
+        st.markdown("<h3 style='margin: 0; padding: 0; font-size: 1.30rem; color: #4A90E2;'>⚡ Live Matrix Workspace Viewport Ledger</h3>", unsafe_allow_html=True)
+        
+    with head_col2:
+        st.markdown(status_html, unsafe_allow_html=True)
+        
+    with head_col3:
+        # 100% native execution button completely safe from iframe sandbox blocks
+        trigger_sync_active = st.button("💾 SAVE & SYNC WORKSPACE", use_container_width=True, type="primary")
 
-# We check if a save was triggered using a clean Streamlit toggle element that can be dynamically updated via memory space
-trigger_sync_active = False
-
-# Fall back safely to capturing button triggers via session memory flags when execution conditions occur
-if st.session_state["workspace_sync_armed"]:
-    trigger_sync_active = True
-    st.session_state["workspace_sync_armed"] = False
-else:
-    # Use button component to establish absolute structural state verification natively
-    with st.sidebar:
-        if st.button("💾 Force Manual Core Re-Sync", use_container_width=True, key="fallback_core_sync_btn"):
-            trigger_sync_active = True
-
+# Run the backend runtime loop data commits safely when clicked
 if trigger_sync_active:
     live_sidebar_bounds = {
         "wallet_cash": {

@@ -269,11 +269,39 @@ with control_tab1:
             key="slow_ma"
         )
 
-    with c_col3:
+        with c_col3:
         st.markdown("#### 💼 Sharesies Wallet Cash")
-        st.number_input("Cash Held (NZD)", min_value=0.00, value=float(runtime_cash.get("NZD", 0.00)), step=1.00, format="%.2f", key="cash_nzd_input")
-        st.number_input("Cash Held (AUD)", min_value=0.00, value=float(runtime_cash.get("AUD", 0.00)), step=1.00, format="%.2f", key="cash_aud_input")
-        st.number_input("Cash Held (USD)", min_value=0.00, value=float(runtime_cash.get("USD", 0.00)), step=1.00, format="%.2f", key="cash_usd_input")
+        
+        # Inject standard prefix labels directly into structural widget fields while compressing vertical layout padding gaps
+        st.markdown("<p style='font-size: 0.8rem; font-weight: bold; color: #8B949E; margin: 0px;'>NZD Balance</p>", unsafe_allow_html=True)
+        st.number_input("NZD $", min_value=0.00, value=float(runtime_cash.get("NZD", 0.00)), step=1.00, format="%.2f", key="cash_nzd_input", label_visibility="collapsed")
+        
+        st.markdown("<p style='font-size: 0.8rem; font-weight: bold; color: #8B949E; margin: 4px 0px 0px 0px;'>AUD Balance</p>", unsafe_allow_html=True)
+        st.number_input("AUD $", min_value=0.00, value=float(runtime_cash.get("AUD", 0.00)), step=1.00, format="%.2f", key="cash_aud_input", label_visibility="collapsed")
+        
+        st.markdown("<p style='font-size: 0.8rem; font-weight: bold; color: #8B949E; margin: 4px 0px 0px 0px;'>USD Balance</p>", unsafe_allow_html=True)
+        st.number_input("USD $", min_value=0.00, value=float(runtime_cash.get("USD", 0.00)), step=1.00, format="%.2f", key="cash_usd_input", label_visibility="collapsed")
+        
+        # Pull everything underneath up closer to minimize vertical dead space
+        st.markdown(
+            """
+            <style>
+            /* Shrink spacing between individual inputs */
+            div[data-testid="stBlock"] div[data-testid="element-container"] {
+                margin-bottom: 2px !important;
+            }
+            /* Collapse the massive empty padding block below the primary config desk tabs */
+            hr {
+                margin-top: 8px !important;
+                margin-bottom: 12px !important;
+            }
+            div[data-testid="stVerticalBlock"] > div:has(hr) + div {
+                margin-top: -15px !important;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
 
 with control_tab2:
     st.markdown("#### 📐 Active Portfolio Management Boundaries")
@@ -324,11 +352,11 @@ last_save_time = st.session_state.get("last_cloud_save_time", None)
 
 if last_save_time:
     if "⚠️" in last_save_time:
-        status_html = f"<div style='background-color: #dc3545; color: #FFFFFF; padding: 8px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #bd2130; height: 38px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;'>{last_save_time}</div>"
+        status_html = f"<div style='background-color: #dc3545; color: #FFFFFF; padding: 8px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #bd2130; width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;'>{last_save_time}</div>"
     else:
-        status_html = f"<div style='background-color: #28a745; color: #FFFFFF; padding: 4px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.82rem; border: 1px solid #1e7e34; line-height: 1.2; height: 38px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box;'>✅ SYNCED TO GITHUB LIVE<span style='font-size: 0.70rem; font-weight: normal; opacity: 0.85; margin-top: 1px;'>Time: {last_save_time}</span></div>"
+        status_html = f"<div style='background-color: #28a745; color: #FFFFFF; padding: 6px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.80rem; border: 1px solid #1e7e34; line-height: 1.3; width: 100%; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box;'>✅ SYNCED TO GITHUB LIVE<span style='font-size: 0.72rem; font-weight: normal; opacity: 0.90; margin-top: 2px;'>Time: {last_save_time}</span></div>"
 else:
-    status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D; height: 38px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;'>📁 Database Standby: Connected</div>"
+    status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D; width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;'>📁 Database Standby: Connected</div>"
 
 # ==============================================================================
 # 🎯 MASTER STRUCTURAL INTERFACE CONFIGURATION (CLEAN SIDEBAR COMMAND DESK)

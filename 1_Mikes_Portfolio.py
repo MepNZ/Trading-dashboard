@@ -338,21 +338,20 @@ else:
 st.markdown(
     """
     <style>
-    /* Force the Master Viewport container to float and stick to the screen ceiling */
-    div[data-testid="stVerticalBlock"] > div:has(#mike-floating-ceiling) {
-        position: fixed;
-        top: 2.85rem;
-        left: 0;
-        right: 0;
-        background-color: #0E1117;
-        z-index: 999990;
-        padding: 8px 24px;
-        border-bottom: 1px solid #30363D;
-        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.5);
+    /* target the element container wrapper wrapping our ceiling layout identifier tag */
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(#mike-floating-ceiling) {
+        position: sticky !important;
+        top: 2.85rem !important;
+        z-index: 99999 !important;
+        background-color: #0E1117 !important;
+        padding: 6px 16px !important;
+        border-bottom: 1px solid #30363D !important;
+        box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.6) !important;
+        margin-bottom: 10px !important;
     }
-    /* Add a protective cushion margin top to prevent elements from slipping beneath the floating element */
-    div[data-testid="stAppViewBlockContainer"] {
-        padding-top: 6rem !important;
+    /* Smooth spacing transition buffer for the elements cascading directly underneath */
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(#mike-floating-ceiling) + div {
+        margin-top: 12px !important;
     }
     </style>
     <div id="mike-floating-ceiling"></div>
@@ -366,7 +365,7 @@ with st.container():
     head_col1, head_col2, head_col3 = st.columns([2.2, 1.3, 1.1])
     
     with head_col1:
-        st.markdown("<h3 style='margin: 4px 0 0 0; padding: 0; font-size: 1.15rem; color: #4A90E2; font-weight: bold;'>⚡ Live Matrix Workspace Viewport Ledger</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='margin: 6px 0 0 0; padding: 0; font-size: 1.15rem; color: #4A90E2; font-weight: bold;'>⚡ Live Matrix Workspace Viewport Ledger</h3>", unsafe_allow_html=True)
         
     with head_col2:
         st.markdown(status_html, unsafe_allow_html=True)

@@ -236,26 +236,38 @@ st.markdown(f"""
         </div>
        """, unsafe_allow_html=True)
 
+# ==============================================================================
 # SURGICAL ADDITION: STICKY FLOATING WORKSPACE CONTROL BAR (SCROLL-RESISTANT)
 # ==============================================================================
-# Inject the CSS to pin this container to the top view screen and forcefully align inner text blocks
+# Inject the updated CSS to pin the workspace container while protecting sidebars
 st.markdown("""
     <style>
         /* 1. Force the target container block to stick to the absolute top viewport ceiling without blocking navigation buttons */
-        div[data-testid="stVerticalBlock"] > div:has(div.floating-action-toolbar) {
+        div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) {
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
-            width: calc(100% - 20px) !important; 
-            z-index: 99 !important; /* UPGRADE: Lowered to allow the sidebar navigation toggle to float cleanly on top */
+            width: 100% !important; 
+            z-index: 99991 !important; /* Kept underneath the core mobile sidebar menu toggle wrapper layer */
             background-color: #0E1117 !important; 
-            padding: 8px 40px !important;
+            padding: 12px 40px !important;
             border-bottom: 1px solid #30363D !important;
             box-shadow: 0px 4px 15px rgba(0,0,0,0.5) !important;
+            box-sizing: border-box !important;
         }
         
-        /* 2. FORCE PERFECT VERTICAL CENTER AXIS VIA DIRECT INNER PARAGRAPH OVERRIDES */
-        div:has(div.floating-action-toolbar) button p {
+        /* 2. FORCE NATIVE SIDEBAR TOGGLE UNMASKED: Insulates the sidebar menu button from floating container clips */
+        button[data-testid="stSidebarCollapseButton"] {
+            z-index: 999999 !important; /* Forces the double arrow toggle to ride safely on top of all header canvas zones */
+            position: fixed !important;
+            top: 10px !important;
+            left: 10px !important;
+            visibility: visible !important;
+            display: flex !important;
+        }
+        
+        /* 3. FORCE PERFECT VERTICAL CENTER AXIS VIA DIRECT INNER PARAGRAPH OVERRIDES */
+        div:has(span#mike-sticky-marker) button p {
             margin: 0 !important;
             padding: 0 !important;
             line-height: 1.0 !important;
@@ -264,12 +276,12 @@ st.markdown("""
             justify-content: center !important;
         }
         
-        /* 3. Push the standard content layout down a fraction so it isn't hidden under our bar */
+        /* 4. Push the standard content layout down a fraction so it isn't hidden under our bar */
         div[data-testid="stAppViewBlockContainer"] {
-            padding-top: 5.2rem !important;
+            padding-top: 7.2rem !important;
         }
 
-        /* 4. HIGH-DENSITY CRUNCH: Force compact vertical spacing inside Streamlit inputs and expanders */
+        /* 5. HIGH-DENSITY CRUNCH: Force compact vertical spacing inside Streamlit inputs and expanders */
         div[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div {
             padding-top: 1px !important;
             padding-bottom: 1px !important;

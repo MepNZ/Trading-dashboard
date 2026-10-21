@@ -331,83 +331,13 @@ else:
     status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D; height: 38px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;'>📁 Database Standby: Connected</div>"
 
 # ==============================================================================
-# 🎯 MASTER STRUCTURAL INTERFACE CONFIGURATION (FLOATING STICKY CEILING)
+# 🎯 MASTER STRUCTURAL INTERFACE CONFIGURATION (CLEAN SIDEBAR COMMAND DESK)
 # ==============================================================================
-
-# Global CSS override to inject a true fixed header layout that respects the sidebar
-st.markdown(
-    f"""
-    <style>
-    /* Add a solid background margin block to separate lower tables gracefully */
-    div[data-testid="stAppViewBlockContainer"] {{
-        padding-top: 5.5rem !important;
-    }}
-    /* Target Streamlit's internal view block and lock our header layout inside it */
-    div[data-testid="stAppViewBlockContainer"] > div:first-child {{
-        position: fixed !important;
-        top: 0 !important;
-        /* Inherit dynamic width directly from the active canvas container */
-        width: inherit !important;
-        max-width: inherit !important;
-        background-color: #0E1117 !important;
-        border-bottom: 1px solid #30363D !important;
-        z-index: 99995 !important;
-        padding: 10px 24px 6px 24px !important;
-        box-shadow: 0px 6px 16px rgba(0, 0, 0, 0.6) !important;
-        display: flex !important;
-        flex-direction: row !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-        gap: 20px !important;
-    }}
-    
-    /* Clean up title styling parameters */
-    .ceiling-title {{
-        margin: 0;
-        font-size: 1.10rem;
-        color: #4A90E2;
-        font-weight: bold;
-        white-space: nowrap;
-    }}
-    
-    /* Center the sync indicators smoothly inside the open middle canvas block */
-    .ceiling-status-wrapper {{
-        flex-grow: 1;
-        display: flex;
-        justify-content: center;
-    }}
-    .ceiling-status-wrapper div {{
-        margin-bottom: 0 !important;
-        padding: 4px 12px !important;
-        height: 32px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }}
-    
-    /* Compact layout sizing constraints for the native sync button framework */
-    div[data-testid="stAppViewBlockContainer"] > div:first-child > div:last-child {{
-        width: 220px !important;
-        min-width: 220px !important;
-    }}
-    button[data-testid="baseButton-primary"] {{
-        height: 34px !important;
-        line-height: 34px !important;
-        padding: 0px !important;
-        font-weight: bold !important;
-        font-size: 0.85rem !important;
-    }}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# Render the floating content block directly inside the parent view container loop context
-# Streamlit mounts this container as the first structural child element node automatically!
-with st.container():
-    st.markdown('<div class="ceiling-title">⚡ Live Matrix Workspace Viewport Ledger</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="ceiling-status-wrapper">{status_html}</div>', unsafe_allow_html=True)
+with st.sidebar:
+    st.markdown("### ⚡ System Command Desk")
+    st.markdown(f'<div style="margin-bottom: 12px;">{status_html}</div>', unsafe_allow_html=True)
     trigger_sync_active = st.button("💾 SAVE & SYNC WORKSPACE", type="primary", use_container_width=True)
+    st.markdown("---")
 
 # ==============================================================================
 # UNBREAKABLE SYNC ENGINE & LAYER A.2 PAPER PORTFOLIO STORAGE EXTRACTION
@@ -689,14 +619,25 @@ for ticker in all_active_workspace_tickers:
     else:
         ticker_timeframe_roi = 0.0
 
-    # --- 4-TIER VOLUME-VERIFIED STATUS ENGINE ---
+        # --- 4-TIER VOLUME-VERIFIED STATUS ENGINE WITH POST-MARKET FREEZE ---
     try:
         current_price = float(last_close)
         f_ma = float(fast_ma_val)
         s_ma = float(slow_ma_val)
+        
         if not df_calc.empty and 'Volume' in df_calc.columns and len(df_calc) >= 20:
             vol_twenty_avg = df_calc['Volume'].rolling(window=20).mean().iloc[-1]
-            v_surge = float(df_calc['Volume'].iloc[-1] / vol_twenty_avg) if vol_twenty_avg > 0 else 1.0
+            live_snapshot_volume = float(df_calc['Volume'].iloc[-1])
+            
+            if "OPEN" in us_status:
+                v_surge = live_snapshot_volume / vol_twenty_avg if vol_twenty_avg > 0 else 1.0
+            else:
+                historical_volume_series = df_calc['Volume'].dropna()
+                if len(historical_volume_series) >= 2:
+                    final_regular_session_vol = float(historical_volume_series.iloc[-2])
+                    v_surge = final_regular_session_vol / vol_twenty_avg if vol_twenty_avg > 0 else 1.0
+                else:
+                    v_surge = live_snapshot_volume / vol_twenty_avg if vol_twenty_avg > 0 else 1.0
         else:
             v_surge = 1.0
     except (ValueError, TypeError):

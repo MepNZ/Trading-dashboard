@@ -334,7 +334,7 @@ else:
 # 🎯 MASTER STRUCTURAL INTERFACE CONFIGURATION (FLOATING STICKY CEILING)
 # ==============================================================================
 
-# Global CSS override to inject a true fixed header layout that works outside columns
+# Global CSS override to inject a true fixed header layout that respects the sidebar
 st.markdown(
     f"""
     <style>
@@ -342,22 +342,26 @@ st.markdown(
     div[data-testid="stAppViewBlockContainer"] {{
         padding-top: 5.5rem !important;
     }}
-    /* Enforce clear fixed floating viewport rules onto our unique class designation */
-    .mikes-floating-ceiling-bar {{
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 52px;
-        background-color: #0E1117;
-        border-bottom: 1px solid #30363D;
-        z-index: 999995;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0px 24px;
-        box-shadow: 0px 6px 16px rgba(0, 0, 0, 0.6);
+    /* Target Streamlit's internal view block and lock our header layout inside it */
+    div[data-testid="stAppViewBlockContainer"] > div:first-child {{
+        position: fixed !important;
+        top: 0 !important;
+        /* Inherit dynamic width directly from the active canvas container */
+        width: inherit !important;
+        max-width: inherit !important;
+        background-color: #0E1117 !important;
+        border-bottom: 1px solid #30363D !important;
+        z-index: 99995 !important;
+        padding: 10px 24px 6px 24px !important;
+        box-shadow: 0px 6px 16px rgba(0, 0, 0, 0.6) !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 20px !important;
     }}
+    
+    /* Clean up title styling parameters */
     .ceiling-title {{
         margin: 0;
         font-size: 1.10rem;
@@ -365,55 +369,45 @@ st.markdown(
         font-weight: bold;
         white-space: nowrap;
     }}
+    
+    /* Center the sync indicators smoothly inside the open middle canvas block */
     .ceiling-status-wrapper {{
         flex-grow: 1;
         display: flex;
         justify-content: center;
-        margin: 0 20px;
     }}
-    /* Force status indicators inside to take up a compact layout configuration */
     .ceiling-status-wrapper div {{
         margin-bottom: 0 !important;
         padding: 4px 12px !important;
-        height: 34px !important;
+        height: 32px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
     }}
-    /* Hide native container shell for hidden synchronization button to prevent canvas drift */
-    div.element-container:has(button[key="hidden_sync_click"]) {{
-        position: fixed !important;
-        top: 9px !important;
-        right: 24px !important;
-        z-index: 999999 !important;
+    
+    /* Compact layout sizing constraints for the native sync button framework */
+    div[data-testid="stAppViewBlockContainer"] > div:first-child > div:last-child {{
         width: 220px !important;
+        min-width: 220px !important;
     }}
-    /* Style the native Streamlit button directly to align cleanly inside the floating top banner */
-    button[key="hidden_sync_click"] {{
-        background-color: #FF4B4B !important;
-        color: white !important;
-        border-radius: 4px !important;
-        border: none !important;
+    button[data-testid="baseButton-primary"] {{
         height: 34px !important;
         line-height: 34px !important;
-        padding: 0 12px !important;
+        padding: 0px !important;
         font-weight: bold !important;
         font-size: 0.85rem !important;
     }}
     </style>
-    
-    <div class="mikes-floating-ceiling-bar">
-        <div class="ceiling-title">⚡ Live Matrix Workspace Viewport Ledger</div>
-        <div class="ceiling-status-wrapper">{status_html}</div>
-        <div style="width: 220px; display: flex; justify-content: flex-end;"></div>
-    </div>
     """,
     unsafe_allow_html=True
 )
 
-# Render the primary trigger layout button securely within native Streamlit context
-# It is customized via CSS attributes to mount directly inside the floating bar top slot
-trigger_sync_active = st.button("💾 SAVE & SYNC WORKSPACE", key="hidden_sync_click", use_container_width=True)
+# Render the floating content block directly inside the parent view container loop context
+# Streamlit mounts this container as the first structural child element node automatically!
+with st.container():
+    st.markdown('<div class="ceiling-title">⚡ Live Matrix Workspace Viewport Ledger</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="ceiling-status-wrapper">{status_html}</div>', unsafe_allow_html=True)
+    trigger_sync_active = st.button("💾 SAVE & SYNC WORKSPACE", type="primary", use_container_width=True)
 
 # ==============================================================================
 # UNBREAKABLE SYNC ENGINE & LAYER A.2 PAPER PORTFOLIO STORAGE EXTRACTION

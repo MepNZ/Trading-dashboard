@@ -255,15 +255,17 @@ with control_tab1:
         st.markdown("#### 📈 Analysis Frames")
         current_fast = st.session_state.get("fast_ma", int(runtime_sliders.get("fast_ma", 10)))
         st.selectbox(
-            "Fast MA Frame", , 
-            index=[5, 10, 20, 50].index(current_fast) if current_fast in [5, 10, 20, 50] else 1, 
+            "Fast MA Frame",
+            options=[5, 10, 20, 50],
+            index=[5, 10, 20, 50].index(current_fast) if current_fast in [5, 10, 20, 50] else 1,
             key="fast_ma"
         )
         
         current_slow = st.session_state.get("slow_ma", int(runtime_sliders.get("slow_ma", 100)))
         st.selectbox(
-            "Slow MA Frame", , 
-            index=[25, 50, 100, 200].index(current_slow) if current_slow in [25, 50, 100, 200] else 2, 
+            "Slow MA Frame",
+            options=[25, 50, 100, 200],
+            index=[25, 50, 100, 200].index(current_slow) if current_slow in [25, 50, 100, 200] else 2,
             key="slow_ma"
         )
 

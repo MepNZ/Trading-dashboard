@@ -345,7 +345,7 @@ st.markdown(
     /* Enforce clear fixed floating viewport rules onto our unique class designation */
     .mikes-floating-ceiling-bar {{
         position: fixed;
-        top: 2.85rem;
+        top: 0;
         left: 0;
         right: 0;
         height: 52px;
@@ -363,47 +363,57 @@ st.markdown(
         font-size: 1.10rem;
         color: #4A90E2;
         font-weight: bold;
+        white-space: nowrap;
     }}
     .ceiling-status-wrapper {{
         flex-grow: 1;
         display: flex;
         justify-content: center;
-        margin: 0 40px;
+        margin: 0 20px;
     }}
     /* Force status indicators inside to take up a compact layout configuration */
     .ceiling-status-wrapper div {{
         margin-bottom: 0 !important;
         padding: 4px 12px !important;
-        height: auto !important;
+        height: 34px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }}
+    /* Hide native container shell for hidden synchronization button to prevent canvas drift */
+    div.element-container:has(button[key="hidden_sync_click"]) {{
+        position: fixed !important;
+        top: 9px !important;
+        right: 24px !important;
+        z-index: 999999 !important;
+        width: 220px !important;
+    }}
+    /* Style the native Streamlit button directly to align cleanly inside the floating top banner */
+    button[key="hidden_sync_click"] {{
+        background-color: #FF4B4B !important;
+        color: white !important;
+        border-radius: 4px !important;
+        border: none !important;
+        height: 34px !important;
+        line-height: 34px !important;
+        padding: 0 12px !important;
+        font-weight: bold !important;
+        font-size: 0.85rem !important;
     }}
     </style>
     
     <div class="mikes-floating-ceiling-bar">
         <div class="ceiling-title">⚡ Live Matrix Workspace Viewport Ledger</div>
         <div class="ceiling-status-wrapper">{status_html}</div>
-        <div style="width: 220px;"></div> <!-- Layout offset anchor balance node -->
+        <div style="width: 220px; display: flex; justify-content: flex-end;"></div>
     </div>
     """,
     unsafe_allow_html=True
 )
 
 # Render the primary trigger layout button securely within native Streamlit context
-# It floats precisely over the empty layout balance space anchor!
-st.markdown(
-    """
-    <style>
-    div.element-container:has(button:contains("SAVE & SYNC WORKSPACE")) {
-        position: fixed !important;
-        top: 3.2rem !important;
-        right: 24px !important;
-        z-index: 999999 !important;
-        width: 220px !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-trigger_sync_active = st.button("💾 SAVE & SYNC WORKSPACE", use_container_width=True, type="primary")
+# It is customized via CSS attributes to mount directly inside the floating bar top slot
+trigger_sync_active = st.button("💾 SAVE & SYNC WORKSPACE", key="hidden_sync_click", use_container_width=True)
 
 # ==============================================================================
 # UNBREAKABLE SYNC ENGINE & LAYER A.2 PAPER PORTFOLIO STORAGE EXTRACTION

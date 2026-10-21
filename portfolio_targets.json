@@ -53,6 +53,11 @@
             "shares": 1.0,
             "entry": 8.32,
             "entry_date": "2026-10-20"
+        },
+        "SML.NZ": {
+            "shares": 1.0,
+            "entry": 0.48,
+            "entry_date": "2026-10-21"
         }
     }
 }

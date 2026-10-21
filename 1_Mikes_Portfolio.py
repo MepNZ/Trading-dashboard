@@ -265,8 +265,9 @@ st.markdown("""
             box-sizing: border-box !important;
         }
 
-        /* 2. RECOVER SIDEBAR TOGGLE: Force the double arrow button to float on top of everything */
-        button[data-testid="stSidebarCollapseButton"], 
+        /* 2. RECOVER SIDEBAR TOGGLE: Force the double arrow button to float cleanly on top */
+        button[data-testid="stSidebarCollapseButton"],
+        .st-emotion-cache-1gk28bc,
         div[data-testid="collapsedControl"] {
             z-index: 999999 !important; /* Insulates the toggle from being covered or hidden */
             position: fixed !important;

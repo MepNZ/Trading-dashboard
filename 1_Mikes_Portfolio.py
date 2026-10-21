@@ -251,30 +251,27 @@ else:
 # ==============================================================================
 st.markdown("""
     <style>
-        /* 1. SECURE CEILING HEADER: Lock the workspace bar to the absolute top of the screen */
-        div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) {
+        /* 1. SECURE CEILING HEADER: Target ONLY the content view block container, protecting the sidebar frame */
+        div[data-testid="stAppViewBlockContainer"] > div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) {
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
+            right: 0 !important;
             width: 100% !important;
-            z-index: 99990 !important; /* Kept safely below native Streamlit popup layers */
+            z-index: 9999 !important; /* Low enough to sit safely UNDER Streamlit's native open sidebar (z-index: 999999) */
             background-color: #0E1117 !important;
-            padding: 12px 40px !important;
+            padding: 12px 40px 12px 80px !important; /* Added left padding to prevent overlapping the native collapse button */
             border-bottom: 1px solid #30363D !important;
             box-shadow: 0px 4px 15px rgba(0,0,0,0.5) !important;
             box-sizing: border-box !important;
         }
 
-        /* 2. RECOVER SIDEBAR TOGGLE: Force the double arrow button to float cleanly on top */
-        button[data-testid="stSidebarCollapseButton"],
-        .st-emotion-cache-1gk28bc,
-        div[data-testid="collapsedControl"] {
-            z-index: 999999 !important; /* Insulates the toggle from being covered or hidden */
+        /* 2. RECOVER SIDEBAR TOGGLE: Cleanly isolate layout layers to let the native collapse actions run */
+        button[data-testid="stSidebarCollapseButton"] {
+            z-index: 10000 !important; /* Pushes the button layer above the fixed header */
             position: fixed !important;
-            top: 12px !important;
+            top: 14px !important;
             left: 14px !important;
-            visibility: visible !important;
-            display: flex !important;
         }
 
         /* 3. ALIGNMENT CORRECTION: Keep the workspace row layout strictly balanced */

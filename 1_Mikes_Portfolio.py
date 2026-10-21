@@ -334,44 +334,76 @@ else:
 # 🎯 MASTER STRUCTURAL INTERFACE CONFIGURATION (FLOATING STICKY CEILING)
 # ==============================================================================
 
-# Compact Sticky Header Styling Layer
+# Global CSS override to inject a true fixed header layout that works outside columns
 st.markdown(
-    """
+    f"""
     <style>
-    /* target the element container wrapper wrapping our ceiling layout identifier tag */
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(#mike-floating-ceiling) {
-        position: sticky !important;
-        top: 2.85rem !important;
-        z-index: 99999 !important;
-        background-color: #0E1117 !important;
-        padding: 6px 16px !important;
-        border-bottom: 1px solid #30363D !important;
-        box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.6) !important;
-        margin-bottom: 10px !important;
-    }
-    /* Smooth spacing transition buffer for the elements cascading directly underneath */
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(#mike-floating-ceiling) + div {
-        margin-top: 12px !important;
-    }
+    /* Add a solid background margin block to separate lower tables gracefully */
+    div[data-testid="stAppViewBlockContainer"] {{
+        padding-top: 5.5rem !important;
+    }}
+    /* Enforce clear fixed floating viewport rules onto our unique class designation */
+    .mikes-floating-ceiling-bar {{
+        position: fixed;
+        top: 2.85rem;
+        left: 0;
+        right: 0;
+        height: 52px;
+        background-color: #0E1117;
+        border-bottom: 1px solid #30363D;
+        z-index: 999995;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0px 24px;
+        box-shadow: 0px 6px 16px rgba(0, 0, 0, 0.6);
+    }}
+    .ceiling-title {{
+        margin: 0;
+        font-size: 1.10rem;
+        color: #4A90E2;
+        font-weight: bold;
+    }}
+    .ceiling-status-wrapper {{
+        flex-grow: 1;
+        display: flex;
+        justify-content: center;
+        margin: 0 40px;
+    }}
+    /* Force status indicators inside to take up a compact layout configuration */
+    .ceiling-status-wrapper div {{
+        margin-bottom: 0 !important;
+        padding: 4px 12px !important;
+        height: auto !important;
+    }}
     </style>
-    <div id="mike-floating-ceiling"></div>
+    
+    <div class="mikes-floating-ceiling-bar">
+        <div class="ceiling-title">⚡ Live Matrix Workspace Viewport Ledger</div>
+        <div class="ceiling-status-wrapper">{status_html}</div>
+        <div style="width: 220px;"></div> <!-- Layout offset anchor balance node -->
+    </div>
     """,
     unsafe_allow_html=True
 )
 
-# Create an isolated container row acting as our floating dashboard window ceiling anchors
-with st.container():
-    # Grid layout with streamlined spacing allocation
-    head_col1, head_col2, head_col3 = st.columns([2.2, 1.3, 1.1])
-    
-    with head_col1:
-        st.markdown("<h3 style='margin: 6px 0 0 0; padding: 0; font-size: 1.15rem; color: #4A90E2; font-weight: bold;'>⚡ Live Matrix Workspace Viewport Ledger</h3>", unsafe_allow_html=True)
-        
-    with head_col2:
-        st.markdown(status_html, unsafe_allow_html=True)
-        
-    with head_col3:
-        trigger_sync_active = st.button("💾 SAVE & SYNC WORKSPACE", use_container_width=True, type="primary")
+# Render the primary trigger layout button securely within native Streamlit context
+# It floats precisely over the empty layout balance space anchor!
+st.markdown(
+    """
+    <style>
+    div.element-container:has(button:contains("SAVE & SYNC WORKSPACE")) {
+        position: fixed !important;
+        top: 3.2rem !important;
+        right: 24px !important;
+        z-index: 999999 !important;
+        width: 220px !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+trigger_sync_active = st.button("💾 SAVE & SYNC WORKSPACE", use_container_width=True, type="primary")
 
 # ==============================================================================
 # UNBREAKABLE SYNC ENGINE & LAYER A.2 PAPER PORTFOLIO STORAGE EXTRACTION

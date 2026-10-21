@@ -114,17 +114,6 @@ def push_targets_to_github(updated_data):
     except Exception as e:
         print(f"\n[CRITICAL CONNECTION FAILURE] Error details: {str(e)}\n")
         return False
-with st.sidebar:
-    st.markdown("### 🛠️ Configuration Controls")
-    
-    # Clean high-speed cache reset engine anchored at the top
-    if st.button("🔄 Clear App Cache Memory", use_container_width=True):
-        if os.path.exists(CACHE_FILE):
-            try: os.remove(CACHE_FILE)
-            except: pass
-        st.cache_data.clear()
-        st.rerun()
-
     @st.fragment
     def render_isolated_sidebar_controls():
         # 1. Safe Timeframe Check
@@ -193,8 +182,6 @@ with st.sidebar:
                 st.number_input("Paper Entry Price ($)", min_value=0.0, value=float(p_stored.get("entry", 0.0)), key=f"paper_entry_{i}")
                 st.date_input("Transaction Calendar Date", value=default_date, key=f"paper_date_{i}")
 
-    render_isolated_sidebar_controls()
-
 selected_timeframe = st.session_state["roi_window"]
 chart_timeframe_choice = st.session_state["roi_window"] # Both systems now look at the same master switch!
 fast_ma_input = st.session_state["fast_ma"]
@@ -235,6 +222,101 @@ st.markdown(f"""
         🕒 Your Trading Desk Local Time: <strong>{nz_now_time}</strong>
         </div>
        """, unsafe_allow_html=True)
+# ==============================================================================
+# 🎯 MAIN CANVASES UNIFIED CONFIGURATION DESK (FORMER SIDEBAR INPUTS)
+# ==============================================================================
+st.markdown("### 🛠️ Live Workspace Control Desk")
+control_tab1, control_tab2, control_tab3 = st.tabs([
+    "⚙️ Configuration Parameters & Vaults", 
+    "📐 Layer A: Fixed Portfolio Slots", 
+    "🧪 Layer A.2: Paper Trading Settings"
+])
+
+with control_tab1:
+    c_col1, c_col2, c_col3 = st.columns(3)
+    with c_col1:
+        st.markdown("#### 🕒 Time Horizons")
+        current_roi = st.session_state.get("roi_window", runtime_sliders.get("roi_window", "1 Year"))
+        st.selectbox(
+            "Chart & ROI Grid Timeframe", 
+            ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], 
+            index=["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"].index(current_roi) if current_roi in ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"] else 3, 
+            key="roi_window"
+        )
+        
+        if st.button("🔄 Clear App Cache Memory", use_container_width=True):
+            if os.path.exists(CACHE_FILE):
+                try: os.remove(CACHE_FILE)
+                except: pass
+            st.cache_data.clear()
+            st.rerun()
+            
+    with c_col2:
+        st.markdown("#### 📈 Analysis Frames")
+        current_fast = st.session_state.get("fast_ma", int(runtime_sliders.get("fast_ma", 10)))
+        st.selectbox(
+            "Fast MA Frame", , 
+            index=[5, 10, 20, 50].index(current_fast) if current_fast in [5, 10, 20, 50] else 1, 
+            key="fast_ma"
+        )
+        
+        current_slow = st.session_state.get("slow_ma", int(runtime_sliders.get("slow_ma", 100)))
+        st.selectbox(
+            "Slow MA Frame", , 
+            index=[25, 50, 100, 200].index(current_slow) if current_slow in [25, 50, 100, 200] else 2, 
+            key="slow_ma"
+        )
+        
+    with c_col3:
+        st.markdown("#### 💼 Sharesies Wallet Cash")
+        st.number_input("Cash Held (NZD)", min_value=0.00, value=float(runtime_cash.get("NZD", 0.00)), step=1.00, format="%.2f", key="cash_nzd_input")
+        st.number_input("Cash Held (AUD)", min_value=0.00, value=float(runtime_cash.get("AUD", 0.00)), step=1.00, format="%.2f", key="cash_aud_input")
+        st.number_input("Cash Held (USD)", min_value=0.00, value=float(runtime_cash.get("USD", 0.00)), step=1.00, format="%.2f", key="cash_usd_input")
+
+with control_tab2:
+    st.markdown("#### 📐 Active Portfolio Management Boundaries")
+    slot_cols = st.columns(3)
+    for i in range(6):
+        ticker = portfolio_slots[i]
+        stored = runtime_positions.get(ticker, {}) if "EMPTY" not in ticker else {}
+        display_label = ticker if "EMPTY" not in ticker else "Empty Slot"
+        
+        with slot_cols[i % 3]:
+            with st.expander(f"Slot {i+1}: {display_label}", expanded=False):
+                st.text_input(f"Ticker Symbol", value="" if "EMPTY" in ticker else ticker, key=f"port_slot_{i}")
+                st.number_input("Number of Shares", min_value=0.0000, value=float(stored.get("shares", 0.0)), step=0.0001, format="%.4f", key=f"shares_{i}")
+                st.number_input("My Entry Price ($)", min_value=0.0, value=float(stored.get("entry", 0.0)), key=f"entry_{i}")
+                st.number_input("Upper Target ($)", min_value=0.0, value=float(stored.get("upper", 0.0)), key=f"up_{i}")
+                st.number_input("Fixed Stop Distance ($)", min_value=0.0, value=float(stored.get("fixed_stop_distance", 15.0)), key=f"fixed_stop_{i}")
+
+with control_tab3:
+    st.markdown("#### 🧪 Layer A.2: Paper Trading Sandbox Model")
+    runtime_paper = disk_memory.get("paper_positions", {})
+    paper_slots = list(runtime_paper.keys())[:6]
+    while len(paper_slots) < 6:
+        paper_slots.append(f"EMPTY_PAPER_{len(paper_slots)+1}")
+        
+    paper_cols = st.columns(3)
+    for i in range(6):
+        p_ticker = paper_slots[i]
+        p_stored = runtime_paper.get(p_ticker, {}) if "EMPTY" not in p_ticker else {}
+        p_display = p_ticker if "EMPTY" not in p_ticker else "Empty Paper Slot"
+        
+        stored_date_str = p_stored.get("entry_date", None)
+        if stored_date_str:
+            try: default_date = datetime.strptime(stored_date_str, "%Y-%m-%d").date()
+            except: default_date = datetime.today().date()
+        else:
+            default_date = datetime.today().date()
+
+        with paper_cols[i % 3]:
+            with st.expander(f"Paper Slot {i+1}: {p_display}", expanded=False):
+                st.text_input(f"Paper Ticker Symbol", value="" if "EMPTY" in p_ticker else p_ticker, key=f"paper_slot_{i}")
+                st.markdown("🔒 **Simulated Position Size:** 1 Share Enforced")
+                st.number_input("Paper Entry Price ($)", min_value=0.0, value=float(p_stored.get("entry", 0.0)), key=f"paper_entry_{i}")
+                st.date_input("Transaction Calendar Date", value=default_date, key=f"paper_date_{i}")
+
+st.markdown("---")
 
 last_save_time = st.session_state.get("last_cloud_save_time", None)
 
@@ -249,79 +331,6 @@ else:
 # ==============================================================================
 # 🎯 MASTER STRUCTURAL INTERFACE CONFIGURATION (LAPTOP & MOBILE UNIFIED)
 # ==============================================================================
-st.markdown("""
-    <style>
-        /* 1. SECURE CEILING HEADER: Target ONLY the content view block container, protecting the sidebar frame */
-        div[data-testid="stAppViewBlockContainer"] > div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            width: 100% !important;
-            z-index: 9999 !important; /* Low enough to sit safely UNDER Streamlit's native open sidebar (z-index: 999999) */
-            background-color: #0E1117 !important;
-            padding: 12px 40px 12px 80px !important; /* Added left padding to prevent overlapping the native collapse button */
-            border-bottom: 1px solid #30363D !important;
-            box-shadow: 0px 4px 15px rgba(0,0,0,0.5) !important;
-            box-sizing: border-box !important;
-        }
-
-        /* 2. RECOVER SIDEBAR TOGGLE: Cleanly isolate layout layers to let the native collapse actions run */
-        button[data-testid="stSidebarCollapseButton"] {
-            z-index: 10000 !important; /* Pushes the button layer above the fixed header */
-            position: fixed !important;
-            top: 14px !important;
-            left: 14px !important;
-        }
-
-        /* 3. ALIGNMENT CORRECTION: Keep the workspace row layout strictly balanced */
-        div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) div[data-testid="stHorizontalBlock"] {
-            display: flex !important;
-            align-items: center !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            gap: 1rem !important;
-        }
-
-        /* 4. BUTTON BALANCING: Nudge the sync button to align cleanly with your text header */
-        div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) .stButton {
-            margin: 0 !important;
-            padding: 0 !important;
-            position: relative !important;
-            top: 3px !important;
-        }
-        
-        div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) .stButton > button {
-            height: 38px !important;
-            font-size: 0.85rem !important;
-            font-weight: bold !important;
-            text-transform: uppercase !important;
-            margin: 0 !important;
-        }
-
-        /* 5. CANVAS SPACER: Push layout data down so it doesn't hide behind our pinned header */
-        div[data-testid="stAppViewBlockContainer"] {
-            padding-top: 7.8rem !important;
-        }
-        
-        /* 6. HIGH-DENSITY SIDEBAR DESIGN: Enforce compact spacing for sidebar parameters */
-        div[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div {
-            padding-top: 1px !important;
-            padding-bottom: 1px !important;
-            margin-top: 0px !important;
-            margin-bottom: 0px !important;
-        }
-        div[data-testid="stSidebar"] .stNumberInput, 
-        div[data-testid="stSidebar"] .stTextInput, 
-        div[data-testid="stSidebar"] .stSelectbox {
-            margin-bottom: 2px !important;
-        }
-        div[data-testid="stSidebar"] [data-testid="stExpander"] {
-            margin-bottom: 2px !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
 
 # Create an isolated container row acting as our floating dashboard window ceiling anchors
 with st.container():

@@ -331,18 +331,42 @@ else:
     status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D; height: 38px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;'>📁 Database Standby: Connected</div>"
 
 # ==============================================================================
-# 🎯 MASTER STRUCTURAL INTERFACE CONFIGURATION (LAPTOP & MOBILE UNIFIED)
+# 🎯 MASTER STRUCTURAL INTERFACE CONFIGURATION (FLOATING STICKY CEILING)
 # ==============================================================================
+
+# Compact Sticky Header Styling Layer
+st.markdown(
+    """
+    <style>
+    /* Force the Master Viewport container to float and stick to the screen ceiling */
+    div[data-testid="stVerticalBlock"] > div:has(#mike-floating-ceiling) {
+        position: fixed;
+        top: 2.85rem;
+        left: 0;
+        right: 0;
+        background-color: #0E1117;
+        z-index: 999990;
+        padding: 8px 24px;
+        border-bottom: 1px solid #30363D;
+        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.5);
+    }
+    /* Add a protective cushion margin top to prevent elements from slipping beneath the floating element */
+    div[data-testid="stAppViewBlockContainer"] {
+        padding-top: 6rem !important;
+    }
+    </style>
+    <div id="mike-floating-ceiling"></div>
+    """,
+    unsafe_allow_html=True
+)
 
 # Create an isolated container row acting as our floating dashboard window ceiling anchors
 with st.container():
-    # Inject a distinct hidden inline anchor marker to map our CSS positioning targets safely
-    st.markdown('<span id="mike-sticky-marker" style="display:none;"></span>', unsafe_allow_html=True)
-    
-    head_col1, head_col2, head_col3 = st.columns([2, 1.5, 1.2])
+    # Grid layout with streamlined spacing allocation
+    head_col1, head_col2, head_col3 = st.columns([2.2, 1.3, 1.1])
     
     with head_col1:
-        st.markdown("<h3 style='margin: 0; padding: 0; font-size: 1.30rem; color: #4A90E2; line-height: 1.2;'>⚡ Live Matrix Workspace Viewport Ledger</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='margin: 4px 0 0 0; padding: 0; font-size: 1.15rem; color: #4A90E2; font-weight: bold;'>⚡ Live Matrix Workspace Viewport Ledger</h3>", unsafe_allow_html=True)
         
     with head_col2:
         st.markdown(status_html, unsafe_allow_html=True)

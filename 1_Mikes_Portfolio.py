@@ -251,7 +251,7 @@ with control_tab1:
             st.cache_data.clear()
             st.rerun()
             
-        with c_col2:
+    with c_col2:
         st.markdown("#### 📈 Analysis Frames")
         current_fast = st.session_state.get("fast_ma", int(runtime_sliders.get("fast_ma", 10)))
         st.selectbox(
@@ -266,7 +266,7 @@ with control_tab1:
             index=[25, 50, 100, 200].index(current_slow) if current_slow in [25, 50, 100, 200] else 2, 
             key="slow_ma"
         )
-    
+
     with c_col3:
         st.markdown("#### 💼 Sharesies Wallet Cash")
         st.number_input("Cash Held (NZD)", min_value=0.00, value=float(runtime_cash.get("NZD", 0.00)), step=1.00, format="%.2f", key="cash_nzd_input")

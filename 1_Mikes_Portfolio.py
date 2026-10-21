@@ -236,70 +236,6 @@ st.markdown(f"""
         </div>
        """, unsafe_allow_html=True)
 
-# ==============================================================================
-# SURGICAL ADDITION: STICKY FLOATING WORKSPACE CONTROL BAR (SCROLL-RESISTANT)
-# ==============================================================================
-# Inject the updated CSS to pin the workspace container while protecting sidebars
-st.markdown("""
-    <style>
-        /* 1. Force the target container block to stick to the absolute top viewport ceiling without blocking navigation buttons */
-        div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important; 
-            z-index: 99991 !important; /* Kept underneath the core mobile sidebar menu toggle wrapper layer */
-            background-color: #0E1117 !important; 
-            padding: 12px 40px !important;
-            border-bottom: 1px solid #30363D !important;
-            box-shadow: 0px 4px 15px rgba(0,0,0,0.5) !important;
-            box-sizing: border-box !important;
-        }
-        
-        /* 2. FORCE NATIVE SIDEBAR TOGGLE UNMASKED: Insulates the sidebar menu button from floating container clips */
-        button[data-testid="stSidebarCollapseButton"] {
-            z-index: 999999 !important; /* Forces the double arrow toggle to ride safely on top of all header canvas zones */
-            position: fixed !important;
-            top: 10px !important;
-            left: 10px !important;
-            visibility: visible !important;
-            display: flex !important;
-        }
-        
-        /* 3. FORCE PERFECT VERTICAL CENTER AXIS VIA DIRECT INNER PARAGRAPH OVERRIDES */
-        div:has(span#mike-sticky-marker) button p {
-            margin: 0 !important;
-            padding: 0 !important;
-            line-height: 1.0 !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-        }
-        
-        /* 4. Push the standard content layout down a fraction so it isn't hidden under our bar */
-        div[data-testid="stAppViewBlockContainer"] {
-            padding-top: 7.2rem !important;
-        }
-
-        /* 5. HIGH-DENSITY CRUNCH: Force compact vertical spacing inside Streamlit inputs and expanders */
-        div[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div {
-            padding-top: 1px !important;
-            padding-bottom: 1px !important;
-            margin-top: 0px !important;
-            margin-bottom: 0px !important;
-        }
-        div[data-testid="stSidebar"] .stNumberInput, div[data-testid="stSidebar"] .stTextInput, div[data-testid="stSidebar"] .stSelectbox {
-            margin-bottom: 2px !important;
-        }
-        div[data-testid="stSidebar"] [data-testid="stExpander"] {
-            margin-bottom: 2px !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-# ==============================================================================
-# 🌟 UNBREAKABLE ARCHITECTURE: PRODUCTION STICKY DASHBOARD HEADER Row
-# ==============================================================================
 last_save_time = st.session_state.get("last_cloud_save_time", None)
 
 if last_save_time:
@@ -310,26 +246,37 @@ if last_save_time:
 else:
     status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D; height: 38px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;'>📁 Database Standby: Connected</div>"
 
-# Inject precision styling targeting ONLY the immediate container wrapper block
-# Inject precision styling targeting ONLY the immediate container wrapper block
-# Inject precision styling targeting ONLY the immediate container wrapper block
+# ==============================================================================
+# 🎯 MASTER STRUCTURAL INTERFACE CONFIGURATION (LAPTOP & MOBILE UNIFIED)
+# ==============================================================================
 st.markdown("""
     <style>
-        /* 1. Target the vertical container block that contains our unique element marker */
+        /* 1. SECURE CEILING HEADER: Lock the workspace bar to the absolute top of the screen */
         div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) {
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
             width: 100% !important;
-            z-index: 999991 !important;
+            z-index: 99990 !important; /* Kept safely below native Streamlit popup layers */
             background-color: #0E1117 !important;
-            padding: 12px 40px !important; /* Balanced padding that ensures visibility */
+            padding: 12px 40px !important;
             border-bottom: 1px solid #30363D !important;
             box-shadow: 0px 4px 15px rgba(0,0,0,0.5) !important;
             box-sizing: border-box !important;
         }
 
-        /* 2. Handle simple flex layout mapping across the row grid */
+        /* 2. RECOVER SIDEBAR TOGGLE: Force the double arrow button to float on top of everything */
+        button[data-testid="stSidebarCollapseButton"], 
+        div[data-testid="collapsedControl"] {
+            z-index: 999999 !important; /* Insulates the toggle from being covered or hidden */
+            position: fixed !important;
+            top: 12px !important;
+            left: 14px !important;
+            visibility: visible !important;
+            display: flex !important;
+        }
+
+        /* 3. ALIGNMENT CORRECTION: Keep the workspace row layout strictly balanced */
         div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             align-items: center !important;
@@ -339,12 +286,12 @@ st.markdown("""
             gap: 1rem !important;
         }
 
-        /* 3. PRECISION ALIGNMENT: Nudge button downward to match the text center line */
+        /* 4. BUTTON BALANCING: Nudge the sync button to align cleanly with your text header */
         div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) .stButton {
             margin: 0 !important;
             padding: 0 !important;
             position: relative !important;
-            top: 3px !important; /* Moves the button down perfectly into the center axis */
+            top: 3px !important;
         }
         
         div[data-testid="stVerticalBlock"] > div:has(span#mike-sticky-marker) .stButton > button {
@@ -355,13 +302,28 @@ st.markdown("""
             margin: 0 !important;
         }
 
-        /* 4. Keep standard page data columns shifted down away from under the ceiling bar */
+        /* 5. CANVAS SPACER: Push layout data down so it doesn't hide behind our pinned header */
         div[data-testid="stAppViewBlockContainer"] {
-            padding-top: 6.5rem !important;
+            padding-top: 7.8rem !important;
+        }
+        
+        /* 6. HIGH-DENSITY SIDEBAR DESIGN: Enforce compact spacing for sidebar parameters */
+        div[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div {
+            padding-top: 1px !important;
+            padding-bottom: 1px !important;
+            margin-top: 0px !important;
+            margin-bottom: 0px !important;
+        }
+        div[data-testid="stSidebar"] .stNumberInput, 
+        div[data-testid="stSidebar"] .stTextInput, 
+        div[data-testid="stSidebar"] .stSelectbox {
+            margin-bottom: 2px !important;
+        }
+        div[data-testid="stSidebar"] [data-testid="stExpander"] {
+            margin-bottom: 2px !important;
         }
     </style>
 """, unsafe_allow_html=True)
-
 # Create an isolated container row acting as our floating dashboard window ceiling anchors
 with st.container():
     # Inject a distinct hidden inline anchor marker to map our CSS positioning targets safely

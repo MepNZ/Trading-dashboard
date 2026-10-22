@@ -214,17 +214,17 @@ nz_now_time = datetime.now(ZoneInfo("Pacific/Auckland")).strftime("%d %b %Y, %I:
 
 st.markdown(f"""
     <style>
-    /* CRITICAL FIX: Hide the default transparent header block container entirely */
+    /* CRITICAL FORCE: Hide default hidden workspace header elements */
     header.stAppHeader {{
         display: none !important;
     }}
-    /* Absolute Force: Crush the empty top padding on the view canvas container */
+    /* Absolute Force: Crush the empty top padding on the view container canvas */
     div[data-testid="stAppViewBlockContainer"] {{
-        padding-top: 1.0rem !important;
+        padding-top: 0.5rem !important;
     }}
-    /* Tightly wrap the header banner canvas to prevent block drift */
-    .stMarkdown div[data-testid="stMarkdownContainer"] > div:first-child {{
-        margin-top: 0px !important;
+    /* Parent Lift Hack: Pull the first layout markdown block straight up to the window ceiling */
+    div[data-testid="stAppViewBlockContainer"] > div:first-child {{
+        margin-top: -45px !important;
     }}
     </style>
     

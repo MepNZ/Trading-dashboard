@@ -38,20 +38,37 @@ runtime_positions = disk_memory.get("positions", {})
 runtime_watchlist = disk_memory.get("watchlist_tickers", [])
 runtime_cash = disk_memory.get("wallet_cash", {"NZD": 0.00, "AUD": 0.00, "USD": 0.00})
 runtime_sliders = disk_memory.get("sliders", {"fast_ma": 10, "slow_ma": 100, "roi_window": "1 Year", "graph_horizon": "1 Year"})
+
 # --- CLEAN CEILING ALIGNMENT & STRUCTURAL OVERRIDES ---
 st.markdown(
     """
     <style>
-        /* Safely pull the main canvas up to eliminate top dead space */
+        /* 1. Safely pull the main canvas up to eliminate top dead space */
         .block-container {
-            padding-top: 1.5rem !important;
+            padding-top: 1.0rem !important;
             padding-bottom: 0rem !important;
         }
         
-        /* Stabilize elements inside tabs to prevent overlap text bleeding */
+        /* 2. FORCE reset on any old hacky negative margins that are crunching content */
+        [data-testid="stVerticalBlock"] > div {
+            margin-top: 0px !important;
+        }
+
+        /* 3. Pull the entire workspace control desk up cleanly without layout compression */
+        [data-testid="stHeaderBlock"] + div {
+            margin-top: -10px !important;
+        }
+        
+        /* 4. Stabilize element depth inside tabs to stop text layers from bleeding */
         .stTabs [data-baseweb="tab-list"] {
-            gap: 12px;
-            margin-bottom: 15px;
+            gap: 16px !important;
+            margin-bottom: 25px !important; /* Forces the internal headers downward, away from links */
+            padding-bottom: 5px !important;
+        }
+
+        /* 5. Ensure internal column content starts below the tab navigation area */
+        .stTabs [data-testid="stVerticalBlock"] {
+            padding-top: 10px !important;
         }
     </style>
     """,
@@ -244,10 +261,6 @@ st.markdown(f"""
         padding-top: 0.2rem !important;
         margin-top: 0px !important;
     }}
-    /* Pull up the first structural vertical layout section directly into the ceiling gap */
-    div[data-testid="stVerticalBlock"] > div:first-child {{
-        margin-top: -30px !important;
-    }}
     </style>
     
     <div style='background-color: #161A22; padding: 6px 12px; border-radius: 4px; display: flex; justify-content: center; gap: 40px; font-size: 1.1rem; font-weight: bold; margin-bottom: 10px; border: 1px solid #2d3139;'>
@@ -342,7 +355,7 @@ st.markdown(
     }
     /* Pull up the main dashboard ledger header to bridge the empty white space gap */
     div[data-testid="stVerticalBlock"] > div:has(hr) + div {
-        margin-top: -30px !important;
+        margin-top: 15px !important;
     }
     </style>
     """,

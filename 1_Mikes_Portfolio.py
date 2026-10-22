@@ -270,7 +270,7 @@ with control_tab1:
         )
 
         with c_col3:
-        st.markdown("#### 💼 Sharesies Wallet Cash")
+            st.markdown("#### 💼 Sharesies Wallet Cash")
         
         # Inject standard prefix labels directly into structural widget fields while compressing vertical layout padding gaps
         st.markdown("<p style='font-size: 0.8rem; font-weight: bold; color: #8B949E; margin: 0px;'>NZD Balance</p>", unsafe_allow_html=True)

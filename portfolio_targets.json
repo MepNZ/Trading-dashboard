@@ -58,6 +58,11 @@
             "shares": 1.0,
             "entry": 0.48,
             "entry_date": "2026-10-21"
+        },
+        "XLE": {
+            "shares": 1.0,
+            "entry": 64.44,
+            "entry_date": "2026-10-22"
         }
     }
 }

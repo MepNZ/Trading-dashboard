@@ -290,8 +290,8 @@ with control_tab1:
 st.markdown(
     """
     <style>
-    /* CRITICAL FIX: Yank the top main container upward to eliminate whitespace ceiling */
-    .main .block-container {
+    /* CRITICAL FIX: Yank the official app container upward to eliminate workspace ceiling padding */
+    div[data-testid="stAppViewBlockContainer"] {
         padding-top: 1.5rem !important;
     }
     /* Drastically tighten padding constraints inside column elements */

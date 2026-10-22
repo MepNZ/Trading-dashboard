@@ -321,22 +321,21 @@ def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster
 fast_ma_input = st.session_state["asset_fast_ma"]
 slow_ma_input = st.session_state["asset_slow_ma"]
 
-# Trigger live snaps now that functions are defined above
-live_market_snapshots = fetch_ultra_live_prices(institutional_scan_pool)
-
-all_breakouts, all_discounts, compressed_dfs = process_entire_screening_universe(
-    fast_ma_input, slow_ma_input, live_market_snapshots, "v3"
-)
-
-# Execute caching engine instantly
+# ==============================================================================
+# CLEAN SINGLE-EXECUTION RUNTIME TRIGGER (REPLACES LINES 227-246)
+# ==============================================================================
+# 1. Read slider state metrics cleanly
 fast_ma_input = st.session_state["asset_fast_ma"]
 slow_ma_input = st.session_state["asset_slow_ma"]
-# REPLACE WITH THIS TWO-STEP TRIGGER:
+
+# 2. Trigger the fast 10-second ultra-live price snap snapshot
 live_market_snapshots = fetch_ultra_live_prices(institutional_scan_pool)
 
+# 3. RUN THE SEARCH LOGIC ONCE (Sub-second recovery layer via Daily Token RAM isolation)
 all_breakouts, all_discounts, compressed_dfs = process_entire_screening_universe(
     fast_ma_input, slow_ma_input, live_market_snapshots, "v3"
 )
+# ==============================================================================
 # --- APPLY USER BUDGET FILTERS INSTANTLY IN MEMORY ---
 if st.session_state["view_mode_choice"] == "Budget-Friendly Assets":
     max_cap = float(st.session_state["max_share_price_cap"])

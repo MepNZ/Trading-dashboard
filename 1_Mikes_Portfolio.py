@@ -21,6 +21,32 @@ st.set_page_config(
     layout="wide"
 )
 
+# ==============================================================================
+# 🎯 MASTER VIEWPORT CEILING ALIGNMENT (CRUSHES VERTICAL DEAD SPACE)
+# ==============================================================================
+st.markdown(
+    """
+    <style>
+    /* Completely hide the transparent native Streamlit header structural block */
+    header.stAppHeader, header[data-testid="stHeader"] {
+        display: none !important;
+        height: 0px !important;
+    }
+    /* Absolute Force: Eliminate the top margin whitespace on the application canvas */
+    div[data-testid="stAppViewBlockContainer"], .main .block-container {
+        padding-top: 0.5rem !important;
+        margin-top: 0px !important;
+    }
+    /* Pull up the first block layout component to lock securely against the window ceiling */
+    div[data-testid="stVerticalBlock"] > div:first-child {
+        margin-top: 0px !important;
+        padding-top: 0px !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 TARGETS_FILE = "portfolio_targets.json"
 CACHE_FILE = "portfolio_market_cache.json"
 
@@ -213,21 +239,6 @@ nz_status = get_exchange_status_badge('Pacific/Auckland', is_nz_au=True)
 nz_now_time = datetime.now(ZoneInfo("Pacific/Auckland")).strftime("%d %b %Y, %I:%M %p %Z")
 
 st.markdown(f"""
-    <style>
-    /* CRITICAL FORCE: Hide default hidden workspace header elements */
-    header.stAppHeader {{
-        display: none !important;
-    }}
-    /* Absolute Force: Crush the empty top padding on the view container canvas */
-    div[data-testid="stAppViewBlockContainer"] {{
-        padding-top: 0.5rem !important;
-    }}
-    /* Parent Lift Hack: Pull the first layout markdown block straight up to the window ceiling */
-    div[data-testid="stAppViewBlockContainer"] > div:first-child {{
-        margin-top: -45px !important;
-    }}
-    </style>
-    
     <div style='background-color: #161A22; padding: 6px 12px; border-radius: 4px; display: flex; justify-content: center; gap: 40px; font-size: 1.1rem; font-weight: bold; margin-bottom: 12px; border: 1px solid #2d3139;'>
         <span style='color: #FFFFFF;'>🇺🇸 NYSE US: {us_status}</span>
         <span style='color: #FFFFFF;'>🇦🇺 ASX AUS: {au_status}</span>

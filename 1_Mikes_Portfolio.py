@@ -234,6 +234,7 @@ control_tab1, control_tab2, control_tab3 = st.tabs([
 
 with control_tab1:
     c_col1, c_col2, c_col3 = st.columns(3)
+    
     with c_col1:
         st.markdown("#### 🕒 Time Horizons")
         current_roi = st.session_state.get("roi_window", runtime_sliders.get("roi_window", "1 Year"))
@@ -269,39 +270,43 @@ with control_tab1:
             key="slow_ma"
         )
 
-        with c_col3:
-            st.markdown("#### 💼 Sharesies Wallet Cash")
+    with c_col3:
+        st.markdown("#### 💼 Sharesies Wallet Cash")
         
-        # Inject standard prefix labels directly into structural widget fields while compressing vertical layout padding gaps
-        st.markdown("<p style='font-size: 0.8rem; font-weight: bold; color: #8B949E; margin: 0px;'>NZD Balance</p>", unsafe_allow_html=True)
-        st.number_input("NZD $", min_value=0.00, value=float(runtime_cash.get("NZD", 0.00)), step=1.00, format="%.2f", key="cash_nzd_input", label_visibility="collapsed")
+        # Compact horizontal layout containers to squeeze prefix labels adjacent to values
+        f_row1_l, f_row1_r = st.columns([1, 3.5])
+        with f_row1_l: st.markdown("<p style='font-size: 0.95rem; font-weight: bold; color: #8B949E; margin-top: 6px;'>NZD $</p>", unsafe_allow_html=True)
+        with f_row1_r: st.number_input("NZD $ Value Input", min_value=0.00, value=float(runtime_cash.get("NZD", 0.00)), step=1.00, format="%.2f", key="cash_nzd_input", label_visibility="collapsed")
         
-        st.markdown("<p style='font-size: 0.8rem; font-weight: bold; color: #8B949E; margin: 4px 0px 0px 0px;'>AUD Balance</p>", unsafe_allow_html=True)
-        st.number_input("AUD $", min_value=0.00, value=float(runtime_cash.get("AUD", 0.00)), step=1.00, format="%.2f", key="cash_aud_input", label_visibility="collapsed")
+        f_row2_l, f_row2_r = st.columns([1, 3.5])
+        with f_row2_l: st.markdown("<p style='font-size: 0.95rem; font-weight: bold; color: #8B949E; margin-top: 6px;'>AUD $</p>", unsafe_allow_html=True)
+        with f_row2_r: st.number_input("AUD $ Value Input", min_value=0.00, value=float(runtime_cash.get("AUD", 0.00)), step=1.00, format="%.2f", key="cash_aud_input", label_visibility="collapsed")
         
-        st.markdown("<p style='font-size: 0.8rem; font-weight: bold; color: #8B949E; margin: 4px 0px 0px 0px;'>USD Balance</p>", unsafe_allow_html=True)
-        st.number_input("USD $", min_value=0.00, value=float(runtime_cash.get("USD", 0.00)), step=1.00, format="%.2f", key="cash_usd_input", label_visibility="collapsed")
-        
-        # Pull everything underneath up closer to minimize vertical dead space
-        st.markdown(
-            """
-            <style>
-            /* Shrink spacing between individual inputs */
-            div[data-testid="stBlock"] div[data-testid="element-container"] {
-                margin-bottom: 2px !important;
-            }
-            /* Collapse the massive empty padding block below the primary config desk tabs */
-            hr {
-                margin-top: 8px !important;
-                margin-bottom: 12px !important;
-            }
-            div[data-testid="stVerticalBlock"] > div:has(hr) + div {
-                margin-top: -15px !important;
-            }
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
+        f_row3_l, f_row3_r = st.columns([1, 3.5])
+        with f_row3_l: st.markdown("<p style='font-size: 0.95rem; font-weight: bold; color: #8B949E; margin-top: 6px;'>USD $</p>", unsafe_allow_html=True)
+        with f_row3_r: st.number_input("USD $ Value Input", min_value=0.00, value=float(runtime_cash.get("USD", 0.00)), step=1.00, format="%.2f", key="cash_usd_input", label_visibility="collapsed")
+
+# Global canvas override style block to eliminate vertical dead space above Layer A
+st.markdown(
+    """
+    <style>
+    /* Drastically tighten padding constraints inside column elements */
+    div[data-testid="stColumn"] div[data-testid="element-container"] {
+        margin-bottom: -4px !important;
+    }
+    /* Compress massive layout margins wrapping the structural horizontal dividers */
+    hr {
+        margin-top: 4px !important;
+        margin-bottom: 8px !important;
+    }
+    /* Pull up the main dashboard ledger header to bridge the empty white space gap */
+    div[data-testid="stVerticalBlock"] > div:has(hr) + div {
+        margin-top: -30px !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 with control_tab2:
     st.markdown("#### 📐 Active Portfolio Management Boundaries")

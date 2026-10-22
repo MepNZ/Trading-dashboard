@@ -21,32 +21,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# ==============================================================================
-# 🎯 MASTER VIEWPORT CEILING ALIGNMENT (CRUSHES VERTICAL DEAD SPACE)
-# ==============================================================================
-st.markdown(
-    """
-    <style>
-    /* Completely hide the transparent native Streamlit header structural block */
-    header.stAppHeader, header[data-testid="stHeader"] {
-        display: none !important;
-        height: 0px !important;
-    }
-    /* Absolute Force: Eliminate the top margin whitespace on the application canvas */
-    div[data-testid="stAppViewBlockContainer"], .main .block-container {
-        padding-top: 0.5rem !important;
-        margin-top: 0px !important;
-    }
-    /* Pull up the first block layout component to lock securely against the window ceiling */
-    div[data-testid="stVerticalBlock"] > div:first-child {
-        margin-top: 0px !important;
-        padding-top: 0px !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
 TARGETS_FILE = "portfolio_targets.json"
 CACHE_FILE = "portfolio_market_cache.json"
 
@@ -239,16 +213,33 @@ nz_status = get_exchange_status_badge('Pacific/Auckland', is_nz_au=True)
 nz_now_time = datetime.now(ZoneInfo("Pacific/Auckland")).strftime("%d %b %Y, %I:%M %p %Z")
 
 st.markdown(f"""
-    <div style='background-color: #161A22; padding: 6px 12px; border-radius: 4px; display: flex; justify-content: center; gap: 40px; font-size: 1.1rem; font-weight: bold; margin-bottom: 12px; border: 1px solid #2d3139;'>
+    <style>
+    /* Completely hide the native transparent Streamlit header container */
+    header[data-testid="stHeader"], header.stAppHeader {{
+        display: none !important;
+        height: 0px !important;
+        opacity: 0 !important;
+    }}
+    /* Absolute Force: Strip the top padding cushion out of the main page block */
+    div[data-testid="stAppViewBlockContainer"] {{
+        padding-top: 0.2rem !important;
+        margin-top: 0px !important;
+    }}
+    /* Pull up the first structural vertical layout section directly into the ceiling gap */
+    div[data-testid="stVerticalBlock"] > div:first-child {{
+        margin-top: -30px !important;
+    }}
+    </style>
+    
+    <div style='background-color: #161A22; padding: 6px 12px; border-radius: 4px; display: flex; justify-content: center; gap: 40px; font-size: 1.1rem; font-weight: bold; margin-bottom: 10px; border: 1px solid #2d3139;'>
         <span style='color: #FFFFFF;'>🇺🇸 NYSE US: {us_status}</span>
         <span style='color: #FFFFFF;'>🇦🇺 ASX AUS: {au_status}</span>
         <span style='color: #FFFFFF;'>🇳🇿 NZX NZ: {nz_status}</span>
     </div>
-    <div style='text-align: center; font-size: 0.9rem; color: #8B949E; margin-bottom: 10px;'>
+    <div style='text-align: center; font-size: 0.9rem; color: #8B949E; margin-bottom: 5px;'>
         🕒 Your Trading Desk Local Time: <strong>{nz_now_time}</strong>
     </div>
     """, unsafe_allow_html=True)
-
 # ==============================================================================
 # 🎯 MAIN CANVASES UNIFIED CONFIGURATION DESK (FORMER SIDEBAR INPUTS)
 # ==============================================================================

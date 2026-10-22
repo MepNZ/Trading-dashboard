@@ -162,11 +162,53 @@ def calculate_indicators_only(df, fast_ma, slow_ma):
 # PRO-LEVEL DUAL RAM ENGINE: LOCKED DATA PROTECTION & SUB-SECOND SLIDERS
 # ==============================================================================
 
+@st.cache_data(ttl=28800)  # Lock down heavy weekly data for 8 hours to enable instant page switching
+def fetch_all_market_data_batch_historical(ticker_list, start_date):
+    """Downloads long-term historical weekly data frames using independent chunking."""
+    try:
+        unique_tickers = list(dict.fromkeys(ticker_list))
+        chunk_size = 120
+        chunked_dfs = []
+        for i in range(0, len(unique_tickers), chunk_size):
+            sub_list = unique_tickers[i:i+chunk_size]
+            # Download historical weekly records up to yesterday
+            df_chunk = yf.download(sub_list, start=start_date, end=datetime.now() - timedelta(days=1), interval="1wk", group_by='ticker', actions=False, threads=True, progress=False)
+            if not df_chunk.empty: chunked_dfs.append(df_chunk)
+        if chunked_dfs:
+            return pd.concat(chunked_dfs, axis=1)
+    except Exception as e:
+        st.sidebar.error(f"Historical engine error: {str(e)}")
+    return pd.DataFrame()
+
+
+@st.cache_data(ttl=10)  # Live prices refresh every 10 seconds without hitting historical latency bounds
+def fetch_ultra_live_prices(ticker_list):
+    """Fetches a lean snapshot of today's live price and real-time volume."""
+    try:
+        unique_tickers = list(dict.fromkeys(ticker_list))
+        df_live = yf.download(unique_tickers, period="1d", group_by='ticker', actions=False, threads=True, progress=False)
+        
+        live_prices_map = {}
+        if not df_live.empty:
+            for ticker in unique_tickers:
+                try:
+                    if ticker in df_live.columns.get_level_values(0):
+                        t_df = df_live[ticker].dropna()
+                        if not t_df.empty:
+                            live_prices_map[ticker] = {
+                                "Live_Close": float(t_df['Close'].iloc[-1]),
+                                "Live_Volume": int(t_df['Volume'].iloc[-1])
+                            }
+                except: pass
+        return live_prices_map
+    except:
+        return {}
+
+
 @st.cache_data(ttl=28800)
 def get_cached_raw_universe_matrix(today_date_token):
     """Layer 1: Pulls raw market data frames. Using a calendar text string 
     locks your data boundaries completely static throughout the trading day."""
-    # Mirror your exact historical parameters cleanly using the locked token
     base_lookback_start = datetime.strptime(today_date_token, "%Y-%m-%d") - timedelta(days=730 + 250)
     return fetch_all_market_data_batch_historical(institutional_scan_pool, base_lookback_start)
 
@@ -176,10 +218,7 @@ def get_precalculated_indicators_matrix(fast_ma, slow_ma, today_date_token):
     """Layer 2: Processes computations across all 200+ tickers directly in RAM.
     By reading Layer 1 internally via the text token, it achieves perfect cache consistency.
     This loop ONLY runs when you manually alter 'fast_ma' or 'slow_ma' choices."""
-    
-    # Grab data frame instantly from Layer 1 RAM allocation
     raw_batch = get_cached_raw_universe_matrix(today_date_token)
-    
     unique_scan_pool = list(dict.fromkeys(institutional_scan_pool))
     calculated_universe_dfs = {}
     
@@ -194,7 +233,6 @@ def get_precalculated_indicators_matrix(fast_ma, slow_ma, today_date_token):
         if len(hist_df) < max(fast_ma, slow_ma, 30): 
             continue
         
-        # Runs instantly from memory cache on slider tweaks!
         df_calc = calculate_indicators_only(hist_df, fast_ma, slow_ma)
         calculated_universe_dfs[ticker] = df_calc
         
@@ -202,13 +240,9 @@ def get_precalculated_indicators_matrix(fast_ma, slow_ma, today_date_token):
 
 
 def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster=""):
-    """Layer 3: UNCACHED assembly layer. Combines precalculated indicator histories
+    """Layer 3: UNCACHED runtime assembly layer. Combines precalculated indicator histories
     with ultra-live snapshots in milliseconds, completely honoring your post-market boundaries."""
-    
-    # Generate a stable daily string key (e.g., '2026-10-23') to protect overnight data integrity
     today_token = datetime.today().strftime("%Y-%m-%d")
-    
-    # Extract indicator profiles out of RAM instantly (< 0.02 seconds)
     indicator_pool = get_precalculated_indicators_matrix(int(fast_ma), int(slow_ma), today_token)
     
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -227,11 +261,9 @@ def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster
     vol_pace_factor = 1.0 if weekday >= 4 else max(0.1, (weekday + 1) / 5.0)
 
     for ticker, df_calc in indicator_pool.items():
-        # --- TECHNICAL METRIC EXTRACTION ---
         target_bar = df_calc.iloc[-1]
         prev_bar = df_calc.iloc[-2] if len(df_calc) >= 2 else target_bar
         
-        # Inject live prices passed directly from the main script view layer
         if live_feeds and ticker in live_feeds:
             last_close = live_feeds[ticker]["Live_Close"]
             current_volume = live_feeds[ticker]["Live_Volume"]
@@ -284,6 +316,17 @@ def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster
             })
             
     return b_rows, d_rows, cached_dfs
+
+# Execute caching engine instantly
+fast_ma_input = st.session_state["asset_fast_ma"]
+slow_ma_input = st.session_state["asset_slow_ma"]
+
+# Trigger live snaps now that functions are defined above
+live_market_snapshots = fetch_ultra_live_prices(institutional_scan_pool)
+
+all_breakouts, all_discounts, compressed_dfs = process_entire_screening_universe(
+    fast_ma_input, slow_ma_input, live_market_snapshots, "v3"
+)
 
 # Execute caching engine instantly
 fast_ma_input = st.session_state["asset_fast_ma"]

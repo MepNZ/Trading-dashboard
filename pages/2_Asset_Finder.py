@@ -198,12 +198,17 @@ def fetch_ultra_live_prices(ticker_list):
         return live_prices_map
     except:
         return {}
-# --- INSTANT RUNTIME CORE PROCESSING MATRIX TRAP ---
+
+# === INSERT THIS NEW CODE BLOCK IN PLACE OF LINES 201-206 ===
 @st.cache_data(ttl=7200)
-def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
-    # 1. Fetch long-term historical base charts (Stays locked instantly in background memory)
+def get_cached_raw_universe_matrix():
+    """Only runs once every 2 hours. Completely independent of MA choices."""
     lookback_start_date = datetime.now() - timedelta(days=730 + 250)
-    raw_batch = fetch_all_market_data_batch_historical(institutional_scan_pool, lookback_start_date)
+    return fetch_all_market_data_batch_historical(institutional_scan_pool, lookback_start_date)
+
+def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
+    # Pull raw historical data from the independent memory cache
+    raw_batch = get_cached_raw_universe_matrix()
     
     # 2. Fetch real-time price snapshot matrix (Runs instantly in 10-second intervals)
     live_feeds = fetch_ultra_live_prices(institutional_scan_pool)

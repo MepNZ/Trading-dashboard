@@ -214,6 +214,10 @@ nz_now_time = datetime.now(ZoneInfo("Pacific/Auckland")).strftime("%d %b %Y, %I:
 
 st.markdown(f"""
     <style>
+    /* CRITICAL FIX: Hide the default transparent header block container entirely */
+    header.stAppHeader {{
+        display: none !important;
+    }}
     /* Absolute Force: Crush the empty top padding on the view canvas container */
     div[data-testid="stAppViewBlockContainer"] {{
         padding-top: 1.0rem !important;
@@ -233,6 +237,7 @@ st.markdown(f"""
         🕒 Your Trading Desk Local Time: <strong>{nz_now_time}</strong>
     </div>
     """, unsafe_allow_html=True)
+
 # ==============================================================================
 # 🎯 MAIN CANVASES UNIFIED CONFIGURATION DESK (FORMER SIDEBAR INPUTS)
 # ==============================================================================

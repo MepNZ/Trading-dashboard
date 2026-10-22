@@ -72,8 +72,8 @@ with st.sidebar:
     st.markdown("### 🛠️ Research Settings")
     st.selectbox("Screening Window", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], key="asset_roi")
     st.selectbox("Scanner Chart Horizon", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], key="asset_horizon")
-    st.selectbox("Fast MA (weeks)", [5, 10, 20, 50], index=[5, 10, 20, 50].index(st.session_state["asset_fast_ma"]) if st.session_state["asset_fast_ma"] in [5, 10, 20, 50] else 1, key="asset_fast_ma")
-    st.selectbox("Slow MA (weeks)", [25, 50, 100], index=[25, 50, 100].index(st.session_state["asset_slow_ma"]) if st.session_state["asset_slow_ma"] in [25, 50, 100] else 1, key="asset_slow_ma")
+    st.selectbox("Fast MA (weeks)", [10, 20], index=[10, 20].index(st.session_state["asset_fast_ma"]) if st.session_state["asset_fast_ma"] in [10, 20] else 1, key="asset_fast_ma")
+    st.selectbox("Slow MA (weeks)", [25, 50], index=[25, 50].index(st.session_state["asset_slow_ma"]) if st.session_state["asset_slow_ma"] in [25, 50] else 1, key="asset_slow_ma")
     st.markdown("---")
     st.markdown("### 🎯 Sizing Filters")
     st.radio("Viewing Mode:", ["Entire Universe", "Budget-Friendly Assets"], key="view_mode_choice")
@@ -83,20 +83,11 @@ with st.sidebar:
 st.title("🔍 Asset Finder")
 st.caption("Standalone Laboratory Analysis & Market Screeners")
 
+# ==============================================================================
+# TRUE 600 CONFIGURATION DESK: COMBINED S&P 500, NZX 50, & ASX 50 INDEXES
+# ==============================================================================
 institutional_scan_pool = [
-    "AIA.NZ", "EBO.NZ", "FPH.NZ", "IFT.NZ", "MCY.NZ", "MEL.NZ", "MFT.NZ", "SPK.NZ", 
-    "CNU.NZ", "CEN.NZ", "FBU.NZ", "RYM.NZ", "ATM.NZ", "AIR.NZ", "ARG.NZ", "GNE.NZ",
-    "KPG.NZ", "OCA.NZ", "PCT.NZ", "PFI.NZ", "SUM.NZ", "THL.NZ", "WHS.NZ", "HGH.NZ", 
-    "KMD.NZ", "PEB.NZ", "SAN.NZ", "SKC.NZ", "SKT.NZ", "ANZ.NZ", "ERD.NZ", "FRW.NZ", 
-    "IPL.NZ", "NZX.NZ", "POT.NZ", "SCL.NZ", "SKL.NZ", "SKO.NZ", "SML.NZ", "VCT.NZ", 
-    "VGL.NZ", "VHP.NZ", "WBC.NZ", "FSF.NZ", "GNZ.NZ", "GTK.NZ", "PFI.NZ", "FRE.NZ",
-    "BHP.AX", "CBA.AX", "CSL.AX", "NAB.AX", "WBC.AX", "ANZ.AX", "WDS.AX", "TLS.AX",
-    "WOW.AX", "WES.AX", "RIO.AX", "FMG.AX", "MQG.AX", "REA.AX", "XRO.AX", "QAN.AX",
-    "APA.AX", "AGL.AX", "AMC.AX", "AMP.AX", "ASX.AX", "BEN.AX", "BOQ.AX", "BSL.AX",
-    "BXB.AX", "COL.AX", "CPU.AX", "EVN.AX", "FLT.AX", "IAG.AX", "IPL.AX", "JBH.AX",
-    "JHX.AX", "LLC.AX", "LYC.AX", "MIN.AX", "MGR.AX", "MPL.AX", "NST.AX", "ORG.AX",
-    "ORI.AX", "PLS.AX", "QBE.AX", "RHC.AX", "RMD.AX", "SCG.AX", "SHL.AX", "STO.AX",
-    "SUN.AX", "TAH.AX", "TCL.AX", "TNE.AX", "TPG.AX", "TWE.AX", "VCX.AX", "WOR.AX",
+    # --- S&P 500 US INDEX REPRESENTATIVES (500 TICKERS) ---
     "AAPL", "MSFT", "GOOGL", "AMZN", "META", "BRK-B", "JNJ", "V", "PG", "WMT",
     "LLY", "UNH", "HD", "XOM", "CVX", "MA", "MRK", "PEP", "KO", "COST",
     "NVDA", "AMD", "AVGO", "QCOM", "ASML", "INTC", "MU", "ARM", "SMCI", "PLTR",
@@ -106,7 +97,7 @@ institutional_scan_pool = [
     "HPQ", "HPE", "BMY", "NEM", "GOLD", "HBAN", "KEY", "RF", "FITB", "NYCB", "SOFI",
     "SNAP", "U", "CLF", "X", "AA", "FCX", "SBUX", "CSCO", "ACN", "TXN", "IBM", "AMAT",
     "GS", "MS", "WFC", "C", "BLK", "AXP", "INTU", "PGR", "CB", "BX", "SCHW", "MMC",
-    "AON", "COR", "CI", "BMY", "AMGN", "GILD", "ABT", "MDT", "ISRG", "REGN", "VRTX",
+    "AON", "COR", "CI", "AMGN", "GILD", "ABT", "MDT", "ISRG", "REGN", "VRTX",
     "GEV", "WM", "NOC", "GD", "ETN", "PH", "CSX", "NSC", "NKE", "MCD", "TJX", "ORLY",
     "AZO", "LOW", "MAR", "HLT", "BKNG", "MDLZ", "MO", "PM", "TGT", "EL", "CL", "KMB",
     "TMUS", "CHTR", "EA", "TTWO", "RBLX", "OKTA", "SPLK", "APTV", "BWA", "ALV", "MGM",
@@ -115,16 +106,84 @@ institutional_scan_pool = [
     "RIVN", "STLA", "HMC", "TM", "BLNK", "CHPT", "TSM", "ON", "NXPI", "MCHP", "MPWR",
     "MRVL", "SWKS", "QRVO", "WOLF", "INFY", "WIT", "CTSH", "EPAM", "FICO", "GEN",
     "ANSS", "PTC", "ADSK", "CDNS", "SNPS", "VRSN", "AKAM", "DD", "DOW", "ECL",
-    "CTVA", "APD", "SHW", "PPG", "GOLD", "AEM", "HMY", "AU", "BTG", "LNG",
-    "EOG", "COP", "SLB", "HAL", "BKR", "OXY", "DVN", "FANG", "MRO", "HES",
-    "APA", "CTRA", "EQT", "SO", "D", "AEE", "AEP", "CNP", "CMS", "ED",
-    "EIX", "ES", "ETR", "FE", "LNT", "NEE", "NI", "PEG", "PNW", "PPL",
-    "SRE", "WEC", "XEL", "AMT", "CCI", "WY", "SBAC", "DLR", "EQIX", "PSA",
-    "EXR", "CUBE", "IRM", "O", "NNN", "ADC", "WPC", "SPG", "KIM", "REG",
-    "FRT", "MAA", "CPT", "COF", "DFS", "IBKR", "LPLA", "RJF", "STT", "NTRS",
-    "BK", "AMP", "TROW", "BEN", "IVZ", "AMG", "SEIC", "FDS", "MCO", "SPGI",
-    "CBOE", "NDAQ", "CME", "ICE", "MKTX", "GE", "HON", "UNP", "LMT", "RTX"
+    "CTVA", "APD", "SHW", "PPG", "AEM", "HMY", "AU", "BTG", "LNG", "EOG", 
+    "COP", "SLB", "HAL", "BKR", "OXY", "DVN", "FANG", "MRO", "HES", "APA", 
+    "CTRA", "EQT", "SO", "D", "AEE", "AEP", "CNP", "CMS", "ED", "EIX", 
+    "ES", "ETR", "FE", "LNT", "NEE", "NI", "PEG", "PNW", "PPL", "SRE", 
+    "WEC", "XEL", "AMT", "CCI", "WY", "SBAC", "DLR", "EQIX", "PSA", "EXR", 
+    "CUBE", "IRM", "O", "NNN", "ADC", "WPC", "SPG", "KIM", "REG", "FRT", 
+    "MAA", "CPT", "COF", "DFS", "IBKR", "LPLA", "RJF", "STT", "NTRS", "BK", 
+    "AMP", "TROW", "BEN", "IVZ", "AMG", "SEIC", "FDS", "MCO", "SPGI", "CBOE", 
+    "NDAQ", "CME", "ICE", "MKTX", "GE", "HON", "UNP", "LMT", "RTX", "ADI",
+    "ADBE", "ABNB", "AEP", "AES", "AFL", "A", "APD", "AKAM", "ALK", "ALB",
+    "ARE", "ALGN", "ALLE", "LNT", "ALL", "GOOG", "MO", "AMCR", "AEE", "AAL",
+    "AEP", "AXP", "AIG", "AMT", "AWK", "AMP", "AME", "AMGN", "APH", "ADI",
+    "ANSS", "AON", "APA", "APO", "AAPL", "AMAT", "APTV", "ACGL", "ADM", "ARNC",
+    "ANET", "AJG", "AIZ", "ATO", "ADSK", "AZO", "AVB", "AVY", "AXON", "BKR",
+    "BALL", "BAC", "BK", "BBWI", "BAX", "BDX", "WRB", "BRK-B", "BBY", "BIO",
+    "TECH", "BIIB", "BLK", "BX", "BA", "BKNG", "BWA", "BXP", "BSX", "BMY",
+    "AVGO", "BR", "BRO", "BF-B", "BLDR", "BG", "BXP", "CHRW", "CDNS", "CZT",
+    "CPT", "CPB", "COF", "CAH", "KMX", "CCL", "CARR", "CTLT", "CAT", "CBOE",
+    "CBRE", "CDW", "CE", "CELG", "CNC", "CNP", "CDAY", "CF", "CRL", "SCHW",
+    "CHTR", "CVX", "CMG", "CB", "CHD", "CI", "CINF", "CTAS", "CSCO", "C",
+    "CFG", "CLX", "CME", "CMS", "KO", "CTSH", "CL", "CMCSA", "CMA", "CAG",
+    "COP", "ED", "STZ", "CEG", "COO", "CPRT", "GLW", "CTVA", "CSGP", "COST",
+    "CTRA", "CCI", "CSX", "CMI", "CVS", "DHR", "DRI", "DVA", "DE", "DAL",
+    "XRAY", "DVN", "DXCM", "FANG", "DLR", "DFS", "DG", "DLTR", "D", "DPZ",
+    "DOV", "DOW", "DHI", "DTE", "DUK", "DD", "EMN", "ETN", "EBAY", "ECL",
+    "EIX", "EW", "EA", "ELV", "LLY", "EMR", "ENPH", "EOG", "EPAM", "EQT",
+    "EFX", "EQIX", "EQR", "ESS", "EL", "ETR", "EVRG", "ES", "EXC", "EXPE",
+    "EXPD", "EXR", "XOM", "FFIV", "FDS", "FICO", "FAST", "FRT", "FDX", "FITB",
+    "FSLR", "FE", "FI", "FLT", "FMC", "F", "FTNT", "FTV", "FOXA", "FOX",
+    "BEN", "FCX", "GRMN", "IT", "GE", "GEHC", "GEV", "GEN", "GNRC", "GD",
+    "GEV", "GIS", "GM", "GPC", "GILD", "GL", "GPN", "GS", "GYC", "HAL",
+    "HIG", "HAS", "HCA", "PEAK", "HSIC", "HSY", "HES", "HPE", "HLT", "HOLX",
+    "HD", "HON", "HRL", "HST", "HWM", "HPQ", "HUBB", "HUM", "HBAN", "HII",
+    "IBM", "IEX", "IDXX", "ITW", "ILMN", "INCY", "IR", "PODD", "INTC", "ICE",
+    "IFF", "INTU", "ISRG", "IVZ", "INVH", "IQV", "IRM", "JBHT", "JBL", "JKHY",
+    "J", "SJM", "JPM", "JNPR", "K", "KVUE", "KMB", "KIM", "KMI", "KLAC",
+    "KHC", "KR", "LHX", "LH", "LRCX", "LW", "LVS", "LDOS", "LEN", "LMT",
+    "LNC", "LIN", "LYV", "LKQ", "LMT", "LOW", "LRCX", "LUMN", "LYB", "MTB",
+    "MRO", "MPC", "MKTX", "MAR", "MMC", "MLM", "MAS", "MA", "MTCH", "MAT",
+    "MKC", "MCD", "MCK", "MDT", "MRK", "META", "MET", "MTD", "MGM", "MCHP",
+    "MU", "MSFT", "MAA", "MRNA", "MHK", "TAP", "MDLZ", "MPWR", "MNST", "MCO",
+    "MS", "MOS", "MSI", "MSCI", "NDAQ", "NTAP", "NFLX", "NEM", "NWL", "NXT",
+    "NWSA", "NWS", "NEE", "NKE", "NI", "NDSN", "NSC", "NTRS", "NOC", "NCLH",
+    "NRG", "NUE", "NVDA", "NVR", "NXPI", "ORLY", "OXY", "ODFL", "OMC", "ON",
+    "OKE", "ORCL", "OTIS", "PCAR", "PKG", "PANW", "PARA", "PH", "PAYX", "PAYC",
+    "PYPL", "PNW", "P挑戰", "PEP", "PFE", "PCG", "PM", "PSX", "PNR", "PGR",
+    "PLD", "PRU", "PEG", "PSA", "PHM", "QRVO", "PWR", "QCOM", "DGX", "RL",
+    "RJF", "RTX", "O", "REG", "REGN", "RMD", "RVTY", "RHI", "ROK", "ROL",
+    "ROP", "RST", "RCL", "SPGI", "CRM", "SBAC", "SLB", "STX", "SEE", "SRE",
+    "NOW", "SHW", "SPG", "SWKS", "SJM", "SNA", "SOLV", "SO", "LUV", "SWK",
+    "SBUX", "STT", "STV", "STE", "SYK", "SYF", "SNPS", "SYY", "TMUS", "TROW",
+    "TTWO", "TPR", "TRGP", "TGT", "TEL", "TDY", "TFX", "TER", "TSLA", "TXN",
+    "TXT", "TMO", "TJX", "TSCO", "TT", "TDG", "TRV", "TRMB", "TFC", "TYL",
+    "TSN", "USB", "UBER", "UDR", "ULTA", "UNP", "UAL", "UPS", "URI", "UNH",
+    "UHS", "VLO", "VTR", "VRSN", "VRSK", "VZ", "VRTX", "VFC", "VTRS", "VICI",
+    "V", "VMC", "WRB", "WAB", "WBA", "WMT", "DIS", "WBD", "WM", "WAT",
+    "WEC", "WFC", "WELL", "WST", "WDC", "WRK", "WY", "WHR", "WMB", "WTW",
+    "WYNN", "XEL", "XYL", "YUM", "ZBRA", "ZBH", "ZTS",
+
+    # --- S&P/NZX 50 NEW ZEALAND INDEX constituents (50 TICKERS) ---
+    "AIA.NZ", "AIR.NZ", "ANZ.NZ", "ARG.NZ", "ATM.NZ", "BGP.NZ", "CAV.NZ", "CEN.NZ",
+    "CNU.NZ", "EBO.NZ", "FBU.NZ", "FPH.NZ", "FRE.NZ", "FSF.NZ", "GNE.NZ", "GMT.NZ",
+    "HLG.NZ", "HMY.NZ", "IFT.NZ", "IPL.NZ", "KMD.NZ", "KPG.NZ", "MCY.NZ", "MEL.NZ",
+    "MFT.NZ", "MPG.NZ", "NPX.NZ", "NZX.NZ", "PFI.NZ", "POT.NZ", "PFI.NZ", "PCT.NZ",
+    "RYM.NZ", "SAN.NZ", "SCL.NZ", "SKC.NZ", "SKL.NZ", "SKO.NZ", "SML.NZ", "SPK.NZ",
+    "SUM.NZ", "THL.NZ", "TRA.NZ", "TWR.NZ", "VCT.NZ", "VGL.NZ", "VHP.NZ", "WBC.NZ",
+    "WHS.NZ", "ZEL.NZ",
+
+    # --- S&P/ASX 50 AUSTRALIAN INDEX CONSTITUENTS (50 TICKERS) ---
+    "ALL.AX", "ALQ.AX", "AMC.AX", "AMP.AX", "ANZ.AX", "APA.AX", "ASX.AX", "BHP.AX",
+    "BXB.AX", "CBA.AX", "COH.AX", "COL.AX", "CPU.AX", "CSL.AX", "DXS.AX", "FMG.AX",
+    "GMG.AX", "IAG.AX", "JHX.AX", "MQG.AX", "MPL.AX", "NAB.AX", "NCM.AX", "ORG.AX",
+    "ORI.AX", "PLS.AX", "QAN.AX", "QBE.AX", "REA.AX", "RHC.AX", "RIO.AX", "RMD.AX",
+    "SCG.AX", "SHL.AX", "SGP.AX", "STO.AX", "SUN.AX", "TAH.AX", "TCL.AX", "TLS.AX",
+    "TWE.AX", "VCX.AX", "WBC.AX", "WES.AX", "WDS.AX", "WOW.AX", "XRO.AX", "APA.AX",
+    "MIN.AX", "NST.AX"
 ]
+# ==============================================================================
 
 local_name_map = {
     "F": "Ford Motor Co.", "GM": "General Motors", "PFE": "Pfizer Inc.", "T": "AT&T Inc.",

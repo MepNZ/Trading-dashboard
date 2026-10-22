@@ -199,19 +199,47 @@ def fetch_ultra_live_prices(ticker_list):
     except:
         return {}
 
-# === INSERT THIS NEW CODE BLOCK IN PLACE OF LINES 201-206 ===
+# ==============================================================================
+# OPTIMIZED LIGHTSPEED CACHING MATRIX ARCHITECTURE (REPLACES ENTIRE TOP BLOCK)
+# ==============================================================================
+
 @st.cache_data(ttl=7200)
 def get_cached_raw_universe_matrix():
-    """Only runs once every 2 hours. Completely independent of MA choices."""
+    """Layer 1: Pulls & caches raw long-term historical records from Yahoo Finance once every 2 hours."""
     lookback_start_date = datetime.now() - timedelta(days=730 + 250)
     return fetch_all_market_data_batch_historical(institutional_scan_pool, lookback_start_date)
 
-def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
-    # Pull raw historical data from the independent memory cache
+
+@st.cache_data(ttl=7200)
+def get_precalculated_indicators_matrix(fast_ma, slow_ma):
+    """Layer 2: Handles the heavy calculation loop across all 200+ tickers in RAM. 
+    Only re-runs when you physically alter the MA configuration inputs."""
     raw_batch = get_cached_raw_universe_matrix()
+    unique_scan_pool = list(dict.fromkeys(institutional_scan_pool))
     
-    # 2. Fetch real-time price snapshot matrix (Runs instantly in 10-second intervals)
-    live_feeds = fetch_ultra_live_prices(institutional_scan_pool)
+    calculated_universe_dfs = {}
+    
+    for ticker in unique_scan_pool:
+        if raw_batch.empty or ticker not in raw_batch.columns.get_level_values(0): 
+            continue
+        hist_df = raw_batch[ticker].copy().dropna(subset=['Close'])
+        hist_df.columns = [str(c).title() for c in hist_df.columns]
+        if len(hist_df) < max(fast_ma, slow_ma, 30): 
+            continue
+        
+        # Lock processed computations into memory state variables
+        df_calc = calculate_indicators_only(hist_df, fast_ma, slow_ma)
+        calculated_universe_dfs[ticker] = df_calc
+        
+    return calculated_universe_dfs
+
+
+def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster=""):
+    """Layer 3: UNCACHED runtime assembly layer. Grabs the precalculated indicator matrix from RAM 
+    and applies instant real-time price snapshot metrics in milliseconds."""
+    
+    # Instant RAM fetch (Takes < 0.05 seconds if MAs didn't change)
+    indicator_pool = get_precalculated_indicators_matrix(fast_ma, slow_ma)
     
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.abspath(os.path.join(current_dir, ".."))
@@ -221,7 +249,6 @@ def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
         with open(resolved_names_path, 'r') as f: disk_names = json.load(f)
     except: disk_names = {}
     
-    unique_scan_pool = list(dict.fromkeys(institutional_scan_pool))
     b_rows, d_rows = [], []
     cached_dfs = {}
     
@@ -229,21 +256,13 @@ def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
     weekday = now_dt.weekday()
     vol_pace_factor = 1.0 if weekday >= 4 else max(0.1, (weekday + 1) / 5.0)
 
-    for ticker in unique_scan_pool:
-        if raw_batch.empty or ticker not in raw_batch.columns.get_level_values(0): continue
-        hist_df = raw_batch[ticker].copy().dropna(subset=['Close'])
-        hist_df.columns = [str(c).title() for c in hist_df.columns]
-        if len(hist_df) < max(fast_ma, slow_ma, 30): continue
-        
-        # Pull processed calculations cleanly out of RAM cache layers
-        df_calc = calculate_indicators_only(hist_df, fast_ma, slow_ma)
-        
-        # --- LIVE PRICE OVERRIDE INTERACTION LAYER ---
+    for ticker, df_calc in indicator_pool.items():
+        # --- TECHNICAL METRIC EXTRACTION ---
         target_bar = df_calc.iloc[-1]
         prev_bar = df_calc.iloc[-2] if len(df_calc) >= 2 else target_bar
         
-        # Inject the 10-second price feed over the historical record if available
-        if ticker in live_feeds:
+        # Inject the live pricing matrix passed directly from the main view layer
+        if live_feeds and ticker in live_feeds:
             last_close = live_feeds[ticker]["Live_Close"]
             current_volume = live_feeds[ticker]["Live_Volume"]
         else:
@@ -262,7 +281,6 @@ def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
         bb_lower_val = float(target_bar['Lower_Bollinger_Band']) if 'Lower_Bollinger_Band' in target_bar.index else last_close
         avg_volume_20d = float(target_bar['Avg_Volume_20D']) if 'Avg_Volume_20D' in target_bar.index else 1.0
         
-        # Update chart tracking arrays on the fly to include live plots
         df_chart_display = df_calc.copy()
         df_chart_display.iloc[-1, df_chart_display.columns.get_loc('Close')] = last_close
         cached_dfs[ticker] = df_chart_display.tail(730).to_json()
@@ -294,13 +312,18 @@ def process_entire_screening_universe(fast_ma, slow_ma, cache_buster=""):
                 "52W Low Floor": true_52w_low, "Limit Entry Target": round(true_52w_low * 1.01, 2), "Lower Bollinger Band": bb_lower_val,
                 "52W High Ceiling": true_52w_high, "Proximity to Low": proximity_to_low_pct, "RSI Status": rsi_val, "MACD Signal": signal_label
             })
+            
     return b_rows, d_rows, cached_dfs
 
 # Execute caching engine instantly
 fast_ma_input = st.session_state["asset_fast_ma"]
 slow_ma_input = st.session_state["asset_slow_ma"]
-all_breakouts, all_discounts, compressed_dfs = process_entire_screening_universe(fast_ma_input, slow_ma_input, "v3")
+# REPLACE WITH THIS TWO-STEP TRIGGER:
+live_market_snapshots = fetch_ultra_live_prices(institutional_scan_pool)
 
+all_breakouts, all_discounts, compressed_dfs = process_entire_screening_universe(
+    fast_ma_input, slow_ma_input, live_market_snapshots, "v3"
+)
 # --- APPLY USER BUDGET FILTERS INSTANTLY IN MEMORY ---
 if st.session_state["view_mode_choice"] == "Budget-Friendly Assets":
     max_cap = float(st.session_state["max_share_price_cap"])

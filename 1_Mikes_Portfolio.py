@@ -336,27 +336,37 @@ with control_tab1:
         with f_row3_l: st.markdown("<p style='font-size: 0.95rem; font-weight: bold; color: #8B949E; margin-top: 6px;'>USD $</p>", unsafe_allow_html=True)
         with f_row3_r: st.number_input("USD $ Value Input", min_value=0.00, value=float(runtime_cash.get("USD", 0.00)), step=1.00, format="%.2f", key="cash_usd_input", label_visibility="collapsed")
 
-# Global canvas override style block to eliminate vertical dead space above Layer A
+# --- SYSTEM-WIDE LAYOUT RESET & TAB FIXED ALIGNMENT ---
 st.markdown(
     """
     <style>
-    /* CRITICAL FIX: Yank the official app container upward to eliminate workspace ceiling padding */
-    div[data-testid="stAppViewBlockContainer"] {
-        padding-top: 1.5rem !important;
-    }
-    /* Drastically tighten padding constraints inside column elements */
-    div[data-testid="stColumn"] div[data-testid="element-container"] {
-        margin-bottom: -4px !important;
-    }
-    /* Compress massive layout margins wrapping the structural horizontal dividers */
-    hr {
-        margin-top: 4px !important;
-        margin-bottom: 8px !important;
-    }
-    /* Pull up the main dashboard ledger header to bridge the empty white space gap */
-    div[data-testid="stVerticalBlock"] > div:has(hr) + div {
-        margin-top: 15px !important;
-    }
+        /* 1. Reset top page canvas dead zone cleanly */
+        .block-container {
+            padding-top: 1.5rem !important;
+            padding-bottom: 0rem !important;
+        }
+
+        /* 2. FORCE remove all negative margins globally on structural containers */
+        div[data-testid="stVerticalBlock"] > div {
+            margin-top: 0px !important;
+        }
+
+        /* 3. Give the Tab bar breathing room at the bottom */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 16px !important;
+            margin-bottom: 30px !important; /* Forces the entire tab panel wrapper down */
+            height: auto !important;
+        }
+
+        /* 4. TARGET THE CRUSHED LAYOUT: Forcefully push inner column contents down */
+        .stTabs [data-baseweb="tab-panel"] {
+            padding-top: 25px !important; /* Pushes Time Horizons & Cash down out of the links */
+        }
+
+        /* 5. Force space below the clock so the title has room */
+        div[data-testid="element-container"]:has(.exchange-status-banner) + div {
+            margin-top: 15px !important;
+        }
     </style>
     """,
     unsafe_allow_html=True

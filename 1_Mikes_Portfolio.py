@@ -39,42 +39,47 @@ runtime_watchlist = disk_memory.get("watchlist_tickers", [])
 runtime_cash = disk_memory.get("wallet_cash", {"NZD": 0.00, "AUD": 0.00, "USD": 0.00})
 runtime_sliders = disk_memory.get("sliders", {"fast_ma": 10, "slow_ma": 100, "roi_window": "1 Year", "graph_horizon": "1 Year"})
 
+# Extract structured matrix sections from local JSON
+runtime_positions = disk_memory.get("positions", {})
+runtime_watchlist = disk_memory.get("watchlist_tickers", [])
+runtime_cash = disk_memory.get("wallet_cash", {"NZD": 0.00, "AUD": 0.00, "USD": 0.00})
+runtime_sliders = disk_memory.get("sliders", {"fast_ma": 10, "slow_ma": 100, "roi_window": "1 Year", "graph_horizon": "1 Year"})
+
 # --- CLEAN CEILING ALIGNMENT & STRUCTURAL OVERRIDES ---
 st.markdown(
     """
     <style>
-        /* 1. Safely pull the main canvas up to eliminate top dead space */
+        /* 1. Reset top page canvas dead zone cleanly */
         .block-container {
-            padding-top: 1.0rem !important;
+            padding-top: 1.5rem !important;
             padding-bottom: 0rem !important;
         }
-        
-        /* 2. FORCE reset on any old hacky negative margins that are crunching content */
-        [data-testid="stVerticalBlock"] > div {
+
+        /* 2. FORCE remove all negative margins globally on structural containers */
+        div[data-testid="stVerticalBlock"] > div {
             margin-top: 0px !important;
         }
 
-        /* 3. Pull the entire workspace control desk up cleanly without layout compression */
-        [data-testid="stHeaderBlock"] + div {
-            margin-top: -10px !important;
-        }
-        
-        /* 4. Stabilize element depth inside tabs to stop text layers from bleeding */
+        /* 3. Give the Tab bar breathing room at the bottom */
         .stTabs [data-baseweb="tab-list"] {
             gap: 16px !important;
-            margin-bottom: 25px !important; /* Forces the internal headers downward, away from links */
-            padding-bottom: 5px !important;
+            margin-bottom: 30px !important; /* Forces the entire tab panel wrapper down */
+            height: auto !important;
         }
 
-        /* 5. Ensure internal column content starts below the tab navigation area */
-        .stTabs [data-testid="stVerticalBlock"] {
-            padding-top: 10px !important;
+        /* 4. TARGET THE CRUSHED LAYOUT: Forcefully push inner column contents down */
+        .stTabs [data-baseweb="tab-panel"] {
+            padding-top: 25px !important; /* Pushes Time Horizons & Cash down out of the links */
+        }
+
+        /* 5. Force space below the clock so the title has room */
+        div[data-testid="element-container"]:has(.exchange-status-banner) + div {
+            margin-top: 15px !important;
         }
     </style>
     """,
     unsafe_allow_html=True
 )
-
 # --- STRICT 6+6 SLOT STRUCTURAL ENFORCEMENT ---
 # Extract existing entries, pad remaining slots out to exact boundaries
 portfolio_slots = list(runtime_positions.keys())[:6]
@@ -335,42 +340,6 @@ with control_tab1:
         f_row3_l, f_row3_r = st.columns([1, 3.5])
         with f_row3_l: st.markdown("<p style='font-size: 0.95rem; font-weight: bold; color: #8B949E; margin-top: 6px;'>USD $</p>", unsafe_allow_html=True)
         with f_row3_r: st.number_input("USD $ Value Input", min_value=0.00, value=float(runtime_cash.get("USD", 0.00)), step=1.00, format="%.2f", key="cash_usd_input", label_visibility="collapsed")
-
-# --- SYSTEM-WIDE LAYOUT RESET & TAB FIXED ALIGNMENT ---
-st.markdown(
-    """
-    <style>
-        /* 1. Reset top page canvas dead zone cleanly */
-        .block-container {
-            padding-top: 1.5rem !important;
-            padding-bottom: 0rem !important;
-        }
-
-        /* 2. FORCE remove all negative margins globally on structural containers */
-        div[data-testid="stVerticalBlock"] > div {
-            margin-top: 0px !important;
-        }
-
-        /* 3. Give the Tab bar breathing room at the bottom */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 16px !important;
-            margin-bottom: 30px !important; /* Forces the entire tab panel wrapper down */
-            height: auto !important;
-        }
-
-        /* 4. TARGET THE CRUSHED LAYOUT: Forcefully push inner column contents down */
-        .stTabs [data-baseweb="tab-panel"] {
-            padding-top: 25px !important; /* Pushes Time Horizons & Cash down out of the links */
-        }
-
-        /* 5. Force space below the clock so the title has room */
-        div[data-testid="element-container"]:has(.exchange-status-banner) + div {
-            margin-top: 15px !important;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
 
 with control_tab2:
     st.markdown("#### 📐 Active Portfolio Management Boundaries")

@@ -200,7 +200,7 @@ def fetch_ultra_live_prices(ticker_list):
         return {}
 
 # ==============================================================================
-# OPTIMIZED LIGHTSPEED CACHING MATRIX ARCHITECTURE (REPLACES ENTIRE TOP BLOCK)
+# FIXED LIGHTSPEED DEPENDENCY-INJECTED CACHING MATRIX (REPLACES LINES 154-261)
 # ==============================================================================
 
 @st.cache_data(ttl=7200)
@@ -211,23 +211,25 @@ def get_cached_raw_universe_matrix():
 
 
 @st.cache_data(ttl=7200)
-def get_precalculated_indicators_matrix(fast_ma, slow_ma):
-    """Layer 2: Handles the heavy calculation loop across all 200+ tickers in RAM. 
-    Only re-runs when you physically alter the MA configuration inputs."""
-    raw_batch = get_cached_raw_universe_matrix()
+def get_precalculated_indicators_matrix(fast_ma, slow_ma, _raw_batch):
+    """Layer 2: Processes calculations across all 200+ tickers completely in RAM.
+    The underscore prefix (_raw_batch) tells Streamlit to ignore dataframe memory pointer mutations
+    and ONLY evaluate the 'fast_ma' and 'slow_ma' integer adjustments."""
     unique_scan_pool = list(dict.fromkeys(institutional_scan_pool))
-    
     calculated_universe_dfs = {}
     
+    if _raw_batch.empty:
+        return calculated_universe_dfs
+        
     for ticker in unique_scan_pool:
-        if raw_batch.empty or ticker not in raw_batch.columns.get_level_values(0): 
+        if ticker not in _raw_batch.columns.get_level_values(0): 
             continue
-        hist_df = raw_batch[ticker].copy().dropna(subset=['Close'])
+        hist_df = _raw_batch[ticker].copy().dropna(subset=['Close'])
         hist_df.columns = [str(c).title() for c in hist_df.columns]
         if len(hist_df) < max(fast_ma, slow_ma, 30): 
             continue
         
-        # Lock processed computations into memory state variables
+        # Calculate individual technical profiles cleanly in memory
         df_calc = calculate_indicators_only(hist_df, fast_ma, slow_ma)
         calculated_universe_dfs[ticker] = df_calc
         
@@ -235,11 +237,14 @@ def get_precalculated_indicators_matrix(fast_ma, slow_ma):
 
 
 def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster=""):
-    """Layer 3: UNCACHED runtime assembly layer. Grabs the precalculated indicator matrix from RAM 
-    and applies instant real-time price snapshot metrics in milliseconds."""
+    """Layer 3: UNCACHED runtime assembly layer. Combines precalculated indicator histories
+    with ultra-live real-time snapshots instantly in milliseconds."""
     
-    # Instant RAM fetch (Takes < 0.05 seconds if MAs didn't change)
-    indicator_pool = get_precalculated_indicators_matrix(fast_ma, slow_ma)
+    # 1. Grab base historical framework from Layer 1
+    raw_historical_framework = get_cached_raw_universe_matrix()
+    
+    # 2. Inject dataset safely into Layer 2 to extract instant cached indicator arrays
+    indicator_pool = get_precalculated_indicators_matrix(fast_ma, slow_ma, raw_historical_framework)
     
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.abspath(os.path.join(current_dir, ".."))
@@ -261,7 +266,6 @@ def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster
         target_bar = df_calc.iloc[-1]
         prev_bar = df_calc.iloc[-2] if len(df_calc) >= 2 else target_bar
         
-        # Inject the live pricing matrix passed directly from the main view layer
         if live_feeds and ticker in live_feeds:
             last_close = live_feeds[ticker]["Live_Close"]
             current_volume = live_feeds[ticker]["Live_Volume"]

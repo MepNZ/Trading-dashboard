@@ -159,20 +159,23 @@ def calculate_indicators_only(df, fast_ma, slow_ma):
     return df
 
 # ==============================================================================
-# PRO-LEVEL DUAL RAM ENGINE: LOCKED DATA PROTECTION & SUB-SECOND SLIDERS
+# WATERPROOF CACHE FRAMEWORK: PART 1 OF 2 (HISTORICAL FLOW & MATRIX LOCKS)
 # ==============================================================================
 
-@st.cache_data(ttl=28800)  # Lock down heavy weekly data for 8 hours to enable instant page switching
-def fetch_all_market_data_batch_historical(ticker_list, start_date):
-    """Downloads long-term historical weekly data frames using independent chunking."""
+@st.cache_data(ttl=28800)  # Lock heavy weekly data frames down for 8 hours
+def fetch_all_market_data_batch_historical(ticker_list, start_date, execution_day_token):
+    """Downloads long-term historical weekly data frames securely using stable daily tokens."""
     try:
         unique_tickers = list(dict.fromkeys(ticker_list))
         chunk_size = 120
         chunked_dfs = []
+        
+        # Convert text token back to clean datetime boundaries to lock out shifting milliseconds
+        static_end_boundary = datetime.strptime(execution_day_token, "%Y-%m-%d") - timedelta(days=1)
+        
         for i in range(0, len(unique_tickers), chunk_size):
             sub_list = unique_tickers[i:i+chunk_size]
-            # Download historical weekly records up to yesterday
-            df_chunk = yf.download(sub_list, start=start_date, end=datetime.now() - timedelta(days=1), interval="1wk", group_by='ticker', actions=False, threads=True, progress=False)
+            df_chunk = yf.download(sub_list, start=start_date, end=static_end_boundary, interval="1wk", group_by='ticker', actions=False, threads=True, progress=False)
             if not df_chunk.empty: chunked_dfs.append(df_chunk)
         if chunked_dfs:
             return pd.concat(chunked_dfs, axis=1)
@@ -181,7 +184,7 @@ def fetch_all_market_data_batch_historical(ticker_list, start_date):
     return pd.DataFrame()
 
 
-@st.cache_data(ttl=10)  # Live prices refresh every 10 seconds without hitting historical latency bounds
+@st.cache_data(ttl=10)  # Live price tickers refresh every 10 seconds without hitting historical latency
 def fetch_ultra_live_prices(ticker_list):
     """Fetches a lean snapshot of today's live price and real-time volume."""
     try:
@@ -207,31 +210,22 @@ def fetch_ultra_live_prices(ticker_list):
 
 @st.cache_data(ttl=28800)
 def get_cached_raw_universe_matrix(today_date_token):
-    """Layer 1: Pulls raw market data frames. Using a calendar text string 
-    locks your data boundaries completely static throughout the trading day."""
+    """Layer 1: Pulls raw market data frames using calendar text strings to lock signatures."""
     base_lookback_start = datetime.strptime(today_date_token, "%Y-%m-%d") - timedelta(days=730 + 250)
-    return fetch_all_market_data_batch_historical(institutional_scan_pool, base_lookback_start)
+    return fetch_all_market_data_batch_historical(institutional_scan_pool, base_lookback_start, today_date_token)
 
-# ==============================================================================
-# VECTORIZED LOOP LOCK: MAKES ALL SLIDER COMBINATIONS INSTANT (REPLACES LINES 154-181)
-# ==============================================================================
 
 @st.cache_data(ttl=28800)
 def get_precalculated_indicators_matrix(fast_ma, slow_ma, today_date_token):
-    """Layer 2: Matrix-cached loop. By caching the ENTIRE loop structure together,
-    Streamlit saves the math for the whole 200+ stock universe under a single key.
-    Changing ANY slider combination will now take less than 0.5 seconds after its first calculation."""
-    
-    # Instantly retrieve raw data frame framework from Layer 1 RAM
+    """Layer 2: Processes vector calculations across all 200+ tickers together in memory.
+    This loop ONLY runs the first time a new unique slider parameter is chosen."""
     raw_batch = get_cached_raw_universe_matrix(today_date_token)
-    
     unique_scan_pool = list(dict.fromkeys(institutional_scan_pool))
     calculated_universe_dfs = {}
     
     if raw_batch.empty:
         return calculated_universe_dfs
         
-    # Standard values extracted outside the loop to optimize memory clock cycles
     f_ma_int = int(fast_ma)
     s_ma_int = int(slow_ma)
     max_lookback = max(f_ma_int, s_ma_int, 30)
@@ -240,7 +234,6 @@ def get_precalculated_indicators_matrix(fast_ma, slow_ma, today_date_token):
         if ticker not in raw_batch.columns.get_level_values(0): 
             continue
             
-        # Isolate individual stock arrays quickly without copying the entire multi-index framework
         hist_series = raw_batch[ticker]
         if 'Close' not in hist_series.columns:
             continue
@@ -249,7 +242,6 @@ def get_precalculated_indicators_matrix(fast_ma, slow_ma, today_date_token):
         if len(close_raw) < max_lookback:
             continue
             
-        # Construct indicator dataframe inline to avoid pipeline choking
         df = hist_series.copy().dropna(subset=['Close'])
         df.columns = [str(c).title() for c in df.columns]
         
@@ -281,6 +273,8 @@ def get_precalculated_indicators_matrix(fast_ma, slow_ma, today_date_token):
         calculated_universe_dfs[ticker] = df
         
     return calculated_universe_dfs
+# ==============================================================================
+# WATERPROOF CACHE FRAMEWORK: PART 2 OF 2 (RUNTIME ASSEMBLY & ENGINE EXECUTION)
 # ==============================================================================
 
 def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster=""):
@@ -361,21 +355,15 @@ def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster
             
     return b_rows, d_rows, cached_dfs
 
-# Execute caching engine instantly
+
+# ==============================================================================
+# CLEAN SINGLE-EXECUTION RUNTIME TRIGGER 
+# ==============================================================================
 fast_ma_input = st.session_state["asset_fast_ma"]
 slow_ma_input = st.session_state["asset_slow_ma"]
 
-# ==============================================================================
-# CLEAN SINGLE-EXECUTION RUNTIME TRIGGER (REPLACES LINES 227-246)
-# ==============================================================================
-# 1. Read slider state metrics cleanly
-fast_ma_input = st.session_state["asset_fast_ma"]
-slow_ma_input = st.session_state["asset_slow_ma"]
-
-# 2. Trigger the fast 10-second ultra-live price snap snapshot
 live_market_snapshots = fetch_ultra_live_prices(institutional_scan_pool)
 
-# 3. RUN THE SEARCH LOGIC ONCE (Sub-second recovery layer via Daily Token RAM isolation)
 all_breakouts, all_discounts, compressed_dfs = process_entire_screening_universe(
     fast_ma_input, slow_ma_input, live_market_snapshots, "v3"
 )

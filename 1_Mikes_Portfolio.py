@@ -673,7 +673,7 @@ for ticker in all_active_workspace_tickers:
     atr_val = float(df_calc['ATR'].iloc[-1]) if 'ATR' in df_calc.columns else 1.0
     
     # --- CALCULATE VOLATILITY-ADJUSTED ENTRY AND EXIT TRAILING LIMITS ---
-    safe_daily_limit_target = round(last_close - (1.0 * atr_val), 2)
+    safe_daily_limit_target = round(last_close - (0.75 * atr_val), 2)
     safe_take_profit_target = round((last_close + (2.0 * atr_val)) * 1.012, 2)
     
     # --- CALCULATE TRUE TIMEFRAME PERFORMANCE ROI ---

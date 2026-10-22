@@ -256,11 +256,20 @@ nz_now_time = datetime.now(ZoneInfo("Pacific/Auckland")).strftime("%d %b %Y, %I:
 
 st.markdown(f"""
     <style>
-    /* Completely hide the native transparent Streamlit header container */
+    /* Make the header container transparent and non-blocking without destroying the button */
     header[data-testid="stHeader"], header.stAppHeader {{
-        display: none !important;
-        height: 0px !important;
-        opacity: 0 !important;
+        background-color: transparent !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }}
+    /* Keep the toggle visible and clear of your market banners */
+    div[data-testid="stSidebarCollapse"] {{
+        background-color: #161A22 !important;
+        border: 1px solid #2d3139 !important;
+        border-radius: 4px !important;
+        margin-top: 5px !important;
+        margin-left: 5px !important;
     }}
     /* Absolute Force: Strip the top padding cushion out of the main page block */
     div[data-testid="stAppViewBlockContainer"] {{

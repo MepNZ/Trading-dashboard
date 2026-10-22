@@ -789,14 +789,14 @@ if active_live_positions:
             "Shares": st.column_config.NumberColumn("Shares", format="%.2f", width="small"),
             "Currency": st.column_config.TextColumn("Currency", width="small"),
             "My Entry Price": st.column_config.NumberColumn("Bought at", format="$%.2f", width="small"),
-            "Live Market Price": st.column_config.NumberColumn("Live", format="$%.2f", width="small"),
-            "Daily Pullback Limit": st.column_config.NumberColumn("Limit Buy at", format="$%.2f", width="small"),
-            "Take-Profit Target": st.column_config.NumberColumn("T/P Exit", format="$%.2f", width="small"),
+            "Live Market Price": st.column_config.NumberColumn("Live price", format="$%.2f", width="small"),
+            "Daily Pullback Limit": st.column_config.NumberColumn("New Limit Buy", format="$%.2f", width="small"),
+            "Take-Profit Target": st.column_config.NumberColumn("Take Profit", format="$%.2f", width="small"),
             "Investment (Local)": st.column_config.NumberColumn("Cost (Loc)", format="$%.2f", width="small"),
             "Investment (NZD)": st.column_config.NumberColumn("Cost (NZD)", format="$%.2f", width="small"),
             "Current Value (Local)": st.column_config.NumberColumn("Value (Loc)", format="$%.2f", width="small"),
             "Current Value (NZD)": st.column_config.NumberColumn("Value (NZD)", format="$%.2f", width="small"),
-            "Trailing Floor": st.column_config.NumberColumn("ATR Floor", format="$%.2f", width="small"),
+            "Trailing Floor": st.column_config.NumberColumn("Stop Loss", format="$%.2f", width="small"),
             "Net Profit (NZD)": st.column_config.NumberColumn("P&L (NZD)", format="$%.2f", width="small"),
             "Live ROI": st.column_config.NumberColumn("ROI", format="%.2f%%", width="small")
         }

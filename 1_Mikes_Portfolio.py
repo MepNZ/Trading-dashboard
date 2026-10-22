@@ -384,8 +384,6 @@ with control_tab3:
                 st.number_input("Paper Entry Price ($)", min_value=0.0, value=float(p_stored.get("entry", 0.0)), key=f"paper_entry_{i}")
                 st.date_input("Transaction Calendar Date", value=default_date, key=f"paper_date_{i}")
 
-st.markdown("---")
-
 last_save_time = st.session_state.get("last_cloud_save_time", None)
 
 if last_save_time:

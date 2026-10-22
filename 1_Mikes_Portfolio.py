@@ -213,15 +213,26 @@ nz_status = get_exchange_status_badge('Pacific/Auckland', is_nz_au=True)
 nz_now_time = datetime.now(ZoneInfo("Pacific/Auckland")).strftime("%d %b %Y, %I:%M %p %Z")
 
 st.markdown(f"""
-    <div style='background-color: #161A22; padding: 6px 12px; border-radius: 4px; display: flex; justify-content: center; gap: 40px; font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; border: 1px solid #2d3139;'>
+    <style>
+    /* Absolute Force: Crush the empty top padding on the view canvas container */
+    div[data-testid="stAppViewBlockContainer"] {{
+        padding-top: 1.0rem !important;
+    }}
+    /* Tightly wrap the header banner canvas to prevent block drift */
+    .stMarkdown div[data-testid="stMarkdownContainer"] > div:first-child {{
+        margin-top: 0px !important;
+    }}
+    </style>
+    
+    <div style='background-color: #161A22; padding: 6px 12px; border-radius: 4px; display: flex; justify-content: center; gap: 40px; font-size: 1.1rem; font-weight: bold; margin-bottom: 12px; border: 1px solid #2d3139;'>
         <span style='color: #FFFFFF;'>🇺🇸 NYSE US: {us_status}</span>
         <span style='color: #FFFFFF;'>🇦🇺 ASX AUS: {au_status}</span>
         <span style='color: #FFFFFF;'>🇳🇿 NZX NZ: {nz_status}</span>
-        </div>
-    <div style='text-align: center; font-size: 0.9rem; color: #8B949E; margin-bottom: 15px;'>
+    </div>
+    <div style='text-align: center; font-size: 0.9rem; color: #8B949E; margin-bottom: 10px;'>
         🕒 Your Trading Desk Local Time: <strong>{nz_now_time}</strong>
-        </div>
-       """, unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
 # ==============================================================================
 # 🎯 MAIN CANVASES UNIFIED CONFIGURATION DESK (FORMER SIDEBAR INPUTS)
 # ==============================================================================

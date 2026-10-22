@@ -18,7 +18,8 @@ import base64
 # Force wide layout and high visibility font scales cleanly
 st.set_page_config(
     page_title="Mike's Share Market Dashboard", 
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 TARGETS_FILE = "portfolio_targets.json"

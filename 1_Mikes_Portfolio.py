@@ -290,6 +290,10 @@ with control_tab1:
 st.markdown(
     """
     <style>
+    /* CRITICAL FIX: Yank the top main container upward to eliminate whitespace ceiling */
+    .main .block-container {
+        padding-top: 1.5rem !important;
+    }
     /* Drastically tighten padding constraints inside column elements */
     div[data-testid="stColumn"] div[data-testid="element-container"] {
         margin-bottom: -4px !important;

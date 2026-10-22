@@ -38,6 +38,25 @@ runtime_positions = disk_memory.get("positions", {})
 runtime_watchlist = disk_memory.get("watchlist_tickers", [])
 runtime_cash = disk_memory.get("wallet_cash", {"NZD": 0.00, "AUD": 0.00, "USD": 0.00})
 runtime_sliders = disk_memory.get("sliders", {"fast_ma": 10, "slow_ma": 100, "roi_window": "1 Year", "graph_horizon": "1 Year"})
+# --- CLEAN CEILING ALIGNMENT & STRUCTURAL OVERRIDES ---
+st.markdown(
+    """
+    <style>
+        /* Safely pull the main canvas up to eliminate top dead space */
+        .block-container {
+            padding-top: 1.5rem !important;
+            padding-bottom: 0rem !important;
+        }
+        
+        /* Stabilize elements inside tabs to prevent overlap text bleeding */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # --- STRICT 6+6 SLOT STRUCTURAL ENFORCEMENT ---
 # Extract existing entries, pad remaining slots out to exact boundaries

@@ -311,7 +311,7 @@ def get_precalculated_indicators_matrix(fast_ma, slow_ma, today_date_token):
 # ==============================================================================
 # MIKE'S QUANT ALPHA HUNTER: SCREENING RADAR MATRIX (CHUNK 5 OF 6)
 # ==============================================================================
-
+@st.cache_data(ttl=180)
 def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster=""):
     today_token = datetime.today().strftime("%Y-%m-%d")
     raw_batch = get_cached_raw_universe_matrix(today_token)

@@ -166,7 +166,7 @@ def fetch_all_market_data_batch_historical(ticker_list, start_date, execution_da
         chunked_dfs = []
         static_end_boundary = datetime.strptime(execution_day_token, "%Y-%m-%d") - timedelta(days=1)
         
-                import time
+        import time
 
         def download_chunk(sub_list):
             max_retries = 3
@@ -252,83 +252,67 @@ def get_precalculated_indicators_matrix(fast_ma, slow_ma, today_date_token):
     if raw_batch.empty:
         return calculated_universe_dfs
         
+    f_ma_int, s_ma_int = int(fast_ma), int(slow_ma)
     available_tickers = list(raw_batch.columns.get_level_values(0).unique())
+    
+    # 1. High-speed cross-sectional matrix extractions
+    close_matrix = raw_batch.xs('Close', axis=1, level=1)
+    high_matrix = raw_batch.xs('High', axis=1, level=1)
+    low_matrix = raw_batch.xs('Low', axis=1, level=1)
+    vol_matrix = raw_batch.xs('Volume', axis=1, level=1)
 
-    # Structural optimization: extract and store the clean matrix data without inline rolling math
+    # 2. Compute cross-sectional indicators instantly in memory
+    fast_ma_matrix = close_matrix.rolling(window=f_ma_int, min_periods=1).mean()
+    slow_ma_matrix = close_matrix.rolling(window=s_ma_int, min_periods=1).mean()
+    
+    bb_mean_20 = close_matrix.rolling(window=20, min_periods=1).mean()
+    bb_std_20 = close_matrix.rolling(window=20, min_periods=1).std().fillna(0)
+    lower_bb_matrix = bb_mean_20 - (2 * bb_std_20)
+    
+    # 3. Modernized True Range vector parsing (replaces np.nanmax axis bugs)
+    tr_hl = high_matrix - low_matrix
+    tr_hpc = (high_matrix - close_matrix.shift(1)).abs()
+    tr_lpc = (low_matrix - close_matrix.shift(1)).abs()
+    
+    tr_matrix = pd.concat([tr_hl, tr_hpc, tr_lpc], axis=1, keys=['TR1', 'TR2', 'TR3'])
+    tr_df = tr_matrix.T.groupby(level=1).max().T.fillna(0.0)
+    
+    atr_matrix = tr_df.rolling(window=14, min_periods=1).mean()
+    avg_vol_20d_matrix = vol_matrix.rolling(window=20, min_periods=1).mean()
+    
+    delta_matrix = close_matrix.diff()
+    gain_matrix = delta_matrix.clip(lower=0).rolling(window=14, min_periods=1).mean()
+    loss_matrix = (-delta_matrix.clip(upper=0)).rolling(window=14, min_periods=1).mean()
+    rsi_matrix = 100 - (100 / (1 + (gain_matrix / loss_matrix.replace(0, np.nan)))).fillna(50)
+    
+    macd_matrix = close_matrix.ewm(span=12, adjust=False).mean() - close_matrix.ewm(span=26, adjust=False).mean()
+    signal_line_matrix = macd_matrix.ewm(span=9, adjust=False).mean()
+
+    # 4. Pack individual ticker frames cleanly back to your global dictionary lookup
     for ticker in available_tickers:
         try:
+            if ticker not in close_matrix.columns: continue
             df = pd.DataFrame(index=raw_batch.index)
             df['Open'] = raw_batch[ticker]['Open']
             df['High'] = raw_batch[ticker]['High']
             df['Low'] = raw_batch[ticker]['Low']
             df['Close'] = raw_batch[ticker]['Close']
             df['Volume'] = raw_batch[ticker]['Volume']
+            
+            df['Fast_MA'] = fast_ma_matrix[ticker]
+            df['Slow_MA'] = slow_ma_matrix[ticker]
+            df['Lower_Bollinger_Band'] = lower_bb_matrix[ticker]
+            df['ATR'] = atr_matrix[ticker]
+            df['Avg_Volume_20D'] = avg_vol_20d_matrix[ticker]
+            df['RSI'] = rsi_matrix[ticker]
+            df['MACD'] = macd_matrix[ticker]
+            df['Signal_Line'] = signal_line_matrix[ticker]
             
             df = df.dropna(subset=['Close'])
             if len(df) >= 5:
                 calculated_universe_dfs[ticker] = df
         except: 
             continue
-            
-    return calculated_universe_dfs
-        
-    f_ma_int, s_ma_int = int(fast_ma), int(slow_ma)
-    available_tickers = list(raw_batch.columns.get_level_values(0).unique())
-    
-    close_matrix = raw_batch.xs('Close', axis=1, level=1, drop_level=False)
-    high_matrix = raw_batch.xs('High', axis=1, level=1, drop_level=False)
-    low_matrix = raw_batch.xs('Low', axis=1, level=1, drop_level=False)
-    vol_matrix = raw_batch.xs('Volume', axis=1, level=1, drop_level=False)
-
-    fast_ma_matrix = close_matrix.rolling(window=f_ma_int, min_periods=1).mean()
-    slow_ma_matrix = close_matrix.rolling(window=s_ma_int, min_periods=1).mean()
-    
-    bb_mean_20 = close_matrix.rolling(window=20, min_periods=1).mean()
-    bb_std_20 = close_matrix.rolling(window=20, min_periods=1).std()
-    lower_bb_matrix = bb_mean_20 - (2 * bb_std_20)
-    
-    tr1 = high_matrix.values - low_matrix.values
-    tr2 = np.abs(high_matrix.values - close_matrix.shift(1).values)
-    tr3 = np.abs(low_matrix.values - close_matrix.shift(1).values)
-    true_range_values = np.nanmax(np.dstack((tr1, tr2, tr3)), axis=2)
-    
-    tr_df = pd.DataFrame(true_range_values, index=raw_batch.index, columns=close_matrix.columns)
-    atr_matrix = tr_df.rolling(window=14, min_periods=1).mean()
-    avg_vol_20d_matrix = vol_matrix.rolling(window=20, min_periods=1).mean()
-    
-    delta_matrix = close_matrix.diff()
-    gain_matrix = delta_matrix.clip(lower=0)
-    loss_matrix = -delta_matrix.clip(upper=0)
-    avg_gain = gain_matrix.ewm(alpha=1/14, adjust=False).mean()
-    avg_loss = loss_matrix.ewm(alpha=1/14, adjust=False).mean()
-    rs_matrix = avg_gain / avg_loss.replace(0, np.nan)
-    rsi_matrix = 100 - (100 / (1 + rs_matrix)).fillna(50)
-    
-    macd_matrix = close_matrix.ewm(span=12, adjust=False).mean() - close_matrix.ewm(span=26, adjust=False).mean()
-    signal_line_matrix = macd_matrix.ewm(span=9, adjust=False).mean()
-
-    for ticker in available_tickers:
-        try:
-            df = pd.DataFrame(index=raw_batch.index)
-            df['Open'] = raw_batch[ticker]['Open']
-            df['High'] = raw_batch[ticker]['High']
-            df['Low'] = raw_batch[ticker]['Low']
-            df['Close'] = raw_batch[ticker]['Close']
-            df['Volume'] = raw_batch[ticker]['Volume']
-            
-            df['Fast_MA'] = fast_ma_matrix[(ticker, 'Close')]
-            df['Slow_MA'] = slow_ma_matrix[(ticker, 'Close')]
-            df['Lower_Bollinger_Band'] = lower_bb_matrix[(ticker, 'Close')]
-            df['ATR'] = atr_matrix[(ticker, 'Close')]
-            df['Avg_Volume_20D'] = avg_vol_20d_matrix[(ticker, 'Volume')]
-            df['RSI'] = rsi_matrix[(ticker, 'Close')]
-            df['MACD'] = macd_matrix[(ticker, 'Close')]
-            df['Signal_Line'] = signal_line_matrix[(ticker, 'Close')]
-            
-            df = df.dropna(subset=['Close'])
-            if len(df) >= 5:
-                calculated_universe_dfs[ticker] = df
-        except: continue
             
     return calculated_universe_dfs
 # ==============================================================================

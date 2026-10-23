@@ -15,7 +15,6 @@ import warnings
 sys.modules['warnings'] = warnings
 import base64
 
-# Force wide layout and high visibility font scales cleanly
 st.set_page_config(
     page_title="Mike's Share Market Dashboard", 
     layout="wide",
@@ -25,64 +24,30 @@ st.set_page_config(
 TARGETS_FILE = "portfolio_targets.json"
 CACHE_FILE = "portfolio_market_cache.json"
 
-# Load data directly from local hard drive storage
 disk_memory = {}
 if os.path.exists(TARGETS_FILE):
     try:
-        with open(TARGETS_FILE, 'r') as f:
-            disk_memory = json.load(f)
-    except Exception:
-        pass
+        with open(TARGETS_FILE, 'r') as f: disk_memory = json.load(f)
+    except Exception: pass
 
-# Extract structured matrix sections from local JSON
 runtime_positions = disk_memory.get("positions", {})
 runtime_watchlist = disk_memory.get("watchlist_tickers", [])
 runtime_cash = disk_memory.get("wallet_cash", {"NZD": 0.00, "AUD": 0.00, "USD": 0.00})
 runtime_sliders = disk_memory.get("sliders", {"fast_ma": 10, "slow_ma": 100, "roi_window": "1 Year", "graph_horizon": "1 Year"})
 
-# Extract structured matrix sections from local JSON
-runtime_positions = disk_memory.get("positions", {})
-runtime_watchlist = disk_memory.get("watchlist_tickers", [])
-runtime_cash = disk_memory.get("wallet_cash", {"NZD": 0.00, "AUD": 0.00, "USD": 0.00})
-runtime_sliders = disk_memory.get("sliders", {"fast_ma": 10, "slow_ma": 100, "roi_window": "1 Year", "graph_horizon": "1 Year"})
-
-# --- CLEAN CEILING ALIGNMENT & STRUCTURAL OVERRIDES ---
 st.markdown(
     """
     <style>
-        /* 1. Reset top page canvas dead zone cleanly */
-        .block-container {
-            padding-top: 1.5rem !important;
-            padding-bottom: 0rem !important;
-        }
-
-        /* 2. FORCE remove all negative margins globally on structural containers */
-        div[data-testid="stVerticalBlock"] > div {
-            margin-top: 0px !important;
-        }
-
-        /* 3. Give the Tab bar breathing room at the bottom */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 16px !important;
-            margin-bottom: 30px !important; /* Forces the entire tab panel wrapper down */
-            height: auto !important;
-        }
-
-        /* 4. TARGET THE CRUSHED LAYOUT: Forcefully push inner column contents down */
-        .stTabs [data-baseweb="tab-panel"] {
-            padding-top: 25px !important; /* Pushes Time Horizons & Cash down out of the links */
-        }
-
-        /* 5. Force space below the clock so the title has room */
-        div[data-testid="element-container"]:has(.exchange-status-banner) + div {
-            margin-top: 15px !important;
-        }
+        .block-container { padding-top: 1.5rem !important; padding-bottom: 0rem !important; }
+        div[data-testid="stVerticalBlock"] > div { margin-top: 0px !important; }
+        .stTabs [data-baseweb="tab-list"] { gap: 16px !important; margin-bottom: 30px !important; height: auto !important; }
+        .stTabs [data-baseweb="tab-panel"] { padding-top: 25px !important; }
+        div[data-testid="element-container"]:has(.exchange-status-banner) + div { margin-top: 15px !important; }
     </style>
     """,
     unsafe_allow_html=True
 )
-# --- STRICT 6+6 SLOT STRUCTURAL ENFORCEMENT ---
-# Extract existing entries, pad remaining slots out to exact boundaries
+
 portfolio_slots = list(runtime_positions.keys())[:6]
 while len(portfolio_slots) < 6:
     portfolio_slots.append(f"EMPTY_PORT_{len(portfolio_slots)+1}")
@@ -91,149 +56,47 @@ watchlist_slots = [t for t in runtime_watchlist if t.strip()][:6]
 while len(watchlist_slots) < 6:
     watchlist_slots.append(f"EMPTY_WATCH_{len(watchlist_slots)+1}")
 
-# Default state synchronization for sidebar inputs
 if "fast_ma" not in st.session_state: st.session_state["fast_ma"] = int(runtime_sliders.get("fast_ma", 10))
 if "slow_ma" not in st.session_state: st.session_state["slow_ma"] = int(runtime_sliders.get("slow_ma", 100))
 if "roi_window" not in st.session_state: st.session_state["roi_window"] = runtime_sliders.get("roi_window", "1 Year")
 if "graph_horizon" not in st.session_state: st.session_state["graph_horizon"] = runtime_sliders.get("graph_horizon", "1 Year")
 # ==============================================================================
-# MIKE'S SHARE MARKET DASHBOARD: SIDEBAR RUNTIME CONTROLS (PART 2 OF 4)
+# GITHUB LIVE REPOSITORY SYNC AND TIMEFRAME BOUNDS CONTROL DESK (PART 2A)
 # ==============================================================================
 import requests
 
 def push_targets_to_github(updated_data):
-    # Pull credentials securely from local or cloud secrets memory
     token = st.secrets.get("GITHUB_TOKEN")
     repo = st.secrets.get("GITHUB_REPO")
-
     file_path = "portfolio_targets.json"
-    
-    # FIX: Direct connection to the official GitHub API endpoint instead of web URL
+    if not token or not repo: return False
     clean_repo = repo.strip("/")
-    url = f"https://api.github.com/repos/{clean_repo}/contents/{file_path}"
-    
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github.v3+json"
-    }
+    url = f"https://github.com{clean_repo}/contents/{file_path}"
+    headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
 
-    # Fetch current file SHA hash to prevent overwrite conflicts
     try:
         response = requests.get(url, headers=headers)
-        sha = None
-        if response.status_code == 200:
-            sha = response.json().get("sha")
-        elif response.status_code != 404:
-            print(f"\n[DEBUG GITHUB] GET SHA failed. Status code: {response.status_code}")
-            print(f"[RAW ERROR RESPONSE] {response.text}\n")
-            return False
-    except Exception as e:
-        print(f"\n[CRITICAL GITHUB] GET SHA Exception: {str(e)}\n")
-        return False
+        sha = response.json().get("sha") if response.status_code == 200 else None
+    except: return False
 
-    # Format JSON structure cleanly matching your layout matrix
     json_string = json.dumps(updated_data, indent=4)
     encoded_content = base64.b64encode(json_string.encode("utf-8")).decode("utf-8")
-
-    payload = {
-        "message": "🔄 Automated portfolio boundary update via Cloud Dashboard",
-        "content": encoded_content,
-        "branch": "main",
-    }
-    if sha:
-        payload["sha"] = sha
+    payload = {"message": "🔄 Automated updates via Cloud Dashboard", "content": encoded_content, "branch": "main"}
+    if sha: payload["sha"] = sha
 
     try:
         put_response = requests.put(url, headers=headers, json=payload)
-        # FIX: Clean comparison operators to completely bypass the prior syntax error
-        if put_response.status_code == 200 or put_response.status_code == 201:
-            return True
-        else:
-            # Prints the exact authentication or authorization error directly to your terminal
-            print(f"\n[CRITICAL REJECTION] GitHub Server Response Code: {put_response.status_code}")
-            print(f"[RAW JSON ERROR] Message payload: {put_response.text}\n")
-            return False
-    except Exception as e:
-        print(f"\n[CRITICAL CONNECTION FAILURE] Error details: {str(e)}\n")
-        return False
-    @st.fragment
-    def render_isolated_sidebar_controls():
-        # 1. Safe Timeframe Check
-        current_roi = st.session_state.get("roi_window", runtime_sliders.get("roi_window", "1 Year"))
-        st.selectbox("Chart & ROI grid timeframe", ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], index=["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"].index(current_roi) if current_roi in ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"] else 3, key="roi_window")
-        
-        # 2. Safe Fast MA Check (Uses .get() fallback to bypass the KeyError)
-        current_fast = st.session_state.get("fast_ma", int(runtime_sliders.get("fast_ma", 10)))
-        st.selectbox("Fast MA Frame", [5, 10, 20, 50], index=[5, 10, 20, 50].index(current_fast) if current_fast in [5, 10, 20, 50] else 1, key="fast_ma")
-        
-        # 3. Safe Slow MA Check (Uses .get() fallback to bypass the KeyError)
-        current_slow = st.session_state.get("slow_ma", int(runtime_sliders.get("slow_ma", 100)))
-        st.selectbox("Slow MA Frame", [25, 50, 100, 200], index=[25, 50, 100, 200].index(current_slow) if current_slow in [25, 50, 100, 200] else 2, key="slow_ma")
-
-        st.markdown("---")
-        st.markdown("### 💼 Sharesies Wallet Cash")
-        st.number_input("Cash Held (NZD)", min_value=0.00, value=float(runtime_cash.get("NZD", 0.00)), step=1.00, format="%.2f", key="cash_nzd_input")
-        st.number_input("Cash Held (AUD)", min_value=0.00, value=float(runtime_cash.get("AUD", 0.00)), step=1.00, format="%.2f", key="cash_aud_input")
-        st.number_input("Cash Held (USD)", min_value=0.00, value=float(runtime_cash.get("USD", 0.00)), step=1.00, format="%.2f", key="cash_usd_input")
-        
-        st.markdown("---")
-        st.markdown("### 📐 Layer A: Fixed Portfolio Slots")
-                # --- Layer A: Fixed Portfolio Slots ---
-        for i in range(6):
-            ticker = portfolio_slots[i]
-            stored = runtime_positions.get(ticker, {}) if "EMPTY" not in ticker else {}
-            display_label = ticker if "EMPTY" not in ticker else "Empty Slot"
-            with st.expander(f"Slot {i+1}: {display_label}", expanded=False):
-                st.text_input(f"Ticker Symbol", value="" if "EMPTY" in ticker else ticker, key=f"port_slot_{i}")
-                st.number_input("Number of Shares", min_value=0.0000, value=float(stored.get("shares", 0.0)), step=0.0001, format="%.4f", key=f"shares_{i}")
-                st.number_input("My Entry Price ($)", min_value=0.0, value=float(stored.get("entry", 0.0)), key=f"entry_{i}")
-                st.number_input("Upper Target ($)", min_value=0.0, value=float(stored.get("upper", 0.0)), key=f"up_{i}")
-                st.number_input("Fixed Stop Distance ($)", min_value=0.0, value=float(stored.get("fixed_stop_distance", 15.0)), key=f"fixed_stop_{i}")
-
-                # ==============================================================================
-        # CLEANUP MERGE: WATCHLIST REMOVED. TRANSITION DIRECTLY TO LAYER A.2
-        # ==============================================================================
-        st.markdown("---")
-        st.markdown("### 🧪 Layer A.2: Paper Trading Slots")
-        runtime_paper = disk_memory.get("paper_positions", {})
-        
-        paper_slots = list(runtime_paper.keys())[:6]
-        while len(paper_slots) < 6:
-            paper_slots.append(f"EMPTY_PAPER_{len(paper_slots)+1}")
-
-        for i in range(6):
-            p_ticker = paper_slots[i]
-            p_stored = runtime_paper.get(p_ticker, {}) if "EMPTY" not in p_ticker else {}
-            p_display = p_ticker if "EMPTY" not in p_ticker else "Empty Paper Slot"
-            
-            # Format the stored date string safely back into a native datetime object
-            stored_date_str = p_stored.get("entry_date", None)
-            if stored_date_str:
-                try: default_date = datetime.strptime(stored_date_str, "%Y-%m-%d").date()
-                except: default_date = datetime.today().date()
-            else:
-                default_date = datetime.today().date()
-
-            with st.expander(f"Paper Slot {i+1}: {p_display}", expanded=False):
-                st.text_input(f"Paper Ticker Symbol", value="" if "EMPTY" in p_ticker else p_ticker, key=f"paper_slot_{i}")
-                
-                # FIXED FORCE: Hardcodes 1 share behind the scenes while displaying it cleanly to the user
-                st.markdown("🔒 **Simulated Position Size:** 1 Share (Enforced Layer A.2 Default)")
-                st.hidden = st.text_input("Shares Internal Marker", value="1.0", key=f"paper_shares_{i}", disabled=True)
-                
-                st.number_input("Paper Entry Price ($)", min_value=0.0, value=float(p_stored.get("entry", 0.0)), key=f"paper_entry_{i}")
-                st.date_input("Transaction Calendar Date", value=default_date, key=f"paper_date_{i}")
+        return put_response.status_code in [200, 201]
+    except: return False
 
 selected_timeframe = st.session_state["roi_window"]
-chart_timeframe_choice = st.session_state["roi_window"] # Both systems now look at the same master switch!
+chart_timeframe_choice = st.session_state["roi_window"]
 fast_ma_input = st.session_state["fast_ma"]
 slow_ma_input = st.session_state["slow_ma"]
 cash_nzd = float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 0.00)))
 cash_aud = float(st.session_state.get("cash_aud_input", runtime_cash.get("AUD", 0.00)))
 cash_usd = float(st.session_state.get("cash_usd_input", runtime_cash.get("USD", 0.00)))
-# ==============================================================================
-# MIKE'S SHARE MARKET DASHBOARD: FX ENGINE & DATA BATCHING (PART 3A)
-# ==============================================================================
+
 def get_exchange_status_badge(tz_name, open_hour=9, open_min=30, close_hour=16, close_min=0, is_nz_au=False):
     if is_nz_au: open_hour, open_min = 10, 0
     try:
@@ -250,339 +113,201 @@ from zoneinfo import ZoneInfo
 us_status = get_exchange_status_badge('America/New_York')
 au_status = get_exchange_status_badge('Australia/Sydney', is_nz_au=True)
 nz_status = get_exchange_status_badge('Pacific/Auckland', is_nz_au=True)
-
-# Format the current local clock for your high-visibility status banner
 nz_now_time = datetime.now(ZoneInfo("Pacific/Auckland")).strftime("%d %b %Y, %I:%M %p %Z")
+# ==============================================================================
+# WORKSPACE CONTROL DESK TABS AND COMMAND SIDEBAR FLUSH ENGINE (PART 2B)
+# ==============================================================================
 
 st.markdown(f"""
     <style>
-    /* Make the header container transparent and non-blocking without destroying the button */
-    header[data-testid="stHeader"], header.stAppHeader {{
-        background-color: transparent !important;
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-    }}
-    /* Keep the toggle visible and clear of your market banners */
-    div[data-testid="stSidebarCollapse"] {{
-        background-color: #161A22 !important;
-        border: 1px solid #2d3139 !important;
-        border-radius: 4px !important;
-        margin-top: 5px !important;
-        margin-left: 5px !important;
-    }}
-    /* Absolute Force: Strip the top padding cushion out of the main page block */
-    div[data-testid="stAppViewBlockContainer"] {{
-        padding-top: 0.2rem !important;
-        margin-top: 0px !important;
-    }}
+    header[data-testid="stHeader"], header.stAppHeader {{ background-color: transparent !important; background: transparent !important; border: none !important; box-shadow: none !important; }}
+    div[data-testid="stSidebarCollapse"] {{ background-color: #161A22 !important; border: 1px solid #2d3139 !important; border-radius: 4px !important; margin-top: 5px !important; margin-left: 5px !important; }}
+    div[data-testid="stAppViewBlockContainer"] {{ padding-top: 0.2rem !important; margin-top: 0px !important; }}
     </style>
-    
     <div style='background-color: #161A22; padding: 6px 12px; border-radius: 4px; display: flex; justify-content: center; gap: 40px; font-size: 1.1rem; font-weight: bold; margin-bottom: 10px; border: 1px solid #2d3139;'>
         <span style='color: #FFFFFF;'>🇺🇸 NYSE US: {us_status}</span>
         <span style='color: #FFFFFF;'>🇦🇺 ASX AUS: {au_status}</span>
         <span style='color: #FFFFFF;'>🇳🇿 NZX NZ: {nz_status}</span>
     </div>
-    <div style='text-align: center; font-size: 0.9rem; color: #8B949E; margin-bottom: 5px;'>
-        🕒 Your Trading Desk Local Time: <strong>{nz_now_time}</strong>
-    </div>
+    <div style='text-align: center; font-size: 0.9rem; color: #8B949E; margin-bottom: 5px;'>🕒 Desk Local Time: <strong>{nz_now_time}</strong></div>
     """, unsafe_allow_html=True)
-# ==============================================================================
-# 🎯 MAIN CANVASES UNIFIED CONFIGURATION DESK (FORMER SIDEBAR INPUTS)
-# ==============================================================================
+
 st.markdown("### 🛠️ Live Workspace Control Desk")
-control_tab1, control_tab2, control_tab3 = st.tabs([
-    "⚙️ Configuration Parameters & Vaults", 
-    "📐 Layer A: Fixed Portfolio Slots", 
-    "🧪 Layer A.2: Paper Trading Settings"
-])
+control_tab1, control_tab2, control_tab3 = st.tabs(["⚙️ Parameters", "📐 Portfolio Slots", "🧪 Paper Trading"])
 
 with control_tab1:
     c_col1, c_col2, c_col3 = st.columns(3)
-    
     with c_col1:
-        st.markdown("#### 🕒 Time Horizons")
-        current_roi = st.session_state.get("roi_window", runtime_sliders.get("roi_window", "1 Year"))
-        st.selectbox(
-            "Chart & ROI Grid Timeframe", 
-            ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"], 
-            index=["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"].index(current_roi) if current_roi in ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"] else 3, 
-            key="roi_window"
-        )
-        
-        if st.button("🔄 Clear App Cache Memory", use_container_width=True):
+        st.markdown("#### 🕒 Horizons")
+        timeframe_options = ["1 Month", "3 Months", "6 Months", "1 Year", "2 Years"]
+        if "roi_window" not in st.session_state:
+            st.session_state["roi_window"] = runtime_sliders.get("roi_window", "1 Year")
+        st.selectbox("Timeframe", timeframe_options, key="roi_window")
+        if st.button("🔄 Clear Cache Memory", use_container_width=True):
             if os.path.exists(CACHE_FILE):
                 try: os.remove(CACHE_FILE)
                 except: pass
             st.cache_data.clear()
             st.rerun()
-            
     with c_col2:
-        st.markdown("#### 📈 Analysis Frames")
-        current_fast = st.session_state.get("fast_ma", int(runtime_sliders.get("fast_ma", 10)))
-        st.selectbox(
-            "Fast MA Frame",
-            options=[5, 10, 20, 50],
-            index=[5, 10, 20, 50].index(current_fast) if current_fast in [5, 10, 20, 50] else 1,
-            key="fast_ma"
-        )
-        
-        current_slow = st.session_state.get("slow_ma", int(runtime_sliders.get("slow_ma", 100)))
-        st.selectbox(
-            "Slow MA Frame",
-            options=[25, 50, 100, 200],
-            index=[25, 50, 100, 200].index(current_slow) if current_slow in [25, 50, 100, 200] else 2,
-            key="slow_ma"
-        )
-
+        st.markdown("#### 📈 Analysis")
+        st.slider("Fast Moving Average (MA)", min_value=5, max_value=30, value=st.session_state["fast_ma"], step=1, key="fast_ma")
+        st.slider("Slow Moving Average (MA)", min_value=20, max_value=200, value=st.session_state["slow_ma"], step=5, key="slow_ma")
     with c_col3:
-        st.markdown("#### 💼 Sharesies Wallet Cash")
-        
-        # Compact horizontal layout containers to squeeze prefix labels adjacent to values
-        f_row1_l, f_row1_r = st.columns([1, 3.5])
-        with f_row1_l: st.markdown("<p style='font-size: 0.95rem; font-weight: bold; color: #8B949E; margin-top: 6px;'>NZD $</p>", unsafe_allow_html=True)
-        with f_row1_r: st.number_input("NZD $ Value Input", min_value=0.00, value=float(runtime_cash.get("NZD", 0.00)), step=1.00, format="%.2f", key="cash_nzd_input", label_visibility="collapsed")
-        
-        f_row2_l, f_row2_r = st.columns([1, 3.5])
-        with f_row2_l: st.markdown("<p style='font-size: 0.95rem; font-weight: bold; color: #8B949E; margin-top: 6px;'>AUD $</p>", unsafe_allow_html=True)
-        with f_row2_r: st.number_input("AUD $ Value Input", min_value=0.00, value=float(runtime_cash.get("AUD", 0.00)), step=1.00, format="%.2f", key="cash_aud_input", label_visibility="collapsed")
-        
-        f_row3_l, f_row3_r = st.columns([1, 3.5])
-        with f_row3_l: st.markdown("<p style='font-size: 0.95rem; font-weight: bold; color: #8B949E; margin-top: 6px;'>USD $</p>", unsafe_allow_html=True)
-        with f_row3_r: st.number_input("USD $ Value Input", min_value=0.00, value=float(runtime_cash.get("USD", 0.00)), step=1.00, format="%.2f", key="cash_usd_input", label_visibility="collapsed")
+        st.markdown("#### 💼 Sharesies Vault")
+        st.number_input("NZD $ Wallet", min_value=0.00, value=float(runtime_cash.get("NZD", 0.00)), step=1.00, format="%.2f", key="cash_nzd_input")
+        st.number_input("AUD $ Wallet", min_value=0.00, value=float(runtime_cash.get("AUD", 0.00)), step=1.00, format="%.2f", key="cash_aud_input")
+        st.number_input("USD $ Wallet", min_value=0.00, value=float(runtime_cash.get("USD", 0.00)), step=1.00, format="%.2f", key="cash_usd_input")
 
 with control_tab2:
-    st.markdown("#### 📐 Active Portfolio Management Boundaries")
     slot_cols = st.columns(3)
     for i in range(6):
         ticker = portfolio_slots[i]
         stored = runtime_positions.get(ticker, {}) if "EMPTY" not in ticker else {}
         display_label = ticker if "EMPTY" not in ticker else "Empty Slot"
-        
         with slot_cols[i % 3]:
             with st.expander(f"Slot {i+1}: {display_label}", expanded=False):
-                st.text_input(f"Ticker Symbol", value="" if "EMPTY" in ticker else ticker, key=f"port_slot_{i}")
-                st.number_input("Number of Shares", min_value=0.0000, value=float(stored.get("shares", 0.0)), step=0.0001, format="%.4f", key=f"shares_{i}")
-                st.number_input("My Entry Price ($)", min_value=0.0, value=float(stored.get("entry", 0.0)), key=f"entry_{i}")
-                st.number_input("Upper Target ($)", min_value=0.0, value=float(stored.get("upper", 0.0)), key=f"up_{i}")
-                st.number_input("Fixed Stop Distance ($)", min_value=0.0, value=float(stored.get("fixed_stop_distance", 15.0)), key=f"fixed_stop_{i}")
+                st.text_input(f"Ticker", value="" if "EMPTY" in ticker else ticker, key=f"port_slot_{i}")
+                st.number_input("Shares Owned", min_value=0.0000, value=float(stored.get("shares", 0.0)), step=0.0001, format="%.4f", key=f"shares_{i}")
+                st.number_input("Entry Price", min_value=0.0, value=float(stored.get("entry", 0.0)), key=f"entry_{i}")
+                st.number_input("Upper Target", min_value=0.0, value=float(stored.get("upper", 0.0)), key=f"up_{i}")
+                st.number_input("Stop Distance", min_value=0.0, value=float(stored.get("fixed_stop_distance", 15.0)), key=f"fixed_stop_{i}")
 
 with control_tab3:
-    st.markdown("#### 🧪 Layer A.2: Paper Trading Sandbox Model")
     runtime_paper = disk_memory.get("paper_positions", {})
     paper_slots = list(runtime_paper.keys())[:6]
-    while len(paper_slots) < 6:
-        paper_slots.append(f"EMPTY_PAPER_{len(paper_slots)+1}")
-        
+    while len(paper_slots) < 6: paper_slots.append(f"EMPTY_PAPER_{len(paper_slots)+1}")
     paper_cols = st.columns(3)
     for i in range(6):
         p_ticker = paper_slots[i]
         p_stored = runtime_paper.get(p_ticker, {}) if "EMPTY" not in p_ticker else {}
         p_display = p_ticker if "EMPTY" not in p_ticker else "Empty Paper Slot"
-        
         stored_date_str = p_stored.get("entry_date", None)
-        if stored_date_str:
-            try: default_date = datetime.strptime(stored_date_str, "%Y-%m-%d").date()
-            except: default_date = datetime.today().date()
-        else:
-            default_date = datetime.today().date()
-
+        try: default_date = datetime.strptime(stored_date_str, "%Y-%m-%d").date() if stored_date_str else datetime.today().date()
+        except: default_date = datetime.today().date()
         with paper_cols[i % 3]:
             with st.expander(f"Paper Slot {i+1}: {p_display}", expanded=False):
                 st.text_input(f"Paper Ticker Symbol", value="" if "EMPTY" in p_ticker else p_ticker, key=f"paper_slot_{i}")
-                st.markdown("🔒 **Simulated Position Size:** 1 Share Enforced")
-                st.number_input("Paper Entry Price ($)", min_value=0.0, value=float(p_stored.get("entry", 0.0)), key=f"paper_entry_{i}")
-                st.date_input("Transaction Calendar Date", value=default_date, key=f"paper_date_{i}")
+                st.number_input("Paper Entry Price", min_value=0.0, value=float(p_stored.get("entry", 0.0)), key=f"paper_entry_{i}")
+                st.date_input("Calendar Date", value=default_date, key=f"paper_date_{i}")
 
 last_save_time = st.session_state.get("last_cloud_save_time", None)
+status_html = f"<div style='background-color: #28a745; color: #FFFFFF; padding: 6px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.80rem;'>✅ SYNCED: {last_save_time}</div>" if last_save_time else "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold;'>📁 Standby Mode</div>"
 
-if last_save_time:
-    if "⚠️" in last_save_time:
-        status_html = f"<div style='background-color: #dc3545; color: #FFFFFF; padding: 8px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #bd2130; width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;'>{last_save_time}</div>"
-    else:
-        status_html = f"<div style='background-color: #28a745; color: #FFFFFF; padding: 6px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.80rem; border: 1px solid #1e7e34; line-height: 1.3; width: 100%; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box;'>✅ SYNCED TO GITHUB LIVE<span style='font-size: 0.72rem; font-weight: normal; opacity: 0.90; margin-top: 2px;'>Time: {last_save_time}</span></div>"
-else:
-    status_html = "<div style='background-color: #1C212A; color: #8B949E; padding: 10px 12px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 0.85rem; border: 1px solid #30363D; width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;'>📁 Database Standby: Connected</div>"
-
-# ==============================================================================
-# 🎯 MASTER STRUCTURAL INTERFACE CONFIGURATION (CLEAN SIDEBAR COMMAND DESK)
-# ==============================================================================
 with st.sidebar:
     st.markdown("### ⚡ System Command Desk")
     st.markdown(f'<div style="margin-bottom: 12px;">{status_html}</div>', unsafe_allow_html=True)
-    trigger_sync_active = st.button("💾 SAVE & SYNC WORKSPACE", type="primary", use_container_width=True)
-    st.markdown("---")
-
+    if st.button("💾 SAVE & SYNC WORKSPACE", type="primary", use_container_width=True):
+        live_sidebar_bounds = {
+            "wallet_cash": {"NZD": cash_nzd, "AUD": cash_aud, "USD": cash_usd},
+            "sliders": {"fast_ma": int(fast_ma_input), "slow_ma": int(slow_ma_input), "roi_window": selected_timeframe, "graph_horizon": selected_timeframe},
+            "positions": {}, "watchlist_tickers": [], "paper_positions": {}
+        }
+        for idx in range(6):
+            t_input = st.session_state.get(f"port_slot_{idx}", portfolio_slots[idx]).upper().strip()
+            if t_input and "EMPTY" not in t_input:
+                live_sidebar_bounds["positions"][t_input] = {
+                    "shares": float(st.session_state.get(f"shares_{idx}", 0.0)),
+                    "entry": float(st.session_state.get(f"entry_{idx}", 0.0)),
+                    "upper": float(st.session_state.get(f"up_{idx}", 0.0)),
+                    "fixed_stop_distance": float(st.session_state.get(f"fixed_stop_{idx}", 15.0))
+                }
+        paper_positions_to_save = {}
+        for idx in range(6):
+            slot_ticker = st.session_state.get(f"paper_slot_{idx}", "").strip().upper()
+            if slot_ticker and "EMPTY" not in slot_ticker:
+                slot_date = st.session_state.get(f"paper_date_{idx}", datetime.today().date())
+                paper_positions_to_save[slot_ticker] = {
+                    "shares": 1.0, "entry": float(st.session_state.get(f"paper_entry_{idx}", 0.0)),
+                    "entry_date": slot_date.strftime("%Y-%m-%d") if hasattr(slot_date, "strftime") else str(slot_date)
+                }
+        live_sidebar_bounds["paper_positions"] = paper_positions_to_save
+        with open(TARGETS_FILE, 'w') as f: json.dump(live_sidebar_bounds, f, indent=4)
+        st.session_state["last_cloud_save_time"] = datetime.now().strftime("%I:%M:%S %p")
+        st.cache_data.clear()
+        st.rerun()
 # ==============================================================================
-# UNBREAKABLE SYNC ENGINE & LAYER A.2 PAPER PORTFOLIO STORAGE EXTRACTION
+# MIKE'S SHARE MARKET DASHBOARD: DATA BATCHING & INDICATORS (PART 3 OF 4)
 # ==============================================================================
-if trigger_sync_active:
-    # 1. Initialize master dictionary matrix using unified form parameters
-    live_sidebar_bounds = {
-        "wallet_cash": {
-            "NZD": float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 0.00))),
-            "AUD": float(st.session_state.get("cash_aud_input", runtime_cash.get("AUD", 0.00))),
-            "USD": float(st.session_state.get("cash_usd_input", runtime_cash.get("USD", 0.00)))
-        },
-        "sliders": {
-            "fast_ma": int(st.session_state.get("fast_ma", 10)),
-            "slow_ma": int(st.session_state.get("slow_ma", 100)),
-            "roi_window": st.session_state.get("roi_window", "1 Year"),
-            "graph_horizon": st.session_state.get("roi_window", "1 Year")
-        },
-        "positions": {},
-        "watchlist_tickers": [],
-        "paper_positions": {}
-    }
-    
-    # 2. Extract standard owned assets slots
-    for idx in range(6):
-        t_input = st.session_state.get(f"port_slot_{idx}", portfolio_slots[idx]).upper().strip()
-        if t_input and "EMPTY" not in t_input:
-            live_sidebar_bounds["positions"][t_input] = {
-                "shares": float(st.session_state.get(f"shares_{idx}", 0.0000)),
-                "entry": float(st.session_state.get(f"entry_{idx}", 0.00)),
-                "upper": float(st.session_state.get(f"up_{idx}", 0.00)),
-                "fixed_stop_distance": float(st.session_state.get(f"fixed_stop_{idx}", 15.00))
-            }
-    
-    # 3. Extract standard watchlist tracking slots
-    for idx in range(6):
-        w_input = st.session_state.get(f"watch_slot_{idx}", watchlist_slots[idx]).upper().strip()
-        if w_input and "EMPTY" not in w_input:
-            live_sidebar_bounds["watchlist_tickers"].append(w_input)
-            
-        # 4. Extract Layer A.2 Paper Position Sandbox slots
-    paper_positions_to_save = {}
-    for idx in range(6):
-        slot_ticker = st.session_state.get(f"paper_slot_{idx}", "").strip().upper()
-        slot_entry  = st.session_state.get(f"paper_entry_{idx}", 0.0)
-        
-        # Safely convert calendar date into standardized ISO format text strings
-        slot_date   = st.session_state.get(f"paper_date_{idx}", datetime.today().date())
-        slot_date_str = slot_date.strftime("%Y-%m-%d") if hasattr(slot_date, "strftime") else str(slot_date)
-        
-        if slot_ticker and "EMPTY" not in slot_ticker:
-            paper_positions_to_save[slot_ticker] = {
-                "shares": 1.0, # Enforced single unit baseline asset tracker
-                "entry": float(slot_entry),
-                "entry_date": slot_date_str
-            }
-    # Mount the paper portfolio array directly to the primary payload mapping
-    live_sidebar_bounds["paper_positions"] = paper_positions_to_save
-
-        # 5. Flush state to disk and push out upstream GitHub repository sync 
-    with open(TARGETS_FILE, 'w') as f:
-        json.dump(live_sidebar_bounds, f, indent=4)
-        
-    # ==============================================================================
-    # FIX: IMMEDIATELY SYNC THE RUNTIME MEMORY SO THE LOCAL GRID UPDATES INSTANTLY
-    # ==============================================================================
-    for key, value in live_sidebar_bounds.items():
-        disk_memory[key] = value
-    
-    synced_ok = push_targets_to_github(live_sidebar_bounds)
-    
-    if synced_ok:
-        from zoneinfo import ZoneInfo
-        nz_tz = ZoneInfo("Pacific/Auckland")
-        st.session_state["last_cloud_save_time"] = datetime.now(nz_tz).strftime("%I:%M:%S %p %Z")
-        st.toast("Matrix parameters committed and synced successfully!")
-    else:
-        # Since you are offline/local, we track that it saved locally anyway
-        st.session_state["last_cloud_save_time"] = "💾 Saved Locally (GitHub Offline)"
-        st.toast("Saved locally to database!")
-        
-    st.cache_data.clear()
-    st.rerun()
-
-st.markdown("---")
 
 def get_live_fx_rates():
     nzd_rate, aud_rate = 1.6500, 1.1000  
-    if os.path.exists(CACHE_FILE):
-        try:
-            with open(CACHE_FILE, 'r') as f:
-                c_data = json.load(f)
-                for k, v in c_data.items():
-                    if "NZD=X" in k and v:
-                        timestamps = sorted(list(v.keys()))
-                        if timestamps:
-                            raw_usd_nzd = float(v[timestamps[-1]])
-                            if 0 < raw_usd_nzd < 1.0: nzd_rate = float(1.0 / raw_usd_nzd)
-                            elif raw_usd_nzd >= 1.0: nzd_rate = raw_usd_nzd
-                    if "AUDNZD=X" in k and v:
-                        timestamps = sorted(list(v.keys()))
-                        if timestamps: aud_rate = float(v[timestamps[-1]])
-        except Exception: pass
     try:
-        if nzd_rate == 1.6500:
-            raw_usd_nzd = float(yf.Ticker("NZD=X").history(period="1d")['Close'].dropna().iloc[-1])
-            if 0 < raw_usd_nzd < 1.0: nzd_rate = float(1.0 / raw_usd_nzd)
-            elif raw_usd_nzd >= 1.0: nzd_rate = raw_usd_nzd
-        if aud_rate == 1.1000:
-            raw_aud_nzd = float(yf.Ticker("AUDNZD=X").history(period="1d")['Close'].dropna().iloc[-1])
-            if raw_aud_nzd > 0: aud_rate = float(raw_aud_nzd)
-    except Exception: pass 
+        nzd_rate = float(yf.Ticker("NZD=X").history(period="1d")['Close'].dropna().iloc[-1])
+        if nzd_rate < 1.0: nzd_rate = 1.0 / nzd_rate
+        aud_rate = float(yf.Ticker("AUDNZD=X").history(period="1d")['Close'].dropna().iloc[-1])
+    except: pass
     return nzd_rate, aud_rate
 
 usd_to_nzd_rate, aud_to_nzd_rate = get_live_fx_rates()
-# ==============================================================================
-# MIKE'S SHARE MARKET DASHBOARD: DATA BATCHING & INDICATORS (PART 3B - HALF 1)
-# ==============================================================================
-def fetch_all_market_data_batch(ticker_list, start_date):
-    if os.path.exists(CACHE_FILE):
-        try:
-            df_cached = pd.read_json(CACHE_FILE)
-            df_cached.index = pd.to_datetime(df_cached.index)
-            df_cached.columns = pd.MultiIndex.from_tuples([eval(col) if isinstance(col, str) and col.startswith("(") else (col, "Close") for col in df_cached.columns])
-            st.sidebar.success("✅ Connected via Local Cache Storage")
-            return df_cached
-        except Exception: pass
+
+@st.cache_data(ttl=28800)
+def fetch_all_market_data_batch_cached(ticker_list, start_date, execution_day_token):
+    """Holds historical matrix frames in RAM to terminate slider lag spikes entirely."""
     try:
         valid_tickers = [t for t in ticker_list if t and "EMPTY" not in t]
         if valid_tickers:
             df_live = yf.download(valid_tickers, start=start_date, progress=False)
             if not df_live.empty:
-                df_live = df_live.swaplevel(0, 1, axis=1)
-                df_live = df_live.sort_index(axis=1, level=0)
-                return df_live
-    except Exception: pass
+                df_live = df_live.swaplevel(0, 1, axis=1) if isinstance(df_live.columns, pd.MultiIndex) else df_live
+                return df_live.sort_index(axis=1, level=0)
+    except: pass
     return pd.DataFrame()
+
+# Fallback wrapper supporting the original signature rules
+def fetch_all_market_data_batch(ticker_list, start_date):
+    today_token = datetime.today().strftime("%Y-%m-%d")
+    return fetch_all_market_data_batch_cached(ticker_list, start_date, today_token)
 
 def extract_ticker_dataframe(df_all, ticker):
     try:
-        if df_all.empty or ticker not in df_all.columns.get_level_values(0):
-            return pd.DataFrame(columns=['Open', 'High', 'Low', 'Close', 'Volume'])
-        df = df_all[ticker].copy()
-        df.columns = [str(c).title() for c in df.columns]
-        return df.dropna(subset=['Open', 'High', 'Low', 'Close'])
-    except: return pd.DataFrame(columns=['Open', 'High', 'Low', 'Close', 'Volume'])
+        if df_all.empty: return pd.DataFrame()
+        if isinstance(df_all.columns, pd.MultiIndex):
+            if ticker in df_all.columns.get_level_values(0):
+                df = df_all[ticker].copy()
+                df.columns = [str(c).title() for c in df.columns]
+                return df.dropna(subset=['Close'])
+        else:
+            if ticker in df_all.columns:
+                return pd.DataFrame({'Close': df_all[ticker]}).dropna()
+    except: pass
+    return pd.DataFrame()
 
 def calculate_indicators_only(df, fast_ma, slow_ma):
     df = df.copy()
     if df.empty or len(df) < 5: return df
-    actual_fast, actual_slow, actual_atr = min(int(fast_ma), len(df)), min(int(slow_ma), len(df)), min(14, len(df))
-    close_series, high_series, low_series = df['Close'].astype(float), df['High'].astype(float), df['Low'].astype(float)
     
-    df['Fast_MA'] = close_series.rolling(window=actual_fast, min_periods=1).mean()
-    df['Slow_MA'] = close_series.rolling(window=actual_slow, min_periods=1).mean()
+    # Secure string-to-integer translation handling
+    f_ma = min(int(fast_ma), len(df))
+    s_ma = min(int(slow_ma), len(df))
     
-    tr1 = high_series - low_series
-    tr2, tr3 = (high_series - close_series.shift(1)).abs(), (low_series - close_series.shift(1)).abs()
-    df['True_Range'] = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-    df['ATR'] = df['True_Range'].rolling(window=actual_atr, min_periods=1).mean()
+    close_series = df['Close'].astype(float)
+    high_series = df['High'].astype(float)
+    low_series = df['Low'].astype(float)
+    
+    df['Fast_MA'] = close_series.rolling(window=f_ma, min_periods=1).mean()
+    df['Slow_MA'] = close_series.rolling(window=s_ma, min_periods=1).mean()
+    
+    df['True_Range'] = pd.concat([
+        (high_series - low_series), 
+        (high_series - close_series.shift(1)).abs(), 
+        (low_series - close_series.shift(1)).abs()
+    ], axis=1).max(axis=1)
+    
+    df['ATR'] = df['True_Range'].rolling(window=min(14, len(df)), min_periods=1).mean()
     
     delta = close_series.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=actual_atr, min_periods=1).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=actual_atr, min_periods=1).mean()
+    gain = (delta.where(delta > 0, 0)).rolling(window=min(14, len(df)), min_periods=1).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=min(14, len(df)), min_periods=1).mean()
     df['RSI'] = 100 - (100 / (1 + (gain / loss.replace(0, np.nan)))).fillna(50)
+    
     df['MACD'] = close_series.ewm(span=min(12, len(df)), adjust=False).mean() - close_series.ewm(span=min(26, len(df)), adjust=False).mean()
     df['Signal_Line'] = df['MACD'].ewm(span=min(9, len(df)), adjust=False).mean()
     return df
 # ==============================================================================
-# MIKE'S SHARE MARKET DASHBOARD: TICKER PROCESSING LOOPS (PART 3B - HALF 2)
+# MIKE'S SHARE MARKET DASHBOARD: FULL SECTOR TAXONOMY & MATRIX POOLS (PART 4A)
 # ==============================================================================
+
 def apply_market_signal_theme(df):
     def style_metric_cells(row):
         styles = [''] * len(row)
@@ -590,198 +315,224 @@ def apply_market_signal_theme(df):
             val = row['Alert status']
             idx = row.index.get_loc('Alert status')
             if val == "🌟 STRONG BUY": styles[idx] = 'background-color: #007bff; color: #ffffff; font-weight: bold;'
-            elif val == "🟩 BULLISH LONG": styles[idx] = 'background-color: #d4edda; color: #155724; font-weight: bold;'
+            elif val == "🟩 BULLISH BREAKOUT": styles[idx] = 'background-color: #1a2e3b; color: #38bdf8; font-weight: bold;'
+            elif val == "🟢 Bullish Turning (High Volume)": styles[idx] = 'background-color: #d4edda; color: #155724; font-weight: bold;'
             elif val == "🟨 MOMENTUM WARNING": styles[idx] = 'background-color: #ffe8a1; color: #856404; font-weight: bold;'
-            elif val == "⬜ CASH FLAT": styles[idx] = 'background-color: #f8f9fa; color: #6c757d;'
+            elif val == "🔴 Structural Bear": styles[idx] = 'background-color: #3a1e1e; color: #e74c3c; font-weight: bold;'
         return styles
     return df.style.apply(style_metric_cells, axis=1)
 
-# --- WORKSPACE RESOLUTION & UNIFICATION ---
 master_unified_rows, active_live_positions, operational_dfs = [], [], {}
 lookback_days_map = {"1 Month": 30, "3 Months": 90, "6 Months": 180, "1 Year": 365, "2 Years": 730}
 lookback_start_date = datetime.now() - timedelta(days=lookback_days_map["2 Years"] + 250)
 macro_sector_rows = []
-sector_mapping_dictionary = {"SPY": "🇺🇸 S&P 500 Index", "XLK": "💻 Technology", "XLY": "📦 Consumer Discretionary", "XLC": "🗣️ Communication", "XLF": "🏦 Financials", "XLV": "🩺 Healthcare", "XLP": "🛒 Consumer Staples", "XLI": "🏗️ Industrials", "XLE": "🛢️ Energy", "XLB": "🧱 Materials", "XLU": "⚡ Utilities", "XLRE": "🏢 Real Estate"}
+sector_mapping_dictionary = {
+    "SPY": "🇺🇸 S&P 500 Index", "XLK": "💻 Technology", "XLY": "📦 Consumer Discretionary", 
+    "XLC": "🗣️ Communication", "XLF": "🏦 Financials", "XLV": "🩺 Healthcare", 
+    "XLP": "🛒 Consumer Staples", "XLI": "🏗️ Industrials", "XLE": "🛢️ Energy", 
+    "XLB": "🧱 Materials", "XLU": "⚡ Utilities", "XLRE": "🏢 Real Estate"
+}
 
 clean_portfolio_list = [t for t in portfolio_slots if t and "EMPTY" not in t]
-
-# Extract simulated tickers cleanly
-runtime_paper = disk_memory.get("paper_positions", {})
 clean_paper_list = [t for t in runtime_paper.keys() if t and "EMPTY" not in t]
 
-# STRICT PERSISTENT SEQUENCE ORDER ENFORCEMENT (Watchlist reference scrubbed)
-all_active_workspace_tickers = []
-for t in clean_portfolio_list:
-    if t not in all_active_workspace_tickers: 
-        all_active_workspace_tickers.append(t)
-for t in clean_paper_list:
-    if t not in all_active_workspace_tickers: 
-        all_active_workspace_tickers.append(t)
-
+all_active_workspace_tickers = list(dict.fromkeys(clean_portfolio_list + clean_paper_list))
 extended_fetching_tickers = list(set(all_active_workspace_tickers + list(sector_mapping_dictionary.keys())))
 RAW_MARKET_BATCH = fetch_all_market_data_batch(extended_fetching_tickers, lookback_start_date)
 
+# SYNTAX FIXED: "NFLX" and "DIS" now have their explicit sector key-value colons intact
 asset_sector_tags = {
-    "AAPL": "XLK", "NVDA": "XLK", "TEAM": "XLK", "ARM": "XLK", "INTC": "XLK", "AMD": "XLK", "SMCI": "XLK",
-    "JPM": "XLF", "BAC": "XLF", "GS": "XLF", "COIN": "XLF", "MSTR": "XLF", "CRWD": "XLK",
-    "XLE": "XLE", "SPY": "SPY", "QQQ": "QQQ", "DUK": "XLU", "NEM": "XLB", "PLD": "XLRE", "LIN": "XLB"
+    "AAPL": "XLK", "MSFT": "XLK", "GOOGL": "XLC", "AMZN": "XLY", "META": "XLC", "BRK-B": "XLF", "JNJ": "XLV", 
+    "V": "XLF", "PG": "XLP", "WMT": "XLP", "LLY": "XLV", "UNH": "XLV", "HD": "XLY", "XOM": "XLE", 
+    "CVX": "XLE", "MA": "XLF", "MRK": "XLV", "PEP": "XLP", "KO": "XLP", "COST": "XLP", "NVDA": "XLK", 
+    "AMD": "XLK", "AVGO": "XLK", "QCOM": "XLK", "ASML": "XLK", "INTC": "XLK", "MU": "XLK", "ARM": "XLK", 
+    "SMCI": "XLK", "PLTR": "XLK", "CRM": "XLK", "NOW": "XLK", "WDAY": "XLK", "SNOW": "XLK", "NET": "XLK", 
+    "DDOG": "XLK", "CRWD": "XLK", "PANW": "XLK", "FTNT": "XLK", "ZS": "XLK", "TSLA": "XLY", "MSTR": "XLF", 
+    "COIN": "XLF", "HOOD": "XLF", "DKNG": "XLY", "SHOP": "XLK", "NFLX": "XLY", "DIS": "XLC", "JPM": "XLF", 
+    "BAC": "XLF", "F": "XLY", "GM": "XLY", "AAL": "XLI", "DAL": "XLI", "UAL": "XLI", "KRE": "XLF", 
+    "XBI": "XLV", "PFE": "XLV", "KVUE": "XLP", "T": "XLC", "VZ": "XLC", "CMCSA": "XLC", "HPQ": "XLK", 
+    "HPE": "XLK", "BMY": "XLV", "NEM": "XLB", "GOLD": "XLB", "HBAN": "XLF", "KEY": "XLF", "RF": "XLF", 
+    "FITB": "XLF", "NYCB": "XLF", "SOFI": "XLF", "SNAP": "XLC", "U": "XLK", "CLF": "XLB", "X": "XLB", 
+    "AA": "XLB", "FCX": "XLB", "SBUX": "XLY", "CSCO": "XLK", "ACN": "XLK", "TXN": "XLK", "IBM": "XLK", 
+    "AMAT": "XLK", "GS": "XLF", "MS": "XLF", "WFC": "XLF", "C": "XLF", "BLK": "XLF", "AXP": "XLF", 
+    "INTU": "XLK", "PGR": "XLF", "CB": "XLF", "BX": "XLF", "SCHW": "XLF", "MMC": "XLF", "AON": "XLF", 
+    "COR": "XLV", "CI": "XLV", "AMGN": "XLV", "GILD": "XLV", "ABT": "XLV", "MDT": "XLV", "ISRG": "XLV", 
+    "REGN": "XLV", "VRTX": "XLV", "GEV": "XLI", "WM": "XLI", "NOC": "XLI", "GD": "XLI", "ETN": "XLI", 
+    "PH": "XLI", "CSX": "XLI", "NSC": "XLI", "NKE": "XLY", "MCD": "XLY", "TJX": "XLY", "ORLY": "XLY", 
+    "AZO": "XLY", "LOW": "XLY", "MAR": "XLY", "HLT": "XLY", "BKNG": "XLY", "MDLZ": "XLP", "MO": "XLP", 
+    "PM": "XLP", "TGT": "XLY", "EL": "XLP", "CL": "XLP", "KMB": "XLP", "TMUS": "XLC", "CHTR": "XLC", 
+    "EA": "XLK", "TTWO": "XLK", "RBLX": "XLK", "OKTA": "XLK", "TEAM": "XLK", "LIN": "XLB", "PLD": "XLRE"
 }
+# ==============================================================================
+# MIKE'S SHARE MARKET DASHBOARD: VECTOR SECTOR PROCESSOR (PART 4A)
+# ==============================================================================
 
 roi_cutoff_date = datetime.now() - timedelta(days=lookback_days_map[selected_timeframe])
+
+# Vectorized global cross-sectional math for sector taxonomy pools
+if not RAW_MARKET_BATCH.empty:
+    sec_close_matrix = RAW_MARKET_BATCH.xs('Close', axis=1, level=1)
+    sec_high_matrix = RAW_MARKET_BATCH.xs('High', axis=1, level=1)
+    sec_low_matrix = RAW_MARKET_BATCH.xs('Low', axis=1, level=1)
+    sec_vol_matrix = RAW_MARKET_BATCH.xs('Volume', axis=1, level=1)
+
+    # Compute global indicators across all columns in memory instantly
+    sec_fast_ma_matrix = sec_close_matrix.rolling(window=min(int(fast_ma_input), len(sec_close_matrix)), min_periods=1).mean()
+    sec_slow_ma_matrix = sec_close_matrix.rolling(window=min(int(slow_ma_input), len(sec_close_matrix)), min_periods=1).mean()
+    
+    sec_tr1 = sec_high_matrix.values - sec_low_matrix.values
+    sec_tr2 = np.abs(sec_high_matrix.values - sec_close_matrix.shift(1).values)
+    sec_tr3 = np.abs(sec_low_matrix.values - sec_close_matrix.shift(1).values)
+    sec_tr_df = pd.DataFrame(np.nanmax(np.dstack((sec_tr1, sec_tr2, sec_tr3)), axis=2), index=RAW_MARKET_BATCH.index, columns=sec_close_matrix.columns)
+    sec_atr_matrix = sec_tr_df.rolling(window=min(14, len(sec_tr_df)), min_periods=1).mean()
+    sec_vol_avg_matrix = sec_vol_matrix.rolling(window=min(20, len(sec_vol_matrix)), min_periods=1).mean()
+
+    sec_delta = sec_close_matrix.diff()
+    sec_gain = sec_delta.clip(lower=0).rolling(window=min(14, len(sec_delta)), min_periods=1).mean()
+    sec_loss = (-sec_delta.clip(upper=0)).rolling(window=min(14, len(sec_delta)), min_periods=1).mean()
+    sec_rsi_matrix = 100 - (100 / (1 + (sec_gain / sec_loss.replace(0, np.nan)))).fillna(50)
+
+    sec_macd_matrix = sec_close_matrix.ewm(span=min(12, len(sec_close_matrix)), adjust=False).mean() - sec_close_matrix.ewm(span=min(26, len(sec_close_matrix)), adjust=False).mean()
+    sec_sig_matrix = sec_macd_matrix.ewm(span=min(9, len(sec_macd_matrix)), adjust=False).mean()
+else:
+    sec_close_matrix = pd.DataFrame()
+if sec_close_matrix.empty or len(sec_close_matrix.columns) == 0:
+    st.warning("⚠️ Network Connection Throttled by Provider. Please wait 1-2 minutes for the cache to clear.")
+    st.stop()
+
+# ==============================================================================
+# ACTIVE POSITION MATRIX ASSEMBLY ENGINE (PART 4B)
+# ==============================================================================
+
+# Define the missing mapping dictionary to resolve the NameError safely
+local_name_map = {
+    "F": "Ford Motor Co.", "GM": "General Motors", "PFE": "Pfizer Inc.", "T": "AT&T Inc.",
+    "MDT": "Medtronic plc", "VZ": "Verizon Communications", "AAL": "American Airlines", "DAL": "Delta Air Lines",
+    "SOFI": "SoFi Technologies", "PLTR": "Palantir Technologies", "AIR.NZ": "Air New Zealand",
+    "SPK.NZ": "Spark NZ", "FBU.NZ": "Fletcher Building", "TLS.AX": "Telstra Group"
+}
 
 for sector_symbol, descriptive_name in sector_mapping_dictionary.items():
-    s_hist = extract_ticker_dataframe(RAW_MARKET_BATCH, sector_symbol)
-    if not s_hist.empty and len(s_hist) >= 5:
-        # SLICE FIX: Filter sector data index to match the ROI timeframe
-        localized_s_cutoff = roi_cutoff_date.tz_localize(s_hist.index.tz) if s_hist.index.tz else roi_cutoff_date
-        s_hist_sliced = s_hist[s_hist.index >= localized_s_cutoff]
-        if s_hist_sliced.empty or len(s_hist_sliced) < 5: s_hist_sliced = s_hist
-        
-        s_calc = calculate_indicators_only(s_hist_sliced, fast_ma_input, slow_ma_input)
-        s_close = float(s_calc['Close'].iloc[-1])
-        s_rsi = float(s_calc['RSI'].iloc[-1]) if 'RSI' in s_calc.columns else 50.0
-        rsi_label = f"{s_rsi:.1f} 🔴 OVERBOUGHT" if s_rsi >= 70.0 else (f"{s_rsi:.1f} 🟢 OVERSOLD" if s_rsi <= 30.0 else f"{s_rsi:.1f} ⚪ Healthy")
+    if not sec_close_matrix.empty and sector_symbol in sec_close_matrix.columns:
+        s_close = float(sec_close_matrix[sector_symbol].iloc[-1])
+        s_rsi = float(sec_rsi_matrix[sector_symbol].iloc[-1])
+        rsi_label = f"{s_rsi:.1f} 🔴 OVERBOUGHT" if s_rsi >= 70.0 else (f"{s_rsi:.1f} 🟢 OVERSOLD" if s_rsi <= 30.0 else f"{s_rsi:.1f} Healthy")
         macro_sector_rows.append({"Sector Symbol": sector_symbol, "Sector Domain Name": descriptive_name, "Closing Price": s_close, "RSI Status Value": s_rsi, "RSI Speedometer": rsi_label})
 
-local_name_map = {
-    "AAPL": "Apple Inc.", "AMD": "Advanced Micro Devices", "CRWD": "CrowdStrike Holdings", "NVDA": "NVIDIA Corp",
-    "BAC": "Bank of America", "GS": "Goldman Sachs", "JPM": "JPMorgan Chase", "LIN": "Linde plc", "NEM": "Newmont Corp",
-    "DUK": "Duke Energy", "PLD": "Prologis Inc", "QQQ": "Nasdaq 100 ETF", "SPY": "S&P 500 ETF", "XLE": "Energy Select ETF"
-}
-
-# Create a cutoff timestamp based on your sidebar's active ROI window choice
-roi_cutoff_date = datetime.now() - timedelta(days=lookback_days_map[selected_timeframe])
-
 for ticker in all_active_workspace_tickers:
-    hist_df = extract_ticker_dataframe(RAW_MARKET_BATCH, ticker)
-    if hist_df.empty or len(hist_df) < 5: continue
+    if sec_close_matrix.empty or ticker not in sec_close_matrix.columns: continue
     
-    # UPGRADE FIX: Run technical indicators on the full dataset so the engine never starves!
-    df_calc = calculate_indicators_only(hist_df, fast_ma_input, slow_ma_input)
-    operational_dfs[ticker] = df_calc
-    
-    # Create the short timeframe slice strictly for frontend ROI display calculations
-    localized_cutoff = roi_cutoff_date.tz_localize(df_calc.index.tz) if df_calc.index.tz else roi_cutoff_date
-    hist_df_sliced = df_calc[df_calc.index >= localized_cutoff]
-    if hist_df_sliced.empty or len(hist_df_sliced) < 2:
-        hist_df_sliced = df_calc
+    # Reconstruct localized slice mapping for chart renderers cleanly from global arrays
+    df_ticker_rebuilt = pd.DataFrame(index=RAW_MARKET_BATCH.index)
+    df_ticker_rebuilt['Close'] = sec_close_matrix[ticker]
+    df_ticker_rebuilt['High'] = sec_high_matrix[ticker]
+    df_ticker_rebuilt['Low'] = sec_low_matrix[ticker]
+    df_ticker_rebuilt['Volume'] = sec_vol_matrix[ticker]
+    df_ticker_rebuilt['Fast_MA'] = sec_fast_ma_matrix[ticker]
+    df_ticker_rebuilt['Slow_MA'] = sec_slow_ma_matrix[ticker]
+    df_ticker_rebuilt['RSI'] = sec_rsi_matrix[ticker]
+    df_ticker_rebuilt['ATR'] = sec_atr_matrix[ticker]
+    df_ticker_rebuilt['MACD'] = sec_macd_matrix[ticker]
+    df_ticker_rebuilt['Signal_Line'] = sec_sig_matrix[ticker]
+    operational_dfs[ticker] = df_ticker_rebuilt
 
-        # Check your custom overrides first, then cross-reference yfinance metadata, defaulting to the raw symbol if empty
-    resolved_name = disk_memory.get("local_name_map", {}).get(ticker, local_name_map.get(ticker, None))
-    if not resolved_name:
-        try:
-            # Safely pulls the live registration identity recorded on Yahoo Finance
-            resolved_name = yf.Ticker(ticker).info.get('longName', f"{ticker}")
-        except Exception:
-            resolved_name = f"{ticker}"
-    last_close = float(df_calc['Close'].iloc[-1])
-    fast_ma_val = float(df_calc['Fast_MA'].iloc[-1]) if 'Fast_MA' in df_calc.columns else last_close
-    slow_ma_val = float(df_calc['Slow_MA'].iloc[-1]) if 'Slow_MA' in df_calc.columns else last_close
-    rsi_val = float(df_calc['RSI'].iloc[-1]) if 'RSI' in df_calc.columns else 50.0
-    macd_val = float(df_calc['MACD'].iloc[-1]) if 'MACD' in df_calc.columns else 0.0
-    sig_val = float(df_calc['Signal_Line'].iloc[-1]) if 'Signal_Line' in df_calc.columns else 0.0
-    atr_val = float(df_calc['ATR'].iloc[-1]) if 'ATR' in df_calc.columns else 1.0
+    localized_cutoff = roi_cutoff_date.tz_localize(df_ticker_rebuilt.index.tz) if df_ticker_rebuilt.index.tz else roi_cutoff_date
+    hist_df_sliced = df_ticker_rebuilt[df_ticker_rebuilt.index >= localized_cutoff]
+    if hist_df_sliced.empty: hist_df_sliced = df_ticker_rebuilt
+
+    resolved_name = disk_memory.get("local_name_map", {}).get(ticker, local_name_map.get(ticker, ticker))
+    last_close = float(df_ticker_rebuilt['Close'].iloc[-1])
+    fast_ma_val = float(df_ticker_rebuilt['Fast_MA'].iloc[-1])
+    slow_ma_val = float(df_ticker_rebuilt['Slow_MA'].iloc[-1])
+    rsi_val = float(df_ticker_rebuilt['RSI'].iloc[-1])
+    atr_val = float(df_ticker_rebuilt['ATR'].iloc[-1]) if df_ticker_rebuilt['ATR'].iloc[-1] > 0 else (last_close * 0.02)
     
-    # --- CALCULATE VOLATILITY-ADJUSTED ENTRY AND EXIT TRAILING LIMITS ---
     safe_daily_limit_target = round(last_close - (0.75 * atr_val), 2)
     safe_take_profit_target = round((last_close + (2.0 * atr_val)) * 1.012, 2)
     
-    # --- CALCULATE TRUE TIMEFRAME PERFORMANCE ROI ---
-    if not hist_df_sliced.empty and len(hist_df_sliced) >= 2:
-        window_start_price = float(hist_df_sliced['Close'].dropna().iloc[0])
-        ticker_timeframe_roi = ((last_close - window_start_price) / window_start_price) * 100
-    else:
-        ticker_timeframe_roi = 0.0
+    window_start_price = float(hist_df_sliced['Close'].iloc[0]) if not hist_df_sliced.empty else last_close
+    ticker_timeframe_roi = ((last_close - window_start_price) / window_start_price) * 100
 
-        # --- 4-TIER VOLUME-VERIFIED STATUS ENGINE WITH POST-MARKET FREEZE ---
-    try:
-        current_price = float(last_close)
-        f_ma = float(fast_ma_val)
-        s_ma = float(slow_ma_val)
-        
-        if not df_calc.empty and 'Volume' in df_calc.columns and len(df_calc) >= 20:
-            vol_twenty_avg = df_calc['Volume'].rolling(window=20).mean().iloc[-1]
-            live_snapshot_volume = float(df_calc['Volume'].iloc[-1])
-            
-            if "OPEN" in us_status:
-                v_surge = live_snapshot_volume / vol_twenty_avg if vol_twenty_avg > 0 else 1.0
-            else:
-                historical_volume_series = df_calc['Volume'].dropna()
-                if len(historical_volume_series) >= 2:
-                    final_regular_session_vol = float(historical_volume_series.iloc[-2])
-                    v_surge = final_regular_session_vol / vol_twenty_avg if vol_twenty_avg > 0 else 1.0
-                else:
-                    v_surge = live_snapshot_volume / vol_twenty_avg if vol_twenty_avg > 0 else 1.0
-        else:
-            v_surge = 1.0
-    except (ValueError, TypeError):
-        current_price, f_ma, s_ma, v_surge = last_close, fast_ma_val, slow_ma_val, 1.0
+    vol_twenty_avg = sec_vol_avg_matrix[ticker].iloc[-1] if ticker in sec_vol_avg_matrix.columns else 1.0
+    live_snapshot_volume = float(df_ticker_rebuilt['Volume'].iloc[-1])
+    v_surge = live_snapshot_volume / vol_twenty_avg if vol_twenty_avg > 0 else 1.0
 
-    if current_price > f_ma and current_price > s_ma:
-        strategy_status = "🌟 STRONG BUY" if v_surge >= 1.5 else "🟡 Bullish Turning (Low Volume)"
-    elif current_price > f_ma and current_price <= s_ma:
-        strategy_status = "🟢 Bullish Turning (High Volume)" if v_surge >= 1.5 else "🟡 Bullish Turning (Low Volume)"
-    elif current_price <= f_ma and current_price > s_ma:
-        strategy_status = "🟡 Bullish Turning (Low Volume)"
+    if last_close > fast_ma_val and last_close > slow_ma_val:
+        strategy_status = "🌟 STRONG BUY" if v_surge >= 1.5 else "🟩 BULLISH BREAKOUT"
+    elif last_close > fast_ma_val and last_close <= slow_ma_val:
+        strategy_status = "🟢 Bullish Turning (High Volume)" if v_surge >= 1.5 else "🟨 MOMENTUM WARNING"
     else:
         strategy_status = "🔴 Structural Bear"
     
     assigned_sector = asset_sector_tags.get(ticker, "Other")
     
-    # Append to Master Comparison Grid
     master_unified_rows.append({
-        "Ticker": ticker, "Sector": assigned_sector, "Company Name": resolved_name, 
-        "Closing": last_close, "Limit Entry Target": safe_daily_limit_target, 
-        "Take Profit Target": safe_take_profit_target, 
-        "Timeframe ROI %": ticker_timeframe_roi, 
-        "Alert status": strategy_status, "Fast MA": fast_ma_val, 
+        "Ticker": ticker, "Sector": assigned_sector, "Company Name": resolved_name, "Closing": last_close, 
+        "Limit Entry Target": safe_daily_limit_target, "Take Profit Target": safe_take_profit_target, 
+        "Timeframe ROI %": ticker_timeframe_roi, "Alert status": strategy_status, "Fast MA": fast_ma_val, 
         "Slow MA": slow_ma_val, "RSI": rsi_val, "ATR": atr_val
     })
-    
-    # Append to Active Portfolio Grid if owned
+
+# ==============================================================================
+# RESTORED: MULTI-CURRENCY DRIFT PROTECTION & INVESTMENT MATH ENGINE (PART 4C)
+# ==============================================================================
     if ticker in clean_portfolio_list:
         stored_block = runtime_positions.get(ticker, {})
         custom_saved_shares = float(stored_block.get("shares", 0.0))
         entry_p = float(stored_block.get("entry", 0.0))
+        upper_target = float(stored_block.get("upper", 0.0))
+        fixed_stop_dist = float(stored_block.get("fixed_stop_distance", 15.0))
+        
         if custom_saved_shares > 0.0:
             implied_investment_local = custom_saved_shares * entry_p
-            hist_365 = df_calc[df_calc.index >= pd.to_datetime(datetime.now() - timedelta(days=365)).tz_localize(df_calc.index.tz)] if not df_calc.empty else df_calc
-            true_52w_high = float(hist_365['High'].max()) if not hist_365.empty else last_close
-            
             is_us_asset = not (ticker.endswith(".NZ") or ticker.endswith(".AX"))
             native_currency_label = "USD" if is_us_asset else ("AUD" if ticker.endswith(".AX") else "NZD")
             currency_multiplier = usd_to_nzd_rate if native_currency_label == "USD" else (aud_to_nzd_rate if native_currency_label == "AUD" else 1.0)
-
-            calculated_trailing_floor = true_52w_high - (2.0 * atr_val)
-            if calculated_trailing_floor < (entry_p - (2.0 * atr_val)): calculated_trailing_floor = entry_p - (2.0 * atr_val)
-            if calculated_trailing_floor >= last_close: calculated_trailing_floor = last_close - (2.0 * atr_val)
-            
             current_value_local = custom_saved_shares * last_close
+            
+            # FIXED: Variable updated to point directly to the rebuilt matrix
+            hist_365 = df_ticker_rebuilt.tail(52)
+            true_52w_high = float(hist_365['High'].max()) if not hist_365.empty else last_close
+            true_52w_low = float(hist_365['Low'].min()) if not hist_365.empty else last_close
+            
+            # Restore compound algorithmic stop floor targets
+            calculated_trailing_floor = true_52w_high - (2.0 * atr_val)
+            if calculated_trailing_floor < (entry_p - (2.0 * atr_val)): 
+                calculated_trailing_floor = entry_p - (2.0 * atr_val)
+            if calculated_trailing_floor >= last_close: 
+                calculated_trailing_floor = last_close - (2.0 * atr_val)
+            if fixed_stop_dist > 0.0 and (last_close - fixed_stop_dist) > calculated_trailing_floor:
+                calculated_trailing_floor = last_close - fixed_stop_dist
+
+            # Restore target price projection buffers
+            distance_to_target = upper_target - last_close if upper_target > 0.0 else 0.0
+            pct_to_target = (distance_to_target / last_close) * 100 if last_close > 0.0 else 0.0
+
             active_live_positions.append({
                 "Ticker": ticker, 
-                "Company Name": resolved_name,
+                "Company Name": resolved_name, 
                 "Shares": custom_saved_shares, 
                 "Currency": native_currency_label,
                 "My Entry Price": entry_p, 
                 "Live Market Price": last_close, 
                 "Daily Pullback Limit": safe_daily_limit_target,   
-                "Take-Profit Target": safe_take_profit_target,    
+                "Take-Profit Target": safe_take_profit_target, 
+                "Upper Target": upper_target,
+                "Pct to Target": pct_to_target,
                 "Investment (Local)": implied_investment_local,
                 "Investment (NZD)": implied_investment_local * currency_multiplier, 
                 "Current Value (Local)": current_value_local,
                 "Current Value (NZD)": current_value_local * currency_multiplier, 
-                "Trailing Floor": calculated_trailing_floor
+                "Trailing Floor": calculated_trailing_floor,
+                "52W High Peak": true_52w_high,
+                "52W Low Floor": true_52w_low
             })
 
-# ==============================================================================
 st.markdown("#### 💼 Layer A: My Portfolio Ledger")
 if active_live_positions:
     p_df = pd.DataFrame(active_live_positions)
     p_df["Net Profit (NZD)"] = p_df["Current Value (NZD)"] - p_df["Investment (NZD)"]
     p_df["Live ROI"] = (p_df["Net Profit (NZD)"] / p_df["Investment (NZD)"]) * 100
-    
-    database_names = disk_memory.get("local_name_map", {})
-    # Check your local targets first, then your hardcoded map, and fall back cleanly to just the raw ticker symbol
     
     cols_layer_a = [
         "Ticker", "Company Name", "Shares", "Currency", "My Entry Price", 
@@ -792,7 +543,7 @@ if active_live_positions:
     p_df = p_df[[c for c in cols_layer_a if c in p_df.columns]]
     
     st.dataframe(
-        p_df, use_container_width="stretch", hide_index=True, height=200,
+        p_df, use_container_width=True, hide_index=True, height=200,
         column_config={
             "Ticker": st.column_config.TextColumn("Ticker", width="small"),
             "Company Name": st.column_config.TextColumn("Asset Name", width="small"),
@@ -811,7 +562,9 @@ if active_live_positions:
             "Live ROI": st.column_config.NumberColumn("ROI", format="%.2f%%", width="small")
         }
     )
-
+# ==============================================================================
+# TOTAL DASHBOARD METRICS SUMMARY & ACCOUNT BALANCE STATS GENERATOR (PART 4D)
+# ==============================================================================
     total_investment_nzd, total_equity_nzd = p_df["Investment (NZD)"].sum(), p_df["Current Value (NZD)"].sum()
     total_equity_profit_nzd = total_equity_nzd - total_investment_nzd
     total_roi_nzd = (total_equity_profit_nzd / total_investment_nzd) * 100 if total_investment_nzd > 0 else 0.0
@@ -822,7 +575,7 @@ if active_live_positions:
 else:
     st.info("💡 Your Portfolio Ledger is currently empty. Populate tickers in your Layer A sidebar slots to track your invested capital positions.")
 # ==============================================================================
-# VISUAL RENDERING ENGINE: LAYER A.2 PAPER PORTFOLIO LEDGER GRID
+# LAYER A.2 PAPER PORTFOLIO SANBOX ACCOUNT MONITORS (PART 4E)
 # ==============================================================================
 st.markdown("---")
 st.markdown("#### 🧪 Layer A.2: Paper Trading Forward-Testing Ledger")
@@ -834,7 +587,7 @@ for idx in range(6):
     p_ticker = st.session_state.get(f"paper_slot_{idx}", "").strip().upper()
     p_entry_price = float(st.session_state.get(f"paper_entry_{idx}", 0.0))
     p_date = st.session_state.get(f"paper_date_{idx}", None)
-    p_shares = 1.0 # Strict single-share architecture rule override
+    p_shares = 1.0
     
     if not p_ticker or "EMPTY" in p_ticker:
         temp_keys = list(runtime_paper_data.keys())
@@ -857,34 +610,27 @@ for idx in range(6):
             p_close = p_entry_price
             p_atr = p_close * 0.02
             
-        # CALCULATE ELAPSED HORIZON DAYS RUNNING
         if p_date:
             try: days_active = (datetime.today().date() - p_date).days
             except: days_active = 0
         else:
             days_active = 0
             
-        # 1-SHARE DRIFT RETURN CALCULATIONS
         p_cost = p_shares * p_entry_price
         p_val = p_shares * p_close
         p_pnl = p_val - p_cost
         p_roi = (p_pnl / p_cost) * 100 if p_cost > 0 else 0.0
         
         active_paper_positions.append({
-            "Paper Ticker": p_ticker,
-            "Days Active": f"{days_active} Days" if days_active >= 0 else "0 Days",
-            "Simulated Entry": p_entry_price,
-            "Live Price": p_close,
-            "Current Value": p_val,
-            "$ ROI": p_pnl,
-            "% ROI": p_roi,
-            "ATR Noise Stop": p_close - (2.0 * p_atr)
+            "Paper Ticker": p_ticker, "Days Active": f"{days_active} Days" if days_active >= 0 else "0 Days",
+            "Simulated Entry": p_entry_price, "Live Price": p_close, "Current Value": p_val,
+            "$ ROI": p_pnl, "% ROI": p_roi, "ATR Noise Stop": p_close - (2.0 * p_atr)
         })
 
 if active_paper_positions:
     paper_df = pd.DataFrame(active_paper_positions)
     st.dataframe(
-        paper_df, use_container_width="stretch", hide_index=True, height=180,
+        paper_df, use_container_width=True, hide_index=True, height=180,
         column_config={
             "Paper Ticker": st.column_config.TextColumn("Ticker", width="small"),
             "Days Active": st.column_config.TextColumn("Days Active", width="small"),
@@ -899,15 +645,11 @@ if active_paper_positions:
 else:
     st.info("💡 Paper Ledger Standby: Populate tickers in your Layer A.2 sidebar slots to monitor simulated positions safely.")
 # ==============================================================================
-# MIKE'S SHARE MARKET DASHBOARD: CHART ANALYTICS (PART 4B)
+# ALTAIR HOVER-TRACKER CHART ENGINE AND GENERAL ASSET COMPARISONS (PART 4F)
 # ==============================================================================
 st.markdown("---")
 st.markdown("#### 🔍 Core System Chart Analytics")
 
-# Merge active portfolio and watchlist items into a clean, duplicate-free select array
-owned_tickers = p_df["Ticker"].tolist() if active_live_positions else []
-grid_tickers = [row["Ticker"] for row in master_unified_rows] if master_unified_rows else []
-# Inherit the exact sequence from all_active_workspace_tickers instead of sorting alphabetically
 unified_chart_list = [t for t in all_active_workspace_tickers if t in operational_dfs]
 unified_chart_list = [t for t in unified_chart_list if t and "EMPTY" not in t]
 
@@ -916,63 +658,55 @@ if unified_chart_list:
     if operational_dfs and selected_portal_ticker in operational_dfs:
         full_df = operational_dfs[selected_portal_ticker]
         chart_tz = full_df.copy()
-            # 1. Strip timezone cleanly if it exists, otherwise keep it as-is
+        
     if chart_tz.index.tz is not None:
         chart_tz.index = chart_tz.index.tz_localize(None)
     
-    # 2. Slice the dataframe (Un-indented so it ALWAYS runs!)
     chart_sliced = chart_tz[chart_tz.index >= (datetime.now() - timedelta(days=lookback_days_map[chart_timeframe_choice]))].copy().reset_index()
 
     if 'index' in chart_sliced.columns:
-            chart_sliced = chart_sliced.rename(columns={'index': 'Date'})
+        chart_sliced = chart_sliced.rename(columns={'index': 'Date'})
             
     if not chart_sliced.empty and 'Fast_MA' in chart_sliced.columns:
-            chart_sliced['Date'] = pd.to_datetime(chart_sliced['Date']).dt.strftime('%Y-%m-%d')
-            
-            last_row = chart_sliced.iloc[-1]
-            current_close = float(last_row['Close'])
-            current_atr = float(last_row['ATR']) if 'ATR' in last_row else 0.0
-            atr_floor_value = current_close - (2.0 * current_atr)
-            atr_pct_of_price = ((2.0 * current_atr) / current_close) * 100
-            
-            st.markdown(f"""<div style='padding: 6px 12px; background-color: #161A22; border-radius: 4px; border-left: 5px solid #FF9900; margin-bottom: 15px; font-size: 1.0rem; font-weight: bold;'>⚠️ <span style='color: #FF9900;'>{selected_portal_ticker} Safety Stops:</span> Current 2x ATR Noise Buffer is <span style='color: #FFFFFF;'>${2.0*current_atr:.2f}</span> (<span style='color: #4A90E2;'>{atr_pct_of_price:.2f}%</span> Volatility Spread). Dynamic Risk Floor sits at <span style='color: #00FF66;'>${atr_floor_value:.2f}</span>.</div>""", unsafe_allow_html=True)
+        chart_sliced['Date'] = pd.to_datetime(chart_sliced['Date']).dt.strftime('%Y-%m-%d')
+        
+        last_row = chart_sliced.iloc[-1]
+        current_close = float(last_row['Close'])
+        current_atr = float(last_row['ATR']) if 'ATR' in last_row else 0.0
+        atr_floor_value = current_close - (2.0 * current_atr)
+        atr_pct_of_price = ((2.0 * current_atr) / current_close) * 100
+        
+        st.markdown(f"""<div style='padding: 6px 12px; background-color: #161A22; border-radius: 4px; border-left: 5px solid #FF9900; margin-bottom: 15px; font-size: 1.0rem; font-weight: bold;'>⚠️ <span style='color: #FF9900;'>{selected_portal_ticker} Safety Stops:</span> Current 2x ATR Noise Buffer is <span style='color: #FFFFFF;'>${2.0*current_atr:.2f}</span> (<span style='color: #4A90E2;'>{atr_pct_of_price:.2f}%</span> Volatility Spread). Dynamic Risk Floor sits at <span style='color: #00FF66;'>${atr_floor_value:.2f}</span>.</div>""", unsafe_allow_html=True)
 
-            y_min, y_max = float(chart_sliced[['Close', 'Fast_MA', 'Slow_MA']].min().min()), float(chart_sliced[['Close', 'Fast_MA', 'Slow_MA']].max().max())
-            y_min = min(y_min, atr_floor_value)
-            y_scale = alt.Scale(domain=[y_min * 0.97, y_max * 1.02], clamp=True)
-            
-            pointer_selection = alt.selection_point(on='mousemove', nearest=True, fields=['Date'], empty='none', clear='mouseout')
-            base_plot = alt.Chart(chart_sliced).encode(x=alt.X('Date:T', title=None)).properties(width='container', height=320)
-            shared_tooltips = [alt.Tooltip('Date:T'), alt.Tooltip('Close:Q'), alt.Tooltip('Fast_MA:Q'), alt.Tooltip('Slow_MA:Q')]
-            
-            close_tr = base_plot.mark_line(color='#4A90E2', strokeWidth=3.5).encode(y=alt.Y('Close:Q', scale=y_scale), tooltip=shared_tooltips)
-            fast_tr = base_plot.mark_line(color='#00FF66', strokeWidth=3.0).encode(y=alt.Y('Fast_MA:Q'))
-            slow_tr = base_plot.mark_line(color='#FF3333', strokeWidth=3.0).encode(y=alt.Y('Slow_MA:Q'))
-            
-            atr_stop_line = alt.Chart(pd.DataFrame({'y': [atr_floor_value]})).mark_rule(color='#FF9900', strokeWidth=2.2, strokeDash=[6, 4]).encode(y='y:Q')
-            hover_sensor = base_plot.mark_rule(opacity=0).add_params(pointer_selection).encode(tooltip=shared_tooltips)
-            vertical_ind = base_plot.mark_rule(color='#B0BEC5', strokeWidth=1.2).encode(opacity=alt.condition(pointer_selection, alt.value(0.6), alt.value(0))).transform_filter(pointer_selection)
-            
-            st.altair_chart(alt.layer(close_tr, fast_tr, slow_tr, atr_stop_line, hover_sensor, vertical_ind), use_container_width=True)
+        y_min, y_max = float(chart_sliced[['Close', 'Fast_MA', 'Slow_MA']].min().min()), float(chart_sliced[['Close', 'Fast_MA', 'Slow_MA']].max().max())
+        y_min = min(y_min, atr_floor_value)
+        y_scale = alt.Scale(domain=[y_min * 0.97, y_max * 1.02], clamp=True)
+        
+        pointer_selection = alt.selection_point(on='mousemove', nearest=True, fields=['Date'], empty='none', clear='mouseout')
+        base_plot = alt.Chart(chart_sliced).encode(x=alt.X('Date:T', title=None)).properties(width='container', height=320)
+        shared_tooltips = [alt.Tooltip('Date:T'), alt.Tooltip('Close:Q'), alt.Tooltip('Fast_MA:Q'), alt.Tooltip('Slow_MA:Q')]
+        
+        close_tr = base_plot.mark_line(color='#4A90E2', strokeWidth=3.5).encode(y=alt.Y('Close:Q', scale=y_scale), tooltip=shared_tooltips)
+        fast_tr = base_plot.mark_line(color='#00FF66', strokeWidth=3.0).encode(y=alt.Y('Fast_MA:Q'))
+        slow_tr = base_plot.mark_line(color='#FF3333', strokeWidth=3.0).encode(y=alt.Y('Slow_MA:Q'))
+        
+        atr_stop_line = alt.Chart(pd.DataFrame({'y': [atr_floor_value]})).mark_rule(color='#FF9900', strokeWidth=2.2, strokeDash=[6, 4]).encode(y='y:Q')
+        hover_sensor = base_plot.mark_rule(opacity=0).add_params(pointer_selection).encode(tooltip=shared_tooltips)
+        vertical_ind = base_plot.mark_rule(color='#B0BEC5', strokeWidth=1.2).encode(opacity=alt.condition(pointer_selection, alt.value(0.6), alt.value(0))).transform_filter(pointer_selection)
+        
+        st.altair_chart(alt.layer(close_tr, fast_tr, slow_tr, atr_stop_line, hover_sensor, vertical_ind), use_container_width=True)
 else:
-    st.info("💡 No assets available to plot. Add symbols to your Portfolio or Watchlist slots via the sidebar menu.")
-# ==============================================================================
-# MIKE'S SHARE MARKET DASHBOARD: COMPARISON GRIDS (PART 4C)
-# ==============================================================================
+    st.info("💡 No assets available to plot. Add symbols to your Portfolio slots via the workspace menu.")
+
 st.markdown("---")
 st.markdown("#### 📊 Layer B: Asset Comparison Grid")
 if master_unified_rows:
     master_df = pd.DataFrame(master_unified_rows)
-    
-    columns_to_show = [
-        "Ticker", "Sector", "Company Name", "Closing", "Timeframe ROI %", 
-        "Limit Entry Target", "Take Profit Target", "Alert status", 
-        "Fast MA", "Slow MA", "RSI", "ATR"
-    ]
+    columns_to_show = ["Ticker", "Sector", "Company Name", "Closing", "Timeframe ROI %", "Limit Entry Target", "Take Profit Target", "Alert status", "Fast MA", "Slow MA", "RSI", "ATR"]
     master_df = master_df[columns_to_show]
     
     st.dataframe(
-        apply_market_signal_theme(master_df), use_container_width="stretch", hide_index=True, height=200, 
+        apply_market_signal_theme(master_df), use_container_width=True, hide_index=True, height=200, 
         column_config={
             "Ticker": st.column_config.TextColumn("Ticker", width="small"),
             "Sector": st.column_config.TextColumn("Sector", width="small"),
@@ -988,42 +722,18 @@ if master_unified_rows:
             "ATR": st.column_config.NumberColumn("ATR", format="$%.2f", width="small")
         }
     )
-
 # ==============================================================================
-# MIKE'S SHARE MARKET DASHBOARD: LAYER C POSITION CALCULATOR
+# POSITION SIZING RISK DEPLOYMENT ENGINE AND GRID FOOTERS (PART 4G)
 # ==============================================================================
 st.markdown("---")
-
 st.markdown(
     """
     <style>
-    div[data-testid="stMetricLabel"] p {
-        font-size: 0.95rem !important;
-        color: #475569 !important; 
-        font-weight: 600 !important;
-        text-transform: uppercase;
-    }
-    div[data-testid="stMetricValue"] div {
-        font-size: 1.85rem !important; 
-        font-weight: 700 !important;
-        color: #0F172A !important;
-    }
-    .custom-funding-list {
-        margin-top: 12px;
-        margin-bottom: 16px;
-        font-family: inherit;
-    }
-    .custom-funding-item {
-        font-size: 1.05rem !important;
-        color: #1E293B !important;
-        margin-bottom: 8px;
-        line-height: 1.6;
-    }
-    .custom-funding-highlight {
-        color: #0F172A !important;
-        font-weight: 700 !important;
-        font-size: 1.1rem !important;
-    }
+    div[data-testid="stMetricLabel"] p { font-size: 0.95rem !important; color: #475569 !important; font-weight: 600 !important; text-transform: uppercase; }
+    div[data-testid="stMetricValue"] div { font-size: 1.85rem !important; font-weight: 700 !important; color: #0F172A !important; }
+    .custom-funding-list { margin-top: 12px; margin-bottom: 16px; }
+    .custom-funding-item { font-size: 1.05rem !important; color: #1E293B !important; margin-bottom: 8px; line-height: 1.6; }
+    .custom-funding-highlight { color: #0F172A !important; font-weight: 700 !important; font-size: 1.1rem !important; }
     </style>
     """,
     unsafe_allow_html=True
@@ -1036,22 +746,10 @@ calculator_tickers = [t for t in calculator_tickers if t and "EMPTY" not in t]
 
 if calculator_tickers:
     calc_col1, calc_col2 = st.columns([1, 2])
-    
     with calc_col1:
         st.markdown("<p style='font-size: 1.1rem; font-weight: bold; color: #4A90E2; margin-bottom: 2px;'>⚙️ Risk Parameters</p>", unsafe_allow_html=True)
-        
-        selected_calc_ticker = st.selectbox(
-            "Target Execution Asset:", 
-            options=calculator_tickers, 
-            key="layer_c_ticker_select"
-        )
-        
-        max_risk_nzd = st.number_input(
-            "Max Account Risk Allowed (NZD $):", 
-            min_value=5.00, max_value=1000.00, value=25.00, step=25.00, 
-            format="%.2f", key="layer_c_max_risk_input"
-        )
-        
+        selected_calc_ticker = st.selectbox("Target Execution Asset:", options=calculator_tickers, key="layer_c_ticker_select")
+        max_risk_nzd = st.number_input("Max Account Risk Allowed (NZD $):", min_value=5.00, max_value=1000.00, value=25.00, step=25.00, format="%.2f", key="layer_c_max_risk_input")
         st.markdown("---")
         st.markdown("📋 **Your Available Funding Vaults:**")
         st.markdown(f"• **NZD Wallet:** ${cash_nzd:,.2f}")
@@ -1066,12 +764,9 @@ if calculator_tickers:
     calc_fast_ma = float(latest_bar['Fast_MA']) if 'Fast_MA' in latest_bar else calc_close
     calc_slow_ma = float(latest_bar['Slow_MA']) if 'Slow_MA' in latest_bar else calc_close
     
-    is_nz = selected_calc_ticker.endswith(".NZ")
-    is_au = selected_calc_ticker.endswith(".AX")
-    is_us = not (is_nz or is_au)
-    
-    native_currency = "USD" if is_us else ("AUD" if is_au else "NZD")
-    fx_multiplier = usd_to_nzd_rate if is_us else (aud_to_nzd_rate if is_au else 1.0)
+    is_nz, is_au = selected_calc_ticker.endswith(".NZ"), selected_calc_ticker.endswith(".AX")
+    native_currency = "USD" if not (is_nz or is_au) else ("AUD" if is_au else "NZD")
+    fx_multiplier = usd_to_nzd_rate if not (is_nz or is_au) else (aud_to_nzd_rate if is_au else 1.0)
     
     stop_loss_distance_native = 2.0 * calc_atr
     risk_per_share_nzd = stop_loss_distance_native * fx_multiplier
@@ -1082,72 +777,40 @@ if calculator_tickers:
     
     limit_entry_target = round(calc_close - (0.75 * calc_atr), 2)
     stop_floor_target = round(calc_close - stop_loss_distance_native, 2)
+    
     with calc_col2:
         st.markdown(f"<p style='font-size: 1.1rem; font-weight: bold; color: #00FF66; margin-bottom: 2px;'>⚡ Mathematical Sizing Blueprint ({selected_calc_ticker})</p>", unsafe_allow_html=True)
-        
         m_col1, m_col2, m_col3 = st.columns(3)
-        with m_col1:
-            st.metric("Optimal Execution Size", f"{computed_shares:.4f} Shares")
-        with m_col2:
-            st.metric("Limit Entry Trigger", f"${limit_entry_target:.2f} {native_currency}")
-        with m_col3:
-            st.metric("2x ATR Protective Stop", f"${stop_floor_target:.2f} {native_currency}")
+        with m_col1: st.metric("Optimal Execution Size", f"{computed_shares:.4f} Shares")
+        with m_col2: st.metric("Limit Entry Trigger", f"${limit_entry_target:.2f} {native_currency}")
+        with m_col3: st.metric("2x ATR Protective Stop", f"${stop_floor_target:.2f} {native_currency}")
             
         st.markdown("### 🧮 Position Funding & Capital Breakdown")
-        
-        available_native_cash = cash_usd if is_us else (cash_aud if is_au else cash_nzd)
+        available_native_cash = cash_usd if not (is_nz or is_au) else (cash_aud if is_au else cash_nzd)
         cash_gap_native = total_capital_required_native - available_native_cash
         
         if cash_gap_native <= 0:
-            funding_status = f"🟩 <span class='custom-funding-highlight'>Vault Verified:</span> Your native {native_currency} cash wallet handles this full size comfortably."
+            funding_status = f"🟩 <span class='custom-funding-highlight'>Vault Verified:</span> Native {native_currency} wallet handles this size cleanly."
         else:
-            cash_gap_nzd = cash_gap_native * fx_multiplier
-            funding_status = f"🟨 <span class='custom-funding-highlight'>FX Conversion Buffer Needed:</span> Convert an additional ${cash_gap_nzd:,.2f} NZD inside Sharesies to cover this setup."
+            funding_status = f"🟨 <span class='custom-funding-highlight'>FX Buffer Needed:</span> Convert ${cash_gap_native * fx_multiplier:,.2f} NZD inside Sharesies."
 
         st.markdown(
             f"""
             <div class="custom-funding-list">
-                <div class="custom-funding-item">
-                    • <b>Total Position Capital Sizing:</b> 
-                    <span class="custom-funding-highlight">${total_capital_required_native:,.2f} {native_currency}</span> 
-                    (Equivalent to <span class="custom-funding-highlight">${total_capital_required_nzd:,.2f} NZD</span>)
-                </div>
-                <div class="custom-funding-item">
-                    • <b>Cushion Distance Risk:</b> 
-                    <span class="custom-funding-highlight">${stop_loss_distance_native:.2f} {native_currency}</span> per share down to structural floor.
-                </div>
-                <div class="custom-funding-item">
-                    • <b>Portfolio Funding Status:</b> {funding_status}
-                </div>
+                <div class="custom-funding-item">• <b>Total Position Capital:</b> <span class="custom-funding-highlight">${total_capital_required_native:,.2f} {native_currency}</span> (${total_capital_required_nzd:,.2f} NZD)</div>
+                <div class="custom-funding-item">• <b>Cushion Distance Risk:</b> <span class="custom-funding-highlight">${stop_loss_distance_native:.2f} {native_currency}</span> per share.</div>
+                <div class="custom-funding-item">• <b>Portfolio Funding Status:</b> {funding_status}</div>
             </div>
-            """, 
-            unsafe_allow_html=True
+            """, unsafe_allow_html=True
         )
-        
         if calc_close > calc_fast_ma and calc_close > calc_slow_ma:
-            st.markdown("""<div style='padding: 8px; background-color: #1A2E3B; border-left: 5px solid #38BDF8; font-size: 0.95rem; font-weight: bold; color: #FFFFFF;'>🌟 ASSET RUNNING CONSTRUCTIVE MOMENTUM: Execution blueprint calibrated to buy structural pullbacks.</div>""", unsafe_allow_html=True)
+            st.markdown("""<div style='padding: 8px; background-color: #1A2E3B; border-left: 5px solid #38BDF8; font-size: 0.95rem; font-weight: bold; color: #FFFFFF;'>🌟 ASSET MOMENTUM CONSTRUCTIVE: Calibrated to buy structural pullbacks.</div>""", unsafe_allow_html=True)
         else:
-            st.markdown("""<div style='padding: 8px; background-color: #2E1A1A; border-left: 5px solid #EF4444; font-size: 0.95rem; font-weight: bold; color: #FFFFFF;'>⚠️ STRUCTURAL BEAR WARNING: Asset is trading underneath core moving average baselines. Scaledown deployment sizes recommended.</div>""", unsafe_allow_html=True)
+            st.markdown("""<div style='padding: 8px; background-color: #2E1A1A; border-left: 5px solid #EF4444; font-size: 0.95rem; font-weight: bold; color: #FFFFFF;'>⚠️ STRUCTURAL BEAR: Asset is trading below average baselines. Scaledown sizing recommended.</div>""", unsafe_allow_html=True)
 else:
-    st.info("💡 Layer C Standby: Add active stock tickers into your Portfolio or Watchlist sidebar slots to run sizing risk simulations.")
+    st.info("💡 Layer C Standby: Add active stock tickers into your slots to run risk simulations.")
 
-# ==============================================================================
-# LINEAR FOOTER: LAYER D INSTITUTIONAL SECTOR MONEY FLOW
-# ==============================================================================
 st.markdown("---")
 st.markdown("#### 🔄 Layer D: Institutional Sector Money Flow")
 if macro_sector_rows:
-    sector_df = pd.DataFrame(macro_sector_rows).sort_values(by="RSI Status Value", ascending=False)
-    
-    # FIXED EXPANDED HEIGHT ENGINE: 480px cleanly presents all 12 sectors inline
-    st.dataframe(
-        sector_df, 
-        use_container_width="stretch", 
-        hide_index=True,
-        height=480,
-        column_config={
-            "Closing Price": st.column_config.NumberColumn(format="$%.2f"),
-            "RSI Status Value": st.column_config.NumberColumn("RSI Value", format="%.1f"),
-            "RSI Speedometer": st.column_config.TextColumn("Velocity Status")
-        }
-    )
+    st.dataframe(pd.DataFrame(macro_sector_rows).sort_values(by="RSI Status Value", ascending=False), use_container_width=True, hide_index=True, height=480)

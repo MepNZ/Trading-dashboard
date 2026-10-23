@@ -166,11 +166,32 @@ def fetch_all_market_data_batch_historical(ticker_list, start_date, execution_da
         chunked_dfs = []
         static_end_boundary = datetime.strptime(execution_day_token, "%Y-%m-%d") - timedelta(days=1)
         
+                import time
+
         def download_chunk(sub_list):
-            try:
-                return yf.download(sub_list, start=start_date, end=static_end_boundary, interval="1wk", group_by='ticker', actions=False, threads=True, progress=False)
-            except:
-                return pd.DataFrame()
+            max_retries = 3
+            backoff_factor = 2
+            for attempt in range(max_retries):
+                try:
+                    df_chunk = yf.download(
+                        sub_list, 
+                        start=start_date, 
+                        end=static_end_boundary, 
+                        interval="1wk", 
+                        group_by='ticker', 
+                        actions=False, 
+                        threads=True, 
+                        progress=False
+                    )
+                    if not df_chunk.empty:
+                        # Drop columns that are completely empty to protect healthy rows
+                        return df_chunk.dropna(how='all', axis=1)
+                except Exception:
+                    if attempt == max_retries - 1:
+                        break
+                    # Exponential backoff (e.g., sleep 1s, 2s, 4s) to bypass rate limits
+                    time.sleep(backoff_factor ** attempt)
+            return pd.DataFrame()
 
         # Multi-Threaded Executor: runs 20 download channels simultaneously
         with ThreadPoolExecutor(max_workers=20) as executor:
@@ -182,7 +203,11 @@ def fetch_all_market_data_batch_historical(ticker_list, start_date, execution_da
                     
         if chunked_dfs:
             combined_df = pd.concat(chunked_dfs, axis=1)
+            # CRITICAL: Sort MultiIndex columns alphabetically so downstream vector cross-sections map instantly
+            if isinstance(combined_df.columns, pd.MultiIndex):
+                combined_df = combined_df.sort_index(axis=1, level=0)
             return combined_df
+
     except Exception as e:
         st.sidebar.error(f"Threaded Historical failure: {str(e)}")
     return pd.DataFrame()
@@ -344,9 +369,16 @@ def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster
     bb_std_20 = close_matrix.rolling(window=20, min_periods=1).std().fillna(0)
     lower_bb_matrix = bb_mean_20 - (2 * bb_std_20)
     
-        # High-speed native Pandas matrix comparison completely bypasses version bugs
-    tr_matrix = pd.concat([(high_matrix - low_matrix), (high_matrix - close_matrix.shift(1)).abs(), (low_matrix - close_matrix.shift(1)).abs()], axis=1)
-    tr_df = tr_matrix.max(axis=1, level=1) if isinstance(tr_matrix.columns, pd.MultiIndex) else tr_matrix.groupby(level=0, axis=1).max()
+    # 1. Compute the three components of True Range
+    tr_hl = high_matrix - low_matrix
+    tr_hpc = (high_matrix - close_matrix.shift(1)).abs()
+    tr_lpc = (low_matrix - close_matrix.shift(1)).abs()
+
+    # 2. Concat along axis=1 using explicit multi-index keys ('TR1', 'TR2', 'TR3')
+    tr_matrix = pd.concat([tr_hl, tr_hpc, tr_lpc], axis=1, keys=['TR1', 'TR2', 'TR3'])
+
+    # 3. Safe cross-sectional max calculation bypassing groupby(axis=1) and level parameters completely
+    tr_df = tr_matrix.T.groupby(level=1).max().T
     tr_df = tr_df.fillna(0.0)
 
     atr_matrix = tr_df.rolling(window=14, min_periods=1).mean()

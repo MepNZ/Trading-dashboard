@@ -380,16 +380,10 @@ if not RAW_MARKET_BATCH.empty:
     sec_fast_ma_matrix = sec_close_matrix.rolling(window=min(int(fast_ma_input), len(sec_close_matrix)), min_periods=1).mean()
     sec_slow_ma_matrix = sec_close_matrix.rolling(window=min(int(slow_ma_input), len(sec_close_matrix)), min_periods=1).mean()
     
-    sec_tr1 = sec_high_matrix.values - sec_low_matrix.values
-    sec_tr2 = np.abs(sec_high_matrix.values - sec_close_matrix.shift(1).values)
-    sec_tr3 = np.abs(sec_low_matrix.values - sec_close_matrix.shift(1).values)
-    
-    sec_stacked = np.dstack((sec_tr1, sec_tr2, sec_tr3))
-    with np.errstate(all_nan='ignore'):
-        sec_max_values = np.nanmax(sec_stacked, axis=2)
-        sec_max_values = np.nan_to_num(sec_max_values, nan=0.0)
-        
-    sec_tr_df = pd.DataFrame(sec_max_values, index=RAW_MARKET_BATCH.index, columns=sec_close_matrix.columns)
+        # High-speed native Pandas matrix comparison completely bypasses version bugs
+    sec_tr_matrix = pd.concat([(sec_high_matrix - sec_low_matrix), (sec_high_matrix - sec_close_matrix.shift(1)).abs(), (sec_low_matrix - sec_close_matrix.shift(1)).abs()], axis=1)
+    sec_tr_df = sec_tr_matrix.max(axis=1, level=1) if isinstance(sec_tr_matrix.columns, pd.MultiIndex) else sec_tr_matrix.groupby(level=0, axis=1).max()
+    sec_tr_df = sec_tr_df.fillna(0.0)
 
     sec_atr_matrix = sec_tr_df.rolling(window=min(14, len(sec_tr_df)), min_periods=1).mean()
     sec_vol_avg_matrix = sec_vol_matrix.rolling(window=min(20, len(sec_vol_matrix)), min_periods=1).mean()

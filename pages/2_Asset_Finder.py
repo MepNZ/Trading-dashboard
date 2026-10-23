@@ -455,7 +455,7 @@ def render_isolated_chart_engine(ticker_list, key_prefix):
                 base.mark_line(color='#00FF66', strokeWidth=3.0).encode(y=alt.Y('Fast_MA:Q')) + 
                 base.mark_line(color='#FF3333', strokeWidth=3.0).encode(y=alt.Y('Slow_MA:Q'))
             )
-            st.altair_chart(final_chart, width='stretch')
+            st.altair_chart(final_chart, use_container_width=True)
 
 tab_momentum, tab_discount = st.tabs(["🔥 Breakouts", "📉 Possible Value Discounts"])
 with tab_momentum:

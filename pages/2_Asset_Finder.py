@@ -426,18 +426,40 @@ def process_entire_screening_universe(fast_ma, slow_ma, _live_feeds, cache_buste
 fast_ma_input = int(st.session_state.get("asset_fast_ma", default_fast_ma))
 slow_ma_input = int(st.session_state.get("asset_slow_ma", default_slow_ma))
 
-# 2. Keep your 3-minute structural time token matching
+# 2. Create a static time key that changes precisely every 3 minutes
 live_feed_refresh_token = datetime.now().strftime("%Y-%m-%d %H:") + str(int(datetime.now().minute / 3))
-live_market_snapshots = fetch_ultra_live_prices(institutional_scan_pool, cache_buster_token=live_feed_refresh_token)
 
-# 3. Call the engine with locked down signature coordinates
-all_breakouts, all_discounts, compressed_dfs = process_entire_screening_universe(
-    fast_ma=fast_ma_input, 
-    slow_ma=slow_ma_input, 
-    _live_feeds=live_market_snapshots, 
-    cache_buster=live_feed_refresh_token
-)
+# 3. --- THE INSTANT PERSISTENCE ENGINE ---
+# Check if we already computed this exact technical matrix layout for this 3-minute block
+if (
+    "cached_radar_token" not in st.session_state or 
+    st.session_state["cached_radar_token"] != live_feed_refresh_token or
+    "stored_breakouts" not in st.session_state or
+    "stored_discounts" not in st.session_state or
+    "stored_compressed_dfs" not in st.session_state
+):
+    # This 30-second run executes ONLY once every 3 minutes, or if sliders change
+    live_market_snapshots = fetch_ultra_live_prices(institutional_scan_pool, cache_buster_token=live_feed_refresh_token)
+    
+    all_breakouts, all_discounts, compressed_dfs = process_entire_screening_universe(
+        fast_ma=fast_ma_input, 
+        slow_ma=slow_ma_input, 
+        _live_feeds=live_market_snapshots, 
+        cache_buster=live_feed_refresh_token
+    )
+    
+    # Store the final UI objects directly in the fast session memory vault
+    st.session_state["stored_breakouts"] = all_breakouts
+    st.session_state["stored_discounts"] = all_discounts
+    st.session_state["stored_compressed_dfs"] = compressed_dfs
+    st.session_state["cached_radar_token"] = live_feed_refresh_token
+else:
+    # Pulling directly from RAM. When switching screens, this step takes 0.0 seconds
+    all_breakouts = st.session_state["stored_breakouts"]
+    all_discounts = st.session_state["stored_discounts"]
+    compressed_dfs = st.session_state["stored_compressed_dfs"]
 
+# 4. Handle UI Filters based on your Budget-Friendly settings toggle
 if st.session_state.get("view_mode_choice", "Entire Universe") == "Budget-Friendly Assets":
     max_cap = float(st.session_state.get("max_share_price_cap", 50.0))
     breakout_rows = [r for r in all_breakouts if r["Live Price"] <= max_cap]

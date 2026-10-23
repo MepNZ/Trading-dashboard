@@ -347,7 +347,16 @@ def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster
     tr1 = high_matrix.values - low_matrix.values
     tr2 = np.abs(high_matrix.values - close_matrix.shift(1).values)
     tr3 = np.abs(low_matrix.values - close_matrix.shift(1).values)
-    tr_df = pd.DataFrame(np.nanmax(np.dstack((tr1, tr2, tr3)), axis=2), index=raw_batch.index, columns=close_matrix.columns)
+    
+    # Secure stacking layer that replaces empty slices with 0 to bypass math freezes
+    stacked_tr = np.dstack((tr1, tr2, tr3))
+    with np.errstate(all_nan='ignore'):
+        max_tr_values = np.nanmax(stacked_tr, axis=2)
+        # Replaces empty NaN results with a safe structural zero baseline
+        max_tr_values = np.nan_to_num(max_tr_values, nan=0.0)
+        
+    tr_df = pd.DataFrame(max_tr_values, index=raw_batch.index, columns=close_matrix.columns)
+
     atr_matrix = tr_df.rolling(window=14, min_periods=1).mean()
     avg_vol_matrix = vol_matrix.rolling(window=20, min_periods=1).mean()
 

@@ -366,37 +366,57 @@ asset_sector_tags = {
 # ==============================================================================
 # MIKE'S SHARE MARKET DASHBOARD: VECTOR SECTOR PROCESSOR (PART 4A)
 # ==============================================================================
+@st.cache_data(ttl=600)
+def compute_vector_matrices(raw_data, fast_ma, slow_ma):
+    if raw_data.empty:
+        return {}
+    
+    close_m = raw_data.xs('Close', axis=1, level=1)
+    high_m = raw_data.xs('High', axis=1, level=1)
+    low_m = raw_data.xs('Low', axis=1, level=1)
+    vol_m = raw_data.xs('Volume', axis=1, level=1)
+
+    fast_ma_m = close_m.rolling(window=min(int(fast_ma), len(close_m)), min_periods=1).mean()
+    slow_ma_m = close_m.rolling(window=min(int(slow_ma), len(close_m)), min_periods=1).mean()
+    
+    tr_matrix = pd.concat([(high_m - low_m), (high_m - close_m.shift(1)).abs(), (low_m - close_m.shift(1)).abs()], axis=1, keys=['TR1', 'TR2', 'TR3'])
+    tr_df = tr_matrix.T.groupby(level=1).max().T.fillna(0.0)
+
+    atr_m = tr_df.rolling(window=min(14, len(tr_df)), min_periods=1).mean()
+    vol_avg_m = vol_m.rolling(window=min(20, len(vol_m)), min_periods=1).mean()
+
+    delta = close_m.diff()
+    gain = delta.clip(lower=0).rolling(window=min(14, len(delta)), min_periods=1).mean()
+    loss = (-delta.clip(upper=0)).rolling(window=min(14, len(delta)), min_periods=1).mean()
+    rsi_m = 100 - (100 / (1 + (gain / loss.replace(0, np.nan)))).fillna(50)
+
+    macd_m = close_m.ewm(span=min(12, len(close_m)), adjust=False).mean() - close_m.ewm(span=min(26, len(close_m)), adjust=False).mean()
+    sig_m = macd_m.ewm(span=min(9, len(macd_m)), adjust=False).mean()
+
+    return {
+        "close": close_m, "high": high_m, "low": low_m, "vol": vol_m,
+        "fast_ma": fast_ma_m, "slow_ma": slow_ma_m, "atr": atr_m,
+        "vol_avg": vol_avg_m, "rsi": rsi_m, "macd": macd_m, "sig": sig_m
+    }
 
 roi_cutoff_date = datetime.now() - timedelta(days=lookback_days_map[selected_timeframe])
 
-# Vectorized global cross-sectional math for sector taxonomy pools
-if not RAW_MARKET_BATCH.empty:
-    sec_close_matrix = RAW_MARKET_BATCH.xs('Close', axis=1, level=1)
-    sec_high_matrix = RAW_MARKET_BATCH.xs('High', axis=1, level=1)
-    sec_low_matrix = RAW_MARKET_BATCH.xs('Low', axis=1, level=1)
-    sec_vol_matrix = RAW_MARKET_BATCH.xs('Volume', axis=1, level=1)
+# Execute the isolated matrix math inside the calculation barrier engine
+matrices = compute_vector_matrices(RAW_MARKET_BATCH, fast_ma_input, slow_ma_input)
 
-    # Compute global indicators across all columns in memory instantly
-    sec_fast_ma_matrix = sec_close_matrix.rolling(window=min(int(fast_ma_input), len(sec_close_matrix)), min_periods=1).mean()
-    sec_slow_ma_matrix = sec_close_matrix.rolling(window=min(int(slow_ma_input), len(sec_close_matrix)), min_periods=1).mean()
-    
-        # High-speed native Pandas matrix comparison completely bypasses version bugs
-    sec_tr_matrix = pd.concat([(sec_high_matrix - sec_low_matrix), (sec_high_matrix - sec_close_matrix.shift(1)).abs(), (sec_low_matrix - sec_close_matrix.shift(1)).abs()], axis=1)
-    sec_tr_df = sec_tr_matrix.max(axis=1, level=1) if isinstance(sec_tr_matrix.columns, pd.MultiIndex) else sec_tr_matrix.groupby(level=0, axis=1).max()
-    sec_tr_df = sec_tr_df.fillna(0.0)
+# Unpack the returned components to feed your downstream ledger loops seamlessly
+sec_close_matrix   = matrices.get("close", pd.DataFrame())
+sec_high_matrix    = matrices.get("high", pd.DataFrame())
+sec_low_matrix     = matrices.get("low", pd.DataFrame())
+sec_vol_matrix     = matrices.get("vol", pd.DataFrame())
+sec_fast_ma_matrix = matrices.get("fast_ma", pd.DataFrame())
+sec_slow_ma_matrix = matrices.get("slow_ma", pd.DataFrame())
+sec_atr_matrix     = matrices.get("atr", pd.DataFrame())
+sec_vol_avg_matrix = matrices.get("vol_avg", pd.DataFrame())
+sec_rsi_matrix     = matrices.get("rsi", pd.DataFrame())
+sec_macd_matrix    = matrices.get("macd", pd.DataFrame())
+sec_sig_matrix     = matrices.get("sig", pd.DataFrame())
 
-    sec_atr_matrix = sec_tr_df.rolling(window=min(14, len(sec_tr_df)), min_periods=1).mean()
-    sec_vol_avg_matrix = sec_vol_matrix.rolling(window=min(20, len(sec_vol_matrix)), min_periods=1).mean()
-
-    sec_delta = sec_close_matrix.diff()
-    sec_gain = sec_delta.clip(lower=0).rolling(window=min(14, len(sec_delta)), min_periods=1).mean()
-    sec_loss = (-sec_delta.clip(upper=0)).rolling(window=min(14, len(sec_delta)), min_periods=1).mean()
-    sec_rsi_matrix = 100 - (100 / (1 + (sec_gain / sec_loss.replace(0, np.nan)))).fillna(50)
-
-    sec_macd_matrix = sec_close_matrix.ewm(span=min(12, len(sec_close_matrix)), adjust=False).mean() - sec_close_matrix.ewm(span=min(26, len(sec_close_matrix)), adjust=False).mean()
-    sec_sig_matrix = sec_macd_matrix.ewm(span=min(9, len(sec_macd_matrix)), adjust=False).mean()
-else:
-    sec_close_matrix = pd.DataFrame()
 if sec_close_matrix.empty or len(sec_close_matrix.columns) == 0:
     st.warning("⚠️ Network Connection Throttled by Provider. Please wait 1-2 minutes for the cache to clear.")
     st.stop()

@@ -1,5 +1,5 @@
 # ==============================================================================
-# MIKE'S QUANT ALPHA HUNTER: CONFIG & THREADED DATA ENGINE (PART 1 OF 5)
+# MIKE'S QUANT ALPHA HUNTER: CONFIG & STYLING LAYERS (CHUNK 1 OF 6)
 # ==============================================================================
 import streamlit as st
 import yfinance as yf
@@ -9,10 +9,15 @@ import json
 import os
 import altair as alt
 import io
+import time
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-st.set_page_config(layout="wide")
+st.set_page_config(
+    page_title="Asset Finder",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 st.markdown("""
     <style>
@@ -84,7 +89,7 @@ with st.sidebar:
 st.title("🔍 Asset Finder")
 st.caption("Standalone Laboratory Analysis & Market Screeners")
 # ==============================================================================
-# CLEANED POOL CONTEXT: DELISTED/DEAD SYMBOLS STRIPPED FOR MATRIX PERFORMANCE (PART 2 OF 5)
+# MIKE'S QUANT ALPHA HUNTER: UNIVERSE MATRIX POOLS (CHUNK 2 OF 6)
 # ==============================================================================
 institutional_scan_pool = [
     "AAPL", "MSFT", "GOOGL", "AMZN", "META", "BRK-B", "JNJ", "V", "PG", "WMT",
@@ -154,7 +159,7 @@ local_name_map = {
     "SPK.NZ": "Spark NZ", "FBU.NZ": "Fletcher Building", "TLS.AX": "Telstra Group"
 }
 # ==============================================================================
-# WATERPROOF CACHE FRAMEWORK: LAYER MATRIX POOLS WITH HARDENED CLOCK BOUNDS (PART 3A)
+# MIKE'S QUANT ALPHA HUNTER: DATA RETRIEVAL ENGINE (CHUNK 3 OF 6)
 # ==============================================================================
 
 @st.cache_data(ttl=28800)
@@ -165,8 +170,6 @@ def fetch_all_market_data_batch_historical(ticker_list, start_date, execution_da
         ticker_chunks = [unique_tickers[i:i+chunk_size] for i in range(0, len(unique_tickers), chunk_size)]
         chunked_dfs = []
         static_end_boundary = datetime.strptime(execution_day_token, "%Y-%m-%d") - timedelta(days=1)
-        
-        import time
 
         def download_chunk(sub_list):
             max_retries = 3
@@ -184,16 +187,13 @@ def fetch_all_market_data_batch_historical(ticker_list, start_date, execution_da
                         progress=False
                     )
                     if not df_chunk.empty:
-                        # Drop columns that are completely empty to protect healthy rows
                         return df_chunk.dropna(how='all', axis=1)
                 except Exception:
                     if attempt == max_retries - 1:
                         break
-                    # Exponential backoff (e.g., sleep 1s, 2s, 4s) to bypass rate limits
                     time.sleep(backoff_factor ** attempt)
             return pd.DataFrame()
 
-        # Multi-Threaded Executor: runs 20 download channels simultaneously
         with ThreadPoolExecutor(max_workers=20) as executor:
             future_to_chunk = {executor.submit(download_chunk, chunk): chunk for chunk in ticker_chunks}
             for future in as_completed(future_to_chunk):
@@ -203,7 +203,6 @@ def fetch_all_market_data_batch_historical(ticker_list, start_date, execution_da
                     
         if chunked_dfs:
             combined_df = pd.concat(chunked_dfs, axis=1)
-            # CRITICAL: Sort MultiIndex columns alphabetically so downstream vector cross-sections map instantly
             if isinstance(combined_df.columns, pd.MultiIndex):
                 combined_df = combined_df.sort_index(axis=1, level=0)
             return combined_df
@@ -214,14 +213,9 @@ def fetch_all_market_data_batch_historical(ticker_list, start_date, execution_da
 
 @st.cache_data(ttl=180)
 def fetch_ultra_live_prices(ticker_list, cache_buster_token=""):
-    """
-    Cached Live Feed Engine: Holds price feeds in RAM for 3 minutes.
-    Bypasses hitting the internet during rapid slider adjustments.
-    """
     try:
         unique_tickers = list(dict.fromkeys(ticker_list))
         live_prices_map = {}
-        # Limit batch processing depth to avoid thread pooling stalls
         df_live = yf.download(unique_tickers[:100], period="1d", group_by='ticker', actions=False, threads=True, progress=False)
         
         if not df_live.empty:
@@ -243,6 +237,9 @@ def fetch_ultra_live_prices(ticker_list, cache_buster_token=""):
 def get_cached_raw_universe_matrix(today_date_token):
     base_lookback_start = datetime.strptime(today_date_token, "%Y-%m-%d") - timedelta(days=730 + 250)
     return fetch_all_market_data_batch_historical(institutional_scan_pool, base_lookback_start, today_date_token)
+# ==============================================================================
+# MIKE'S QUANT ALPHA HUNTER: VECTOR GENERATOR DESK (CHUNK 4 OF 6)
+# ==============================================================================
 
 @st.cache_data(ttl=28800)
 def get_precalculated_indicators_matrix(fast_ma, slow_ma, today_date_token):
@@ -255,13 +252,11 @@ def get_precalculated_indicators_matrix(fast_ma, slow_ma, today_date_token):
     f_ma_int, s_ma_int = int(fast_ma), int(slow_ma)
     available_tickers = list(raw_batch.columns.get_level_values(0).unique())
     
-    # 1. High-speed cross-sectional matrix extractions
     close_matrix = raw_batch.xs('Close', axis=1, level=1)
     high_matrix = raw_batch.xs('High', axis=1, level=1)
     low_matrix = raw_batch.xs('Low', axis=1, level=1)
     vol_matrix = raw_batch.xs('Volume', axis=1, level=1)
 
-    # 2. Compute cross-sectional indicators instantly in memory
     fast_ma_matrix = close_matrix.rolling(window=f_ma_int, min_periods=1).mean()
     slow_ma_matrix = close_matrix.rolling(window=s_ma_int, min_periods=1).mean()
     
@@ -269,7 +264,6 @@ def get_precalculated_indicators_matrix(fast_ma, slow_ma, today_date_token):
     bb_std_20 = close_matrix.rolling(window=20, min_periods=1).std().fillna(0)
     lower_bb_matrix = bb_mean_20 - (2 * bb_std_20)
     
-    # 3. Modernized True Range vector parsing (replaces np.nanmax axis bugs)
     tr_hl = high_matrix - low_matrix
     tr_hpc = (high_matrix - close_matrix.shift(1)).abs()
     tr_lpc = (low_matrix - close_matrix.shift(1)).abs()
@@ -286,9 +280,8 @@ def get_precalculated_indicators_matrix(fast_ma, slow_ma, today_date_token):
     rsi_matrix = 100 - (100 / (1 + (gain_matrix / loss_matrix.replace(0, np.nan)))).fillna(50)
     
     macd_matrix = close_matrix.ewm(span=12, adjust=False).mean() - close_matrix.ewm(span=26, adjust=False).mean()
-    signal_line_matrix = macd_matrix.ewm(span=9, adjust=False).mean()
+    sig_matrix = macd_matrix.ewm(span=9, adjust=False).mean()
 
-    # 4. Pack individual ticker frames cleanly back to your global dictionary lookup
     for ticker in available_tickers:
         try:
             if ticker not in close_matrix.columns: continue
@@ -306,7 +299,7 @@ def get_precalculated_indicators_matrix(fast_ma, slow_ma, today_date_token):
             df['Avg_Volume_20D'] = avg_vol_20d_matrix[ticker]
             df['RSI'] = rsi_matrix[ticker]
             df['MACD'] = macd_matrix[ticker]
-            df['Signal_Line'] = signal_line_matrix[ticker]
+            df['Signal_Line'] = sig_matrix[ticker]
             
             df = df.dropna(subset=['Close'])
             if len(df) >= 5:
@@ -316,7 +309,7 @@ def get_precalculated_indicators_matrix(fast_ma, slow_ma, today_date_token):
             
     return calculated_universe_dfs
 # ==============================================================================
-# HIGH-SPEED VECTORIZED SCREENING MATRIX ENGINE (PART 4 OF 5)
+# MIKE'S QUANT ALPHA HUNTER: SCREENING RADAR MATRIX (CHUNK 5 OF 6)
 # ==============================================================================
 
 def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster=""):
@@ -333,37 +326,29 @@ def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster
     weekday = now_dt.weekday()
     vol_pace_factor = 1.0 if weekday >= 4 else max(0.1, (weekday + 1) / 5.0)
 
-        # HARDENED ESCAPE SNAPSHOT: Instantly exits if network drops or Yahoo Finance rate-limits connections
     if raw_batch.empty or not hasattr(raw_batch, 'columns') or len(raw_batch.columns) == 0:
         return [], [], {}
 
     f_ma_int, s_ma_int = int(fast_ma), int(slow_ma)
     available_tickers = list(raw_batch.columns.get_level_values(0).unique())
     
-    # Extract structural cross-sectional slices to compute matrix rows at once
     close_matrix = raw_batch.xs('Close', axis=1, level=1)
     high_matrix = raw_batch.xs('High', axis=1, level=1)
     low_matrix = raw_batch.xs('Low', axis=1, level=1)
     vol_matrix = raw_batch.xs('Volume', axis=1, level=1)
 
-    # Global cross-sectional vector math
     fast_ma_matrix = close_matrix.rolling(window=f_ma_int, min_periods=1).mean()
     slow_ma_matrix = close_matrix.rolling(window=s_ma_int, min_periods=1).mean()
     bb_mean_20 = close_matrix.rolling(window=20, min_periods=1).mean()
     bb_std_20 = close_matrix.rolling(window=20, min_periods=1).std().fillna(0)
     lower_bb_matrix = bb_mean_20 - (2 * bb_std_20)
     
-    # 1. Compute the three components of True Range
     tr_hl = high_matrix - low_matrix
     tr_hpc = (high_matrix - close_matrix.shift(1)).abs()
     tr_lpc = (low_matrix - close_matrix.shift(1)).abs()
 
-    # 2. Concat along axis=1 using explicit multi-index keys ('TR1', 'TR2', 'TR3')
     tr_matrix = pd.concat([tr_hl, tr_hpc, tr_lpc], axis=1, keys=['TR1', 'TR2', 'TR3'])
-
-    # 3. Safe cross-sectional max calculation bypassing groupby(axis=1) and level parameters completely
-    tr_df = tr_matrix.T.groupby(level=1).max().T
-    tr_df = tr_df.fillna(0.0)
+    tr_df = tr_matrix.T.groupby(level=1).max().T.fillna(0.0)
 
     atr_matrix = tr_df.rolling(window=14, min_periods=1).mean()
     avg_vol_matrix = vol_matrix.rolling(window=20, min_periods=1).mean()
@@ -373,15 +358,13 @@ def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster
     loss_matrix = (-delta_matrix.clip(upper=0)).rolling(window=14, min_periods=1).mean()
     rsi_matrix = 100 - (100 / (1 + (gain_matrix / loss_matrix.replace(0, np.nan)))).fillna(50)
 
-        macd_matrix = close_matrix.ewm(span=12, adjust=False).mean() - close_matrix.ewm(span=26, adjust=False).mean()
+    macd_matrix = close_matrix.ewm(span=12, adjust=False).mean() - close_matrix.ewm(span=26, adjust=False).mean()
     sig_matrix = macd_matrix.ewm(span=9, adjust=False).mean()
-    
+
     for ticker in available_tickers:
         try:
-            if ticker not in close_matrix.columns: 
-                continue
+            if ticker not in close_matrix.columns: continue
             
-            # Direct index access replaces running loops inside row assembly
             last_close = live_feeds[ticker]["Live_Close"] if live_feeds and ticker in live_feeds else float(close_matrix[ticker].iloc[-1])
             current_volume = live_feeds[ticker]["Live_Volume"] if live_feeds and ticker in live_feeds else int(vol_matrix[ticker].iloc[-1])
             
@@ -399,7 +382,7 @@ def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster
 
             volume_multiple = (current_volume / vol_pace_factor) / avg_volume_20d
             true_52w_high = float(high_matrix[ticker].tail(104).max())
-            true_52w_low = float(low_matrix[ticker].tail(104).max())
+            true_52w_low = float(low_matrix[ticker].tail(104).min())
             proximity_to_low_pct = ((last_close - true_52w_low) / true_52w_low) * 100
             market_label = "NZ" if ticker.endswith(".NZ") else ("AUS" if ticker.endswith(".AX") else "US")
             resolved_name = local_name_map.get(ticker, disk_names.get(ticker, f"{ticker}"))
@@ -417,7 +400,6 @@ def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster
                 signal_label = "🟢 Bullish Turning" if macd_val > sig_val else "🔴 Bearish Floor"
                 d_rows.append({"Market": market_label, "Ticker": ticker, "Company Name": resolved_name, "Live Price": last_close, "52W Low Floor": true_52w_low, "Limit Entry Target": round(true_52w_low * 1.01, 2), "Lower Bollinger Band": bb_lower_val, "52W High Ceiling": true_52w_high, "Proximity to Low": proximity_to_low_pct, "RSI Status": rsi_val, "MACD Signal": signal_label})
             
-            # --- Dynamic Chart Serialization Packing Block ---
             try:
                 ticker_history_df = pd.DataFrame(index=raw_batch.index)
                 ticker_history_df['Close'] = close_matrix[ticker]
@@ -437,16 +419,13 @@ def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster
 
     return b_rows, d_rows, cached_dfs
 # ==============================================================================
-# MODERNIZED RENDERING CANVAS & DATA TABLES INTERFACE (PART 2 OF 2)
+# MIKE'S QUANT ALPHA HUNTER: USER INTERFACE DESK (CHUNK 6 OF 6)
 # ==============================================================================
 
 fast_ma_input = st.session_state["asset_fast_ma"]
 slow_ma_input = st.session_state["asset_slow_ma"]
 
-# Generates a dynamic token that refreshes live asset feeds every 3 minutes
 live_feed_refresh_token = datetime.now().strftime("%Y-%m-%d %H:") + str(int(datetime.now().minute / 3))
-
-# Executes the network fetch passing the token to keep calculations completely local
 live_market_snapshots = fetch_ultra_live_prices(institutional_scan_pool, cache_buster_token=live_feed_refresh_token)
 all_breakouts, all_discounts, compressed_dfs = process_entire_screening_universe(fast_ma_input, slow_ma_input, live_market_snapshots, "v3")
 
@@ -467,8 +446,12 @@ def render_isolated_chart_engine(ticker_list, key_prefix):
             weeks_to_show = lookback_days_map.get(st.session_state["asset_horizon"], 52)
             df_chart = df_chart.tail(weeks_to_show).reset_index().rename(columns={'index': 'Date'})
             df_chart['Date'] = pd.to_datetime(df_chart['Date']).dt.strftime('%Y-%m-%d')
-            y_scale = alt.Scale(domain=[float(df_chart[['Close', 'Fast_MA', 'Slow_MA']].min().min()) * 0.98, float(df_chart[['Close', 'Fast_MA', 'Slow_MA']].max().max()) * 1.02], zero=False)
-            base = alt.Chart(df_chart).encode(x=alt.X('Date:T', title=None)).properties(width=900, height=320)
+            
+            y_min = float(df_chart[['Close', 'Fast_MA', 'Slow_MA']].min().min())
+            y_max = float(df_chart[['Close', 'Fast_MA', 'Slow_MA']].max().max())
+            y_scale = alt.Scale(domain=[y_min * 0.98, y_max * 1.02], zero=False)
+            
+            base = alt.Chart(df_chart).encode(x=alt.X('Date:T', title=None)).properties(width='container', height=320)
             final_chart = (
                 base.mark_line(color='#4A90E2', strokeWidth=3.5).encode(y=alt.Y('Close:Q', scale=y_scale, title='Price ($)')) + 
                 base.mark_line(color='#00FF66', strokeWidth=3.0).encode(y=alt.Y('Fast_MA:Q')) + 
@@ -492,7 +475,7 @@ with tab_momentum:
             cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Live Price", "Limit Entry Target", "ATR Volatility", "Vol Multiple", "Daily Change %", "RSI Momentum"]
             st.dataframe(
                 apply_alpha_signal_theme(sliced_breakout_df[[c for c in cols_order if c in sliced_breakout_df.columns]]), 
-                width='stretch', hide_index=True, height=410, 
+                use_container_width=True, hide_index=True, height=410, 
                 column_config={
                     "Live Price": st.column_config.NumberColumn(format="$%.2f"), 
                     "Limit Entry Target": st.column_config.NumberColumn("Pullback Limit Buy", format="$%.2f"),
@@ -522,7 +505,7 @@ with tab_discount:
             cols_discount_order = ["Market", "Ticker", "Company Name", "Live Price", "52W Low Floor", "Limit Entry Target", "Lower Bollinger Band", "52W High Ceiling", "Proximity to Low", "RSI Status", "MACD Signal"]
             st.dataframe(
                 sliced_discount_df[[c for c in cols_discount_order if c in sliced_discount_df.columns]], 
-                width='stretch', hide_index=True, height=410, 
+                use_container_width=True, hide_index=True, height=410, 
                 column_config={
                     "Live Price": st.column_config.NumberColumn(format="$%.2f"), 
                     "52W Low Floor": st.column_config.NumberColumn(format="$%.2f"), 
@@ -537,4 +520,3 @@ with tab_discount:
             render_isolated_chart_engine(sliced_discount_df["Ticker"].tolist(), "discount")
         else: st.info("No deep discount setups match your budget filters inside this window tier.")
     else: st.info("No major institutional leaders currently resting inside deep value boundaries.")
-

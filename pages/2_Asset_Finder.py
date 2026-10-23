@@ -344,18 +344,10 @@ def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster
     bb_std_20 = close_matrix.rolling(window=20, min_periods=1).std().fillna(0)
     lower_bb_matrix = bb_mean_20 - (2 * bb_std_20)
     
-    tr1 = high_matrix.values - low_matrix.values
-    tr2 = np.abs(high_matrix.values - close_matrix.shift(1).values)
-    tr3 = np.abs(low_matrix.values - close_matrix.shift(1).values)
-    
-    # Secure stacking layer that replaces empty slices with 0 to bypass math freezes
-    stacked_tr = np.dstack((tr1, tr2, tr3))
-    with np.errstate(all_nan='ignore'):
-        max_tr_values = np.nanmax(stacked_tr, axis=2)
-        # Replaces empty NaN results with a safe structural zero baseline
-        max_tr_values = np.nan_to_num(max_tr_values, nan=0.0)
-        
-    tr_df = pd.DataFrame(max_tr_values, index=raw_batch.index, columns=close_matrix.columns)
+        # High-speed native Pandas matrix comparison completely bypasses version bugs
+    tr_matrix = pd.concat([(high_matrix - low_matrix), (high_matrix - close_matrix.shift(1)).abs(), (low_matrix - close_matrix.shift(1)).abs()], axis=1)
+    tr_df = tr_matrix.max(axis=1, level=1) if isinstance(tr_matrix.columns, pd.MultiIndex) else tr_matrix.groupby(level=0, axis=1).max()
+    tr_df = tr_df.fillna(0.0)
 
     atr_matrix = tr_df.rolling(window=14, min_periods=1).mean()
     avg_vol_matrix = vol_matrix.rolling(window=20, min_periods=1).mean()

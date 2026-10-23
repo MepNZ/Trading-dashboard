@@ -312,7 +312,7 @@ def get_precalculated_indicators_matrix(fast_ma, slow_ma, today_date_token):
 # MIKE'S QUANT ALPHA HUNTER: SCREENING RADAR MATRIX (CHUNK 5 OF 6)
 # ==============================================================================
 @st.cache_data(ttl=180)
-def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster=""):
+def process_entire_screening_universe(fast_ma, slow_ma, _live_feeds, cache_buster=""):
     today_token = datetime.today().strftime("%Y-%m-%d")
     raw_batch = get_cached_raw_universe_matrix(today_token)
     
@@ -365,8 +365,8 @@ def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster
         try:
             if ticker not in close_matrix.columns: continue
             
-            last_close = live_feeds[ticker]["Live_Close"] if live_feeds and ticker in live_feeds else float(close_matrix[ticker].iloc[-1])
-            current_volume = live_feeds[ticker]["Live_Volume"] if live_feeds and ticker in live_feeds else int(vol_matrix[ticker].iloc[-1])
+            last_close = _live_feeds[ticker]["Live_Close"] if _live_feeds and ticker in _live_feeds else float(close_matrix[ticker].iloc[-1])
+            current_volume = _live_feeds[ticker]["Live_Volume"] if _live_feeds and ticker in _live_feeds else int(vol_matrix[ticker].iloc[-1])
             
             prev_close = float(close_matrix[ticker].iloc[-2]) if len(close_matrix) > 1 else last_close
             pct_change = ((last_close - prev_close) / prev_close) * 100
@@ -427,7 +427,7 @@ slow_ma_input = st.session_state["asset_slow_ma"]
 
 live_feed_refresh_token = datetime.now().strftime("%Y-%m-%d %H:") + str(int(datetime.now().minute / 3))
 live_market_snapshots = fetch_ultra_live_prices(institutional_scan_pool, cache_buster_token=live_feed_refresh_token)
-all_breakouts, all_discounts, compressed_dfs = process_entire_screening_universe(fast_ma_input, slow_ma_input, live_market_snapshots, "v3")
+all_breakouts, all_discounts, compressed_dfs = process_entire_screening_universe(fast_ma_input, slow_ma_input, _live_feeds=live_market_snapshots, cache_buster="v3")
 
 if st.session_state["view_mode_choice"] == "Budget-Friendly Assets":
     max_cap = float(st.session_state["max_share_price_cap"])

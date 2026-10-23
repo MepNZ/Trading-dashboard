@@ -422,15 +422,24 @@ def process_entire_screening_universe(fast_ma, slow_ma, _live_feeds, cache_buste
 # MIKE'S QUANT ALPHA HUNTER: USER INTERFACE DESK (CHUNK 6 OF 6)
 # ==============================================================================
 
-fast_ma_input = st.session_state["asset_fast_ma"]
-slow_ma_input = st.session_state["asset_slow_ma"]
+# 1. Enforce strict type casting and fallback safeguards on your inputs
+fast_ma_input = int(st.session_state.get("asset_fast_ma", default_fast_ma))
+slow_ma_input = int(st.session_state.get("asset_slow_ma", default_slow_ma))
 
+# 2. Keep your 3-minute structural time token matching
 live_feed_refresh_token = datetime.now().strftime("%Y-%m-%d %H:") + str(int(datetime.now().minute / 3))
 live_market_snapshots = fetch_ultra_live_prices(institutional_scan_pool, cache_buster_token=live_feed_refresh_token)
-all_breakouts, all_discounts, compressed_dfs = process_entire_screening_universe(fast_ma_input, slow_ma_input, _live_feeds=live_market_snapshots, cache_buster="v3")
 
-if st.session_state["view_mode_choice"] == "Budget-Friendly Assets":
-    max_cap = float(st.session_state["max_share_price_cap"])
+# 3. Call the engine with locked down signature coordinates
+all_breakouts, all_discounts, compressed_dfs = process_entire_screening_universe(
+    fast_ma=fast_ma_input, 
+    slow_ma=slow_ma_input, 
+    _live_feeds=live_market_snapshots, 
+    cache_buster=live_feed_refresh_token
+)
+
+if st.session_state.get("view_mode_choice", "Entire Universe") == "Budget-Friendly Assets":
+    max_cap = float(st.session_state.get("max_share_price_cap", 50.0))
     breakout_rows = [r for r in all_breakouts if r["Live Price"] <= max_cap]
     discount_rows = [r for r in all_discounts if r["Live Price"] <= max_cap]
 else:
@@ -443,7 +452,7 @@ def render_isolated_chart_engine(ticker_list, key_prefix):
         if selected_ticker in compressed_dfs:
             df_chart = pd.read_json(io.StringIO(compressed_dfs[selected_ticker]))
             lookback_days_map = {"1 Month": 4, "3 Months": 12, "6 Months": 26, "1 Year": 52, "2 Years": 104}
-            weeks_to_show = lookback_days_map.get(st.session_state["asset_horizon"], 52)
+            weeks_to_show = lookback_days_map.get(st.session_state.get("asset_horizon", "1 Year"), 52)
             df_chart = df_chart.tail(weeks_to_show).reset_index().rename(columns={'index': 'Date'})
             df_chart['Date'] = pd.to_datetime(df_chart['Date']).dt.strftime('%Y-%m-%d')
             

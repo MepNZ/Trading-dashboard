@@ -383,7 +383,14 @@ if not RAW_MARKET_BATCH.empty:
     sec_tr1 = sec_high_matrix.values - sec_low_matrix.values
     sec_tr2 = np.abs(sec_high_matrix.values - sec_close_matrix.shift(1).values)
     sec_tr3 = np.abs(sec_low_matrix.values - sec_close_matrix.shift(1).values)
-    sec_tr_df = pd.DataFrame(np.nanmax(np.dstack((sec_tr1, sec_tr2, sec_tr3)), axis=2), index=RAW_MARKET_BATCH.index, columns=sec_close_matrix.columns)
+    
+    sec_stacked = np.dstack((sec_tr1, sec_tr2, sec_tr3))
+    with np.errstate(all_nan='ignore'):
+        sec_max_values = np.nanmax(sec_stacked, axis=2)
+        sec_max_values = np.nan_to_num(sec_max_values, nan=0.0)
+        
+    sec_tr_df = pd.DataFrame(sec_max_values, index=RAW_MARKET_BATCH.index, columns=sec_close_matrix.columns)
+
     sec_atr_matrix = sec_tr_df.rolling(window=min(14, len(sec_tr_df)), min_periods=1).mean()
     sec_vol_avg_matrix = sec_vol_matrix.rolling(window=min(20, len(sec_vol_matrix)), min_periods=1).mean()
 

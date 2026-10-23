@@ -373,11 +373,13 @@ def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster
     loss_matrix = (-delta_matrix.clip(upper=0)).rolling(window=14, min_periods=1).mean()
     rsi_matrix = 100 - (100 / (1 + (gain_matrix / loss_matrix.replace(0, np.nan)))).fillna(50)
 
-    macd_matrix = close_matrix.ewm(span=12, adjust=False).mean() - close_matrix.ewm(span=26, adjust=False).mean()
+        macd_matrix = close_matrix.ewm(span=12, adjust=False).mean() - close_matrix.ewm(span=26, adjust=False).mean()
     sig_matrix = macd_matrix.ewm(span=9, adjust=False).mean()
+    
     for ticker in available_tickers:
         try:
-            if ticker not in close_matrix.columns: continue
+            if ticker not in close_matrix.columns: 
+                continue
             
             # Direct index access replaces running loops inside row assembly
             last_close = live_feeds[ticker]["Live_Close"] if live_feeds and ticker in live_feeds else float(close_matrix[ticker].iloc[-1])
@@ -414,7 +416,24 @@ def process_entire_screening_universe(fast_ma, slow_ma, live_feeds, cache_buster
             if last_close <= (true_52w_low * 1.25):
                 signal_label = "🟢 Bullish Turning" if macd_val > sig_val else "🔴 Bearish Floor"
                 d_rows.append({"Market": market_label, "Ticker": ticker, "Company Name": resolved_name, "Live Price": last_close, "52W Low Floor": true_52w_low, "Limit Entry Target": round(true_52w_low * 1.01, 2), "Lower Bollinger Band": bb_lower_val, "52W High Ceiling": true_52w_high, "Proximity to Low": proximity_to_low_pct, "RSI Status": rsi_val, "MACD Signal": signal_label})
-        except: continue
+            
+            # --- Dynamic Chart Serialization Packing Block ---
+            try:
+                ticker_history_df = pd.DataFrame(index=raw_batch.index)
+                ticker_history_df['Close'] = close_matrix[ticker]
+                ticker_history_df['Fast_MA'] = fast_ma_matrix[ticker]
+                ticker_history_df['Slow_MA'] = slow_ma_matrix[ticker]
+                
+                if ticker_history_df.index.tz is not None:
+                    ticker_history_df.index = ticker_history_df.index.tz_localize(None)
+                    
+                ticker_history_df = ticker_history_df.dropna(subset=['Close'])
+                cached_dfs[ticker] = ticker_history_df.to_json(date_format='iso')
+            except:
+                pass
+
+        except: 
+            continue
 
     return b_rows, d_rows, cached_dfs
 # ==============================================================================

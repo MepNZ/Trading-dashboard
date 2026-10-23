@@ -261,16 +261,26 @@ def fetch_all_market_data_batch(ticker_list, start_date):
 
 def extract_ticker_dataframe(df_all, ticker):
     try:
-        if df_all.empty: return pd.DataFrame()
+        if df_all.empty: 
+            return pd.DataFrame()
+            
+        # Clean up any MultiIndex layer confusion
         if isinstance(df_all.columns, pd.MultiIndex):
+            # If the ticker exists anywhere in the top level of columns, extract it safely
             if ticker in df_all.columns.get_level_values(0):
                 df = df_all[ticker].copy()
+                df.columns = [str(c).title() for c in df.columns]
+                return df.dropna(subset=['Close'])
+            # Alternative: check if levels are swapped
+            elif ticker in df_all.columns.get_level_values(1):
+                df = df_all.xs(ticker, axis=1, level=1).copy()
                 df.columns = [str(c).title() for c in df.columns]
                 return df.dropna(subset=['Close'])
         else:
             if ticker in df_all.columns:
                 return pd.DataFrame({'Close': df_all[ticker]}).dropna()
-    except: pass
+    except Exception: 
+        pass
     return pd.DataFrame()
 
 def calculate_indicators_only(df, fast_ma, slow_ma):
@@ -441,20 +451,26 @@ for sector_symbol, descriptive_name in sector_mapping_dictionary.items():
         macro_sector_rows.append({"Sector Symbol": sector_symbol, "Sector Domain Name": descriptive_name, "Closing Price": s_close, "RSI Status Value": s_rsi, "RSI Speedometer": rsi_label})
 
 for ticker in all_active_workspace_tickers:
-    if sec_close_matrix.empty or ticker not in sec_close_matrix.columns: continue
+    if sec_close_matrix.empty or ticker not in sec_close_matrix.columns: 
+        continue
     
-    # Reconstruct localized slice mapping for chart renderers cleanly from global arrays
+    # Secure clean alignment for cross-sectional row extraction
     df_ticker_rebuilt = pd.DataFrame(index=RAW_MARKET_BATCH.index)
-    df_ticker_rebuilt['Close'] = sec_close_matrix[ticker]
-    df_ticker_rebuilt['High'] = sec_high_matrix[ticker]
-    df_ticker_rebuilt['Low'] = sec_low_matrix[ticker]
-    df_ticker_rebuilt['Volume'] = sec_vol_matrix[ticker]
-    df_ticker_rebuilt['Fast_MA'] = sec_fast_ma_matrix[ticker]
-    df_ticker_rebuilt['Slow_MA'] = sec_slow_ma_matrix[ticker]
-    df_ticker_rebuilt['RSI'] = sec_rsi_matrix[ticker]
-    df_ticker_rebuilt['ATR'] = sec_atr_matrix[ticker]
-    df_ticker_rebuilt['MACD'] = sec_macd_matrix[ticker]
-    df_ticker_rebuilt['Signal_Line'] = sec_sig_matrix[ticker]
+    
+    # Ensure all extractions match lengths perfectly using native pandas loc mapping
+    df_ticker_rebuilt['Close'] = sec_close_matrix[ticker] if ticker in sec_close_matrix.columns else np.nan
+    df_ticker_rebuilt['High'] = sec_high_matrix[ticker] if ticker in sec_high_matrix.columns else np.nan
+    df_ticker_rebuilt['Low'] = sec_low_matrix[ticker] if ticker in sec_low_matrix.columns else np.nan
+    df_ticker_rebuilt['Volume'] = sec_vol_matrix[ticker] if ticker in sec_vol_matrix.columns else np.nan
+    df_ticker_rebuilt['Fast_MA'] = sec_fast_ma_matrix[ticker] if ticker in sec_fast_ma_matrix.columns else np.nan
+    df_ticker_rebuilt['Slow_MA'] = sec_slow_ma_matrix[ticker] if ticker in sec_slow_ma_matrix.columns else np.nan
+    df_ticker_rebuilt['RSI'] = sec_rsi_matrix[ticker] if ticker in sec_rsi_matrix.columns else np.nan
+    df_ticker_rebuilt['ATR'] = sec_atr_matrix[ticker] if ticker in sec_atr_matrix.columns else np.nan
+    df_ticker_rebuilt['MACD'] = sec_macd_matrix[ticker] if ticker in sec_macd_matrix.columns else np.nan
+    df_ticker_rebuilt['Signal_Line'] = sec_sig_matrix[ticker] if ticker in sec_sig_matrix.columns else np.nan
+    
+    # Forward fill or clean missing elements to bypass international timezone gaps
+    df_ticker_rebuilt = df_ticker_rebuilt.ffill().bfill().dropna(subset=['Close'])
     operational_dfs[ticker] = df_ticker_rebuilt
 
     localized_cutoff = roi_cutoff_date.tz_localize(df_ticker_rebuilt.index.tz) if df_ticker_rebuilt.index.tz else roi_cutoff_date

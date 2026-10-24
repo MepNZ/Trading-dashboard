@@ -33,9 +33,9 @@ def get_custom_file_company_map():
             except Exception:
                 pass
                 
-        st.session_state.company_name_map = parsed_dictionary
+    st.session_state.company_name_map = parsed_dictionary
         
-        return st.session_state.company_name_map
+    return st.session_state.company_name_map
 
 st.set_page_config(
     page_title="Asset Finder",

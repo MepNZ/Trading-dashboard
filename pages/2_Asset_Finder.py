@@ -376,7 +376,12 @@ def process_entire_screening_universe(fast_ma, slow_ma, _live_feeds, cache_buste
             rsi_val = float(rsi_matrix[ticker].iloc[-1])
             macd_val = float(macd_matrix[ticker].iloc[-1])
             sig_val = float(sig_matrix[ticker].iloc[-1])
-            atr_val = float(atr_matrix[ticker].iloc[-1]) if atr_matrix[ticker].iloc[-1] > 0 else (last_close * 0.02)
+            
+            if ticker in atr_matrix.columns and not atr_matrix[ticker].dropna().empty:
+                atr_val = float(atr_matrix[ticker].dropna().iloc[-1])
+            
+            else:
+                atr_val = float(last_close * 0.02)
             bb_lower_val = float(lower_bb_matrix[ticker].iloc[-1])
             avg_volume_20d = float(avg_vol_matrix[ticker].iloc[-1]) if avg_vol_matrix[ticker].iloc[-1] > 0 else 1.0
 

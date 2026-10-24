@@ -43,7 +43,7 @@ def apply_alpha_signal_theme(df):
         vol_multiple = float(row['Vol Multiple']) if 'Vol Multiple' in row.index else 0.0
         alert_status = str(row['Alert Status']) if 'Alert Status' in row.index else ""
         elite_statuses = ["🌟 STRONG BUY", "🟩 BULLISH BREAKOUT", "🟢 Bullish Turning (High Volume)"]
-        if alert_status in elite_statuses and vol_multiple >= 2.0:
+        if alert_status in elite_statuses and vol_multiple >= 2.5:
             return ['background-color: #0A1128; color: #00E5FF; font-weight: 700; border: 1px solid #00E5FF;'] * len(row)
         if 'Alert Status' in row.index:
             idx = row.index.get_loc('Alert Status')

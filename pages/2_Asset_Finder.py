@@ -180,7 +180,7 @@ def fetch_all_market_data_batch_historical(ticker_list, start_date, execution_da
                         sub_list, 
                         start=start_date, 
                         end=static_end_boundary, 
-                        interval="1wk", 
+                        interval="1d", 
                         group_by='ticker', 
                         actions=False, 
                         threads=True, 

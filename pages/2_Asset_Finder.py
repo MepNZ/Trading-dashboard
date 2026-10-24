@@ -20,21 +20,18 @@ def get_custom_file_company_map():
     Otherwise, it defaults to a clean backup memory cache.
     """
     import os
+        # --- FIXED FILE LOADING BLOCK (REPLACES LINES 23-38) ---
     if 'company_name_map' not in st.session_state:
-        csv_path = "ticker_names.csv"
-        parsed_dictionary = {}
-        
-        if os.path.exists(csv_path):
+        st.session_state.company_name_map = {}
+        if os.path.exists("ticker_names.csv"):
             try:
-                df_names = pd.read_csv(csv_path)
-                df_names['Ticker'] = df_names['Ticker'].astype(str).str.strip()
-                df_names['True_Name'] = df_names['True_Name'].astype(str).str.strip()
-                parsed_dictionary = dict(zip(df_names['Ticker'], df_names['True_Name']))
+                df_names = pd.read_csv("ticker_names.csv")
+                tickers = df_names['Ticker'].astype(str).str.strip()
+                names = df_names['True_Name'].astype(str).str.strip()
+                st.session_state.company_name_map = dict(zip(tickers, names))
             except Exception:
                 pass
                 
-    st.session_state.company_name_map = parsed_dictionary
-        
     return st.session_state.company_name_map
 
 st.set_page_config(

@@ -386,6 +386,9 @@ def process_entire_screening_universe(fast_ma, slow_ma, _live_feeds, cache_buste
             proximity_to_low_pct = ((last_close - true_52w_low) / true_52w_low) * 100
             market_label = "NZ" if ticker.endswith(".NZ") else ("AUS" if ticker.endswith(".AX") else "US")
             resolved_name = local_name_map.get(ticker, disk_names.get(ticker, f"{ticker}"))
+            # Define the fee-adjusted targets directly above your signal engine (Line 389)
+            safe_daily_limit_target = round((last_close - (0.50 * atr_val)) * 0.981, 2)
+            safe_take_profit_target = round((safe_daily_limit_target + (2.0 * atr_val)) * 1.019, 2)
 
             if last_close > fast_ma_val and last_close > slow_ma_val:
                 breakout_signal = "🌟 STRONG BUY" if volume_multiple >= 1.5 else "🟩 BULLISH BREAKOUT"
@@ -395,10 +398,35 @@ def process_entire_screening_universe(fast_ma, slow_ma, _live_feeds, cache_buste
                 breakout_signal = "🔴 Structural Bear"
 
             if breakout_signal != "🔴 Structural Bear":
-                b_rows.append({"Market": market_label, "Ticker": ticker, "Company Name": resolved_name, "Live Price": last_close, "Alert Status": breakout_signal, "Limit Entry Target": round(last_close - (0.50 * atr_val), 2), "Vol Multiple": volume_multiple, "Daily Change %": pct_change, "RSI Momentum": rsi_val, "ATR Volatility": atr_val})
+                b_rows.append({
+                    "Market": market_label, 
+                    "Ticker": ticker, 
+                    "Company Name": resolved_name, 
+                    "Live Price": last_close, 
+                    "Alert Status": breakout_signal, 
+                    "Limit Entry Target": safe_daily_limit_target,   # UPDATED
+                    "Take Profit Target": safe_take_profit_target,   # ADDED
+                    "Vol Multiple": volume_multiple, 
+                    "Daily Change %": pct_change, 
+                    "RSI Momentum": rsi_val, 
+                    "ATR Volatility": atr_val
+                })
+
             if last_close <= (true_52w_low * 1.25):
                 signal_label = "🟢 Bullish Turning" if macd_val > sig_val else "🔴 Bearish Floor"
-                d_rows.append({"Market": market_label, "Ticker": ticker, "Company Name": resolved_name, "Live Price": last_close, "52W Low Floor": true_52w_low, "Limit Entry Target": round(true_52w_low * 1.01, 2), "Lower Bollinger Band": bb_lower_val, "52W High Ceiling": true_52w_high, "Proximity to Low": proximity_to_low_pct, "RSI Status": rsi_val, "MACD Signal": signal_label})
+                d_rows.append({
+                    "Market": market_label, 
+                    "Ticker": ticker, 
+                    "Company Name": resolved_name, 
+                    "Live Price": last_close, 
+                    "52W Low Floor": true_52w_low, 
+                    "Limit Entry Target": safe_daily_limit_target,   # UPDATED
+                    "Lower Bollinger Band": bb_lower_val, 
+                    "52W High Ceiling": true_52w_high, 
+                    "Proximity to Low": proximity_to_low_pct, 
+                    "RSI Status": rsi_val, 
+                    "MACD Signal": signal_label
+                })
             
             try:
                 ticker_history_df = pd.DataFrame(index=raw_batch.index)

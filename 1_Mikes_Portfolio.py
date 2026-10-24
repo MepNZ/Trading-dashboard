@@ -484,8 +484,9 @@ for ticker in all_active_workspace_tickers:
     rsi_val = float(df_ticker_rebuilt['RSI'].iloc[-1])
     atr_val = float(df_ticker_rebuilt['ATR'].iloc[-1]) if df_ticker_rebuilt['ATR'].iloc[-1] > 0 else (last_close * 0.02)
     
-    safe_daily_limit_target = round(last_close - (0.75 * atr_val), 2)
-    safe_take_profit_target = round((last_close + (2.0 * atr_val)) * 1.012, 2)
+    # --- Update these calculation variables inside Part 4C of your Portfolio Ledger ---
+    safe_daily_limit_target = round((last_close - (0.50 * atr_val)) * 0.981, 2)
+    safe_take_profit_target = round((safe_daily_limit_target + (2.0 * atr_val)) * 1.019, 2)
     
     window_start_price = float(hist_df_sliced['Close'].iloc[0]) if not hist_df_sliced.empty else last_close
     ticker_timeframe_roi = ((last_close - window_start_price) / window_start_price) * 100

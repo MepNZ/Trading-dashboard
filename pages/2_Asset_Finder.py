@@ -395,7 +395,7 @@ def process_entire_screening_universe(fast_ma, slow_ma, _live_feeds, cache_buste
                 breakout_signal = "🔴 Structural Bear"
 
             if breakout_signal != "🔴 Structural Bear":
-                b_rows.append({"Market": market_label, "Ticker": ticker, "Company Name": resolved_name, "Live Price": last_close, "Alert Status": breakout_signal, "Limit Entry Target": round(fast_ma_val, 2), "Vol Multiple": volume_multiple, "Daily Change %": pct_change, "RSI Momentum": rsi_val, "ATR Volatility": atr_val})
+                b_rows.append({"Market": market_label, "Ticker": ticker, "Company Name": resolved_name, "Live Price": last_close, "Alert Status": breakout_signal, "Limit Entry Target": round(last_close - (0.50 * atr_val), 2), "Vol Multiple": volume_multiple, "Daily Change %": pct_change, "RSI Momentum": rsi_val, "ATR Volatility": atr_val})
             if last_close <= (true_52w_low * 1.25):
                 signal_label = "🟢 Bullish Turning" if macd_val > sig_val else "🔴 Bearish Floor"
                 d_rows.append({"Market": market_label, "Ticker": ticker, "Company Name": resolved_name, "Live Price": last_close, "52W Low Floor": true_52w_low, "Limit Entry Target": round(true_52w_low * 1.01, 2), "Lower Bollinger Band": bb_lower_val, "52W High Ceiling": true_52w_high, "Proximity to Low": proximity_to_low_pct, "RSI Status": rsi_val, "MACD Signal": signal_label})

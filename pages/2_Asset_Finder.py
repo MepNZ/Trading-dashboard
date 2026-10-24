@@ -13,6 +13,30 @@ import time
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+def get_custom_file_company_map():
+    """
+    Loads your exact CSV structural layout directly into session memory.
+    If the ticker_names.csv file is found on your laptop, it parses it.
+    Otherwise, it defaults to a clean backup memory cache.
+    """
+    import os
+    if 'company_name_map' not in st.session_state:
+        csv_path = "ticker_names.csv"
+        parsed_dictionary = {}
+        
+        if os.path.exists(csv_path):
+            try:
+                df_names = pd.read_csv(csv_path)
+                df_names['Ticker'] = df_names['Ticker'].astype(str).str.strip()
+                df_names['True_Name'] = df_names['True_Name'].astype(str).str.strip()
+                parsed_dictionary = dict(zip(df_names['Ticker'], df_names['True_Name']))
+            except Exception:
+                pass
+                
+        st.session_state.company_name_map = parsed_dictionary
+        
+    return st.session_state.company_name_map
+
 st.set_page_config(
     page_title="Asset Finder",
     layout="wide",
@@ -390,7 +414,10 @@ def process_entire_screening_universe(fast_ma, slow_ma, _live_feeds, cache_buste
             true_52w_low = float(low_matrix[ticker].tail(104).min())
             proximity_to_low_pct = ((last_close - true_52w_low) / true_52w_low) * 100
             market_label = "NZ" if ticker.endswith(".NZ") else ("AUS" if ticker.endswith(".AX") else "US")
-            resolved_name = local_name_map.get(ticker, disk_names.get(ticker, f"{ticker}"))
+            # --- INCORPORATED CUSTOM CSV LOOKUP ENGINE ---
+            file_names_map = get_custom_file_company_map()
+            resolved_name = file_names_map.get(ticker, ticker)
+            # ---------------------------------------------
             # Define the fee-adjusted targets directly above your signal engine (Line 389)
             safe_daily_limit_target = round((last_close - (0.50 * atr_val)) * 0.981, 2)
             safe_take_profit_target = round((safe_daily_limit_target + (2.0 * atr_val)) * 1.019, 2)

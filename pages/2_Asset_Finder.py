@@ -395,12 +395,19 @@ def process_entire_screening_universe(fast_ma, slow_ma, _live_feeds, cache_buste
             safe_daily_limit_target = round((last_close - (0.50 * atr_val)) * 0.981, 2)
             safe_take_profit_target = round((safe_daily_limit_target + (2.0 * atr_val)) * 1.019, 2)
 
+                        # --- TIGHTENED FOR HIGH-CONVICTION BREAKOUTS (REPLACES LINE 398-403) ---
             if last_close > fast_ma_val and last_close > slow_ma_val:
-                breakout_signal = "🌟 STRONG BUY" if volume_multiple >= 1.5 else "🟩 BULLISH BREAKOUT"
+                # Requires a powerful 2.5x volume shockwave and confirmed upward momentum (RSI > 60)
+                if volume_multiple >= 2.5 and rsi_val >= 60.0:
+                    breakout_signal = "🌟 STRONG BUY"
+                else:
+                    breakout_signal = "🟩 BULLISH BREAKOUT"
             elif last_close > fast_ma_val and last_close <= slow_ma_val:
-                breakout_signal = "🟢 Bullish Turning (High Volume)" if volume_multiple >= 1.5 else "🟡 Bullish Turning (Low Volume)"
+                # Keeps your early turning alerts active but raises the volume confirmation bar to 2.0x
+                breakout_signal = "🟢 Bullish Turning (High Volume)" if volume_multiple >= 2.0 else "🟡 Bullish Turning (Low Volume)"
             else:
                 breakout_signal = "🔴 Structural Bear"
+            # ----------------------------------------------------------------------
 
             if breakout_signal != "🔴 Structural Bear":
                 b_rows.append({
@@ -506,7 +513,7 @@ def render_isolated_chart_engine(ticker_list, key_prefix):
         selected_ticker = st.radio("🛰 **Global Chart Engine Quick-Link Bar:**", options=ticker_list, horizontal=True, key=f"{key_prefix}_link_key")
         if selected_ticker in compressed_dfs:
             df_chart = pd.read_json(io.StringIO(compressed_dfs[selected_ticker]))
-            lookback_days_map = {"1 Month": 4, "3 Months": 12, "6 Months": 26, "1 Year": 52, "2 Years": 104}
+            lookback_days_map = {"1 Month": 21, "3 Months": 63, "6 Months": 126, "1 Year": 252, "2 Years": 504}
             weeks_to_show = lookback_days_map.get(st.session_state.get("asset_horizon", "1 Year"), 52)
             df_chart = df_chart.tail(weeks_to_show).reset_index().rename(columns={'index': 'Date'})
             df_chart['Date'] = pd.to_datetime(df_chart['Date']).dt.strftime('%Y-%m-%d')

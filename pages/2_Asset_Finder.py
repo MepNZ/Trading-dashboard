@@ -14,23 +14,32 @@ from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def get_custom_file_company_map():
-    """
-    Loads your exact CSV structural layout directly into session memory.
-    If the ticker_names.csv file is found on your laptop, it parses it.
-    Otherwise, it defaults to a clean backup memory cache.
-    """
-    import os
-        # --- FIXED FILE LOADING BLOCK (REPLACES LINES 23-38) ---
-    if 'company_name_map' not in st.session_state:
+    # Force clear/re-read during layout updates to avoid the session state lock bug
+    if 'company_name_map' not in st.session_state or not st.session_state.company_name_map:
         st.session_state.company_name_map = {}
-        if os.path.exists("ticker_names.csv"):
+        
+        # Check both root directory and up-one-level (parent) directory
+        possible_paths = ["ticker_names.csv", "../ticker_names.csv"]
+        target_path = next((p for p in possible_paths if os.path.exists(p)), None)
+        
+        if target_path:
             try:
-                df_names = pd.read_csv("ticker_names.csv")
+                df_names = pd.read_csv(target_path)
                 tickers = df_names['Ticker'].astype(str).str.strip()
                 names = df_names['True_Name'].astype(str).str.strip()
-                st.session_state.company_name_map = dict(zip(tickers, names))
-            except Exception:
-                pass
+                base_map = dict(zip(tickers, names))
+                
+                # Create a secondary lookup to handle Yahoo's hyphen variations (e.g., BRK-B -> BRK.B)
+                processed_map = {}
+                for k, v in base_map.items():
+                    processed_map[k] = v
+                    if "." in k:
+                        processed_map[k.replace(".", "-")] = v
+                        
+                st.session_state.company_name_map = processed_map
+            except Exception as e:
+                # Print to console log so you can see if pd.read_csv fails
+                print(f"!!! CSV Load Error: {e}") 
                 
     return st.session_state.company_name_map
 

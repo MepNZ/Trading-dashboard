@@ -13,36 +13,6 @@ import time
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-def get_custom_file_company_map():
-    # Force clear/re-read during layout updates to avoid the session state lock bug
-    if 'company_name_map' not in st.session_state or not st.session_state.company_name_map:
-        st.session_state.company_name_map = {}
-        
-        # Check both root directory and up-one-level (parent) directory
-        possible_paths = ["ticker_names.csv", "../ticker_names.csv"]
-        target_path = next((p for p in possible_paths if os.path.exists(p)), None)
-        
-        if target_path:
-            try:
-                df_names = pd.read_csv(target_path)
-                tickers = df_names['Ticker'].astype(str).str.strip()
-                names = df_names['True_Name'].astype(str).str.strip()
-                base_map = dict(zip(tickers, names))
-                
-                # Create a secondary lookup to handle Yahoo's hyphen variations (e.g., BRK-B -> BRK.B)
-                processed_map = {}
-                for k, v in base_map.items():
-                    processed_map[k] = v
-                    if "." in k:
-                        processed_map[k.replace(".", "-")] = v
-                        
-                st.session_state.company_name_map = processed_map
-            except Exception as e:
-                # Print to console log so you can see if pd.read_csv fails
-                print(f"!!! CSV Load Error: {e}") 
-                
-    return st.session_state.company_name_map
-
 st.set_page_config(
     page_title="Asset Finder",
     layout="wide",
@@ -73,7 +43,7 @@ def apply_alpha_signal_theme(df):
         vol_multiple = float(row['Vol Multiple']) if 'Vol Multiple' in row.index else 0.0
         alert_status = str(row['Alert Status']) if 'Alert Status' in row.index else ""
         elite_statuses = ["🌟 STRONG BUY", "🟩 BULLISH BREAKOUT", "🟢 Bullish Turning (High Volume)"]
-        if alert_status in elite_statuses and vol_multiple >= 2.5:
+        if alert_status in elite_statuses and vol_multiple >= 2.0:
             return ['background-color: #0A1128; color: #00E5FF; font-weight: 700; border: 1px solid #00E5FF;'] * len(row)
         if 'Alert Status' in row.index:
             idx = row.index.get_loc('Alert Status')
@@ -420,27 +390,17 @@ def process_entire_screening_universe(fast_ma, slow_ma, _live_feeds, cache_buste
             true_52w_low = float(low_matrix[ticker].tail(104).min())
             proximity_to_low_pct = ((last_close - true_52w_low) / true_52w_low) * 100
             market_label = "NZ" if ticker.endswith(".NZ") else ("AUS" if ticker.endswith(".AX") else "US")
-            # --- INCORPORATED CUSTOM CSV LOOKUP ENGINE ---
-            file_names_map = get_custom_file_company_map()
-            resolved_name = file_names_map.get(ticker, ticker)
-            # ---------------------------------------------
+            resolved_name = local_name_map.get(ticker, disk_names.get(ticker, f"{ticker}"))
             # Define the fee-adjusted targets directly above your signal engine (Line 389)
             safe_daily_limit_target = round((last_close - (0.50 * atr_val)) * 0.981, 2)
             safe_take_profit_target = round((safe_daily_limit_target + (2.0 * atr_val)) * 1.019, 2)
 
-                        # --- TIGHTENED FOR HIGH-CONVICTION BREAKOUTS (REPLACES LINE 398-403) ---
             if last_close > fast_ma_val and last_close > slow_ma_val:
-                # Requires a powerful 2.5x volume shockwave and confirmed upward momentum (RSI > 60)
-                if volume_multiple >= 2.5 and rsi_val >= 60.0:
-                    breakout_signal = "🌟 STRONG BUY"
-                else:
-                    breakout_signal = "🟩 BULLISH BREAKOUT"
+                breakout_signal = "🌟 STRONG BUY" if volume_multiple >= 1.5 else "🟩 BULLISH BREAKOUT"
             elif last_close > fast_ma_val and last_close <= slow_ma_val:
-                # Keeps your early turning alerts active but raises the volume confirmation bar to 2.0x
-                breakout_signal = "🟢 Bullish Turning (High Volume)" if volume_multiple >= 2.0 else "🟡 Bullish Turning (Low Volume)"
+                breakout_signal = "🟢 Bullish Turning (High Volume)" if volume_multiple >= 1.5 else "🟡 Bullish Turning (Low Volume)"
             else:
                 breakout_signal = "🔴 Structural Bear"
-            # ----------------------------------------------------------------------
 
             if breakout_signal != "🔴 Structural Bear":
                 b_rows.append({
@@ -546,7 +506,7 @@ def render_isolated_chart_engine(ticker_list, key_prefix):
         selected_ticker = st.radio("🛰 **Global Chart Engine Quick-Link Bar:**", options=ticker_list, horizontal=True, key=f"{key_prefix}_link_key")
         if selected_ticker in compressed_dfs:
             df_chart = pd.read_json(io.StringIO(compressed_dfs[selected_ticker]))
-            lookback_days_map = {"1 Month": 21, "3 Months": 63, "6 Months": 126, "1 Year": 252, "2 Years": 504}
+            lookback_days_map = {"1 Month": 4, "3 Months": 12, "6 Months": 26, "1 Year": 52, "2 Years": 104}
             weeks_to_show = lookback_days_map.get(st.session_state.get("asset_horizon", "1 Year"), 52)
             df_chart = df_chart.tail(weeks_to_show).reset_index().rename(columns={'index': 'Date'})
             df_chart['Date'] = pd.to_datetime(df_chart['Date']).dt.strftime('%Y-%m-%d')

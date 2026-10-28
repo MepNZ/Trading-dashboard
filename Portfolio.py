@@ -74,7 +74,7 @@ def load_company_names():
                 try:
                     m_df = pd.read_csv(csv_path, encoding=encoding_variant)
                     m_df.columns = m_df.columns.astype(str).str.strip()
-                    
+                    st.write("DEBUG - Found Columns:", m_df.columns.tolist()) # ⬅️ ADD THIS EXACT LINE
                     # 🟢 Create a dual-mapped lookup dictionary that matches BOTH uppercase and lowercase variants of your CSV data
                     csv_data = {}
                     for _, row in m_df.iterrows():
@@ -365,11 +365,12 @@ if not RAW_MARKET_BATCH.empty:
                     val_loc = shares_num * last_close
                     
                     active_live_positions.append({
-                        "Ticker": clean_ticker_key, "Asset Name": resolved_name, "Shares": shares_num, "Currency": currency_lbl,
+                        "Ticker": ticker, "Asset Name": resolved_name, "Shares": shares_num, "Currency": currency_lbl,
                         "Bought at": entry_p, "Live price": last_close, "New Limit Buy": safe_daily_limit_target,   
                         "Take Profit": safe_take_profit_target, "Cost (Loc)": cost_loc, "Cost (NZD)": cost_loc * mult, 
                         "Value (Loc)": val_loc, "Value (NZD)": val_loc * mult, "Stop Loss": last_close - (2.0 * atr_val)
                     })
+
         except Exception: pass
 
 def apply_market_signal_theme(df):

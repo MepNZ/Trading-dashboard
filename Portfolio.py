@@ -314,7 +314,12 @@ if not RAW_MARKET_BATCH.empty:
             safe_take_profit_target = round((safe_daily_limit_target + (2.0 * atr_val)) * 1.019, 2)
             
             resolved_name = company_name_map.get(ticker.upper().strip(), f"{ticker} Corporation Asset")
-            strategy_status = "🟩 BULLISH BREAKOUT" if last_close > fast_ma_val else "🔴 Structural Bear"
+            
+            # 🚀 NEW AUTOMATED SAFETY FILTER: Requires price to be above BOTH moving averages
+            if last_close > fast_ma_val and last_close > slow_ma_val:
+                strategy_status = "🟩 DUAL-TREND BREAKOUT"
+            else:
+                strategy_status = "🔴 Structural Bear"
             
             roi_cutoff = datetime.now() - timedelta(days=horizon_days)
             localized_cutoff = roi_cutoff.tz_localize(df_t.index.tz) if df_t.index.tz else roi_cutoff
@@ -355,7 +360,7 @@ def apply_market_signal_theme(df):
         if 'Status' in row.index:
             val = row['Status']
             idx = row.index.get_loc('Status')
-            if val == "🟩 BULLISH BREAKOUT": 
+            if val == "🟩 DUAL TREND BREAKOUT": 
                 styles[idx] = 'background-color: #e0f2fe; color: #0369a1; font-weight: bold;'
             elif val == "🔴 Structural Bear": 
                 styles[idx] = 'background-color: #fee2e2; color: #b91c1c; font-weight: bold;'

@@ -224,6 +224,7 @@ if raw_breakouts:
             unsafe_allow_html=True
         )
         
+                # 🚀 PHYSICAL OVERRIDE: Forces the system grid to draw double-sized header dimensions natively
         st.dataframe(
             df_grid,
             use_container_width=True,

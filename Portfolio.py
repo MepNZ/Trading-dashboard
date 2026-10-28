@@ -19,7 +19,9 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 2. Complete CSS injection to hide sidebars and fix alignments
+# =============================================================================
+# 2. COMPLETE LIGHT-THEME STYLING INJECTION (REVISED FOR VISIBLE HEADERS)
+# =============================================================================
 st.markdown(
     """
     <style>
@@ -30,19 +32,20 @@ st.markdown(
         .stTabs [data-baseweb="tab-list"] { gap: 16px !important; margin-bottom: 15px !important; }
         .stTabs [data-baseweb="tab-panel"] { padding-top: 10px !important; }
         
-        /* 🚀 ADVANCED SHADOW DOM CELL OVERRIDES: Forces larger grid text size */
+        /* 👑 STYLES ALL TABLES AND LEDGERS IN CRISP BLACK FOR ALL TEXT ELEMENTS */
         div[data-testid="stDataFrame"] *, 
-        div[data-testid="stTable"] *, 
-        .ag-theme-streamlit *,
-        [class^="st-ae"] {
-            font-size: 1.12rem !important;
-            line-height: 1.4 !important;
+        div[data-testid="stDataFrame"] [role="columnheader"] span,
+        div[data-testid="stDataFrame"] div,
+        div[data-testid="stTable"] *,
+        .custom-grid th, .custom-grid td {
+            color: #111111 !important;
+            font-weight: 600 !important;
         }
         
-        /* Makes header rows slightly larger and crisp */
+        /* Forces the text inside table headers to remain bold and sharp */
         div[data-testid="stDataFrame"] [role="columnheader"] * {
-            font-size:1.08rem !important;
             font-weight: bold !important;
+            color: #111111 !important;
         }
     </style>
     """,
@@ -390,19 +393,51 @@ if active_live_positions:
         
     p_df["ROI"] = p_df["ROI"].map("{:,.2f}%".format)
     
-    html_table_a = p_df[cols_a].to_html(classes='table_a', index=False, escape=False)
-    grid_css = """
+    html_table_a = p_df[cols_a].to_html(index=False, escape=False, table_id="ledger-portfolio")
+    
+    # ☀️ UNIFIED LIGHT-THEME STICKY LEDGER DESIGN Matrix
+    ledger_a_css = """
     <style>
-        .custom-grid { width: 100%; border-collapse: collapse; margin: 10px 0; font-family: sans-serif; }
-        .custom-grid th { background-color: #161A22 !important; color: #ffffff !important; font-size: 1.00rem !important; padding: 12px 10px; text-align: left; border-bottom: 2px solid #2d313f; }
-        .custom-grid td { color: #ffffff !important; font-size: 0.95rem !important; padding: 12px 10px; border-bottom: 1px solid #2d313f; font-weight: 500; }
-        .custom-grid tr { background-color: #1e2430 !important; }
-        .custom-grid tr:hover { background-color: #283040 !important; }
+        .ledger-a-scroll-window {
+            max-height: 400px;
+            overflow-y: auto !important;
+            overflow-x: auto !important;
+            border: 1px solid #D1D5DB;
+        }
+        #ledger-portfolio {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: sans-serif;
+            background-color: #FFFFFF !important;
+        }
+        #ledger-portfolio th {
+            position: -webkit-sticky !important;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 10 !important;
+            background-color: #E5E7EB !important; 
+            color: #111111 !important; 
+            font-size: 1.00rem !important;
+            font-weight: bold !important;
+            padding: 14px 12px !important;
+            text-align: left;
+            border-bottom: 3px solid #007bff !important;
+            white-space: nowrap !important;
+            user-select: none;
+        }
+        #ledger-portfolio td {
+            color: #222222 !important;
+            font-size: 0.95rem !important;
+            padding: 12px 12px !important;
+            border-bottom: 1px solid #E5E7EB !important;
+            white-space: nowrap !important;
+        }
+        #ledger-portfolio tr:nth-child(even) { background-color: #F9FAFB !important; }
+        #ledger-portfolio tr:hover { background-color: #F3F4F6 !important; }
     </style>
     """
-    table_body = html_table_a.replace('class="dataframe table_a"', 'class="custom-grid"')
-    st.components.v1.html(f"{grid_css}<div style='overflow-x:auto;'>{table_body}</div>", height=300, scrolling=True)
-    
+    st.markdown(ledger_a_css, unsafe_allow_html=True)
+    st.markdown(f"<div class='ledger-a-scroll-window'>{html_table_a}</div>", unsafe_allow_html=True)
     st.markdown(f"""<div style='background-color: #f1f5f9; padding: 10px 14px; border-radius: 4px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; font-size: 0.88rem; font-weight: bold; margin-bottom: 20px; border: 1px solid #cbd5e1;'><div>🌎 FX: US/NZD: <span style='color: #0284c7;'>{usd_to_nzd_rate:.4f}</span></div><div>📋 Invested: <span style='color: #334155;'>${tot_invest_nzd:,.2f} NZD</span></div><div>💰 Cash: <span style='color: #0284c7;'>${integ_cash_nzd:,.2f} NZD</span></div><div style='background-color: #e2e8f0;'>👑 TOTAL VALUE:<br><span style='color: #0f172a; font-size: 1.15rem;'>${tot_app_value:,.2f} NZD</span></div><div>📈 Return: <span style='color: {p_color};'>{p_sign}${tot_profit_nzd:,.2f} ({p_sign}{tot_roi_nzd:.2f}%)</span></div></div>""", unsafe_allow_html=True)
 else:
     st.info("💡 Portfolio ledger values are currently processing. Verify slot input expressions.")
@@ -430,19 +465,101 @@ if active_paper_rows:
         
     p_df_a2["% ROI"] = p_df_a2["% ROI"].map("{:,.2f}%".format)
     
-    html_table_a2 = p_df_a2.to_html(classes='table_a2', index=False, escape=False)
-    table_body_a2 = html_table_a2.replace('class="dataframe table_a2"', 'class="custom-grid"')
+    html_table_a2 = p_df_a2.to_html(index=False, escape=False, table_id="ledger-paper")
     
-    local_grid_css = """
+    # 👑 THE UNBREAKABLE CANVAS MATRIX: Merges styles and scripts inside an isolated frame for perfect click-sorting
+    paper_combined_html = f"""
     <style>
-        .custom-grid { width: 100%; border-collapse: collapse; margin: 10px 0; font-family: sans-serif; }
-        .custom-grid th { background-color: #161A22 !important; color: #ffffff !important; font-size: 1.00rem !important; padding: 12px 10px; text-align: left; border-bottom: 2px solid #2d313f; }
-        .custom-grid td { color: #ffffff !important; font-size: 0.95rem !important; padding: 12px 10px; border-bottom: 1px solid #2d313f; font-weight: 500; }
-        .custom-grid tr { background-color: #1e2430 !important; }
-        .custom-grid tr:hover { background-color: #283040 !important; }
+        body {{
+            margin: 0;
+            padding: 0;
+            background-color: transparent;
+        }}
+        .ledger-a2-scroll-window {{
+            max-height: 380px;
+            overflow-y: auto !important;
+            overflow-x: auto !important;
+            border: 1px solid #D1D5DB;
+        }}
+        #ledger-paper {{
+            width: 100%;
+            border-collapse: collapse;
+            font-family: sans-serif;
+            background-color: #FFFFFF !important;
+        }}
+        #ledger-paper th {{
+            position: -webkit-sticky !important;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 10 !important;
+            background-color: #E5E7EB !important; 
+            color: #111111 !important; 
+            font-size: 1.00rem !important;
+            font-weight: bold !important;
+            padding: 14px 12px !important;
+            text-align: left;
+            border-bottom: 3px solid #007bff !important;
+            white-space: nowrap !important;
+            cursor: pointer !important;
+            user-select: none;
+        }}
+        #ledger-paper th::after {{
+            content: " ↕";
+            font-size: 0.8rem;
+            color: #888;
+            padding-left: 5px;
+        }}
+        #ledger-paper td {{
+            color: #222222 !important;
+            font-size: 0.95rem !important;
+            padding: 12px 12px !important;
+            border-bottom: 1px solid #E5E7EB !important;
+            white-space: nowrap !important;
+        }}
+        #ledger-paper tr:nth-child(even) {{ background-color: #F9FAFB !important; }}
+        #ledger-paper tr:hover {{ background-color: #F3F4F6 !important; }}
     </style>
+    
+    <div class='ledger-a2-scroll-window'>
+        {html_table_a2}
+    </div>
+    
+    <script>
+        document.querySelectorAll("#ledger-paper th").forEach((header, index) => {{
+            header.addEventListener("click", () => {{
+                const table = document.getElementById("ledger-paper");
+                const tbody = table.querySelector("tbody");
+                const rows = Array.from(tbody.querySelectorAll("tr"));
+                const isAscending = header.classList.contains("sort-asc");
+                
+                table.querySelectorAll("th").forEach(th => th.classList.remove("sort-asc", "sort-desc"));
+                
+                rows.sort((rowA, rowB) => {{
+                    let cellA = rowA.children[index].textContent.replace(/[\\$,%x\\s]/g, "").trim();
+                    let cellB = rowB.children[index].textContent.replace(/[\\$,%x\\s]/g, "").trim();
+                    
+                    cellA = cellA.replace(/🟢/g, "").trim();
+                    cellB = cellB.replace(/🟢/g, "").trim();
+                    
+                    const numA = parseFloat(cellA);
+                    const numB = parseFloat(cellB);
+                    
+                    if (!isNaN(numA) && !isNaN(numB)) return isAscending ? numB - numA : numA - numB;
+                    return isAscending ? cellB.localeCompare(cellA) : cellA.localeCompare(cellB);
+                }});
+                
+                header.classList.toggle("sort-asc", !isAscending);
+                header.classList.toggle("sort-desc", isAscending);
+                
+                rows.forEach(row => tbody.appendChild(row));
+            }});
+        }});
+    </script>
     """
-    st.components.v1.html(f"{local_grid_css}<div style='overflow-x:auto;'>{table_body_a2}</div>", height=300, scrolling=True)
+    
+    # Renders via Streamlit HTML component to ensure cross-tab javascript click detection works
+    st.components.v1.html(paper_combined_html, height=400, scrolling=False)
+
 st.markdown("#### 🔍 Core System Chart Analytics")
 chart_list = [str(t).strip().upper() for t in all_active_workspace_tickers if str(t).strip().upper() in operational_dfs]
 
@@ -471,12 +588,127 @@ if chart_list:
         s_line = base.mark_line(color='#FF3333', strokeWidth=2).encode(y='Slow_MA:Q')
         st.altair_chart(alt.layer(c_line, f_line, s_line), use_container_width=True)
 
+# =============================================================================
+# 📊 Layer B: Asset Comparison Grid (UPGRADED WITH INTERACTIVE ENGINE)
+# =============================================================================
 st.markdown("#### 📊 Layer B: Asset Comparison Grid")
 if master_unified_rows:
     b_df = pd.DataFrame(master_unified_rows)
     cols_b = ["Ticker", "Sector", "Asset Name", "Price", "Return", "Limit Buy at", "T/P Exit", "Status", "Fast MA", "Slow MA", "RSI", "ATR"]
     b_df = b_df[cols_b]
-    st.dataframe(apply_market_signal_theme(b_df), use_container_width=True, hide_index=True)
+    
+    # Generate clean copies for visualization text-mapping pipelines
+    df_portfolio_display = b_df.copy()
+    df_portfolio_display["Price"] = df_portfolio_display["Price"].map("${:,.2f}".format)
+    df_portfolio_display["Limit Buy at"] = df_portfolio_display["Limit Buy at"].map("${:,.2f}".format)
+    df_portfolio_display["T/P Exit"] = df_portfolio_display["T/P Exit"].map("${:,.2f}".format)
+    df_portfolio_display["Fast MA"] = df_portfolio_display["Fast MA"].map("${:,.2f}".format)
+    df_portfolio_display["Slow MA"] = df_portfolio_display["Slow MA"].map("${:,.2f}".format)
+    df_portfolio_display["ATR"] = df_portfolio_display["ATR"].map("${:,.2f}".format)
+    
+    # 🟢 High-Volume / Velocity Growth Markers Mapping
+    df_portfolio_display["Return"] = df_portfolio_display["Return"].apply(
+        lambda x: f"🟢 {x:+.2f}%" if x >= 3.00 else f"{x:+.2f}%"
+    )
+    df_portfolio_display["RSI"] = df_portfolio_display["RSI"].apply(
+        lambda x: f"🟢 {x:,.1f}" if x >= 60.0 else f"{x:,.1f}"
+    )
+    
+    html_portfolio_table = df_portfolio_display.to_html(index=False, escape=False, table_id="portfolio-screener")
+    
+    # 👑 THE UNBREAKABLE CANVAS MATRIX: Combines styles and scripts into a single sandboxed execution window
+    portfolio_combined_html = f"""
+    <style>
+        body {{
+            margin: 0;
+            padding: 0;
+            background-color: transparent;
+        }}
+        .portfolio-scroll-window {{
+            max-height: 480px;
+            overflow-y: auto !important;
+            overflow-x: auto !important;
+            border: 1px solid #D1D5DB;
+        }}
+        #portfolio-screener {{
+            width: 100%;
+            border-collapse: collapse;
+            font-family: sans-serif;
+            background-color: #FFFFFF !important;
+        }}
+        #portfolio-screener th {{
+            position: -webkit-sticky !important;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 10 !important;
+            background-color: #E5E7EB !important; 
+            color: #111111 !important; 
+            font-size: 1.00rem !important;
+            font-weight: bold !important;
+            padding: 16px 12px !important;
+            text-align: left;
+            border-bottom: 3px solid #007bff !important;
+            white-space: nowrap !important;
+            cursor: pointer !important;
+            user-select: none;
+        }}
+        #portfolio-screener th::after {{
+            content: " ↕";
+            font-size: 0.8rem;
+            color: #888;
+            padding-left: 5px;
+        }}
+        #portfolio-screener td {{
+            color: #222222 !important;
+            font-size: 0.95rem !important;
+            padding: 12px 12px !important;
+            border-bottom: 1px solid #E5E7EB !important;
+            white-space: nowrap !important;
+        }}
+        #portfolio-screener tr:nth-child(even) {{ background-color: #F9FAFB !important; }}
+        #portfolio-screener tr:hover {{ background-color: #F3F4F6 !important; }}
+    </style>
+    
+    <div class='portfolio-scroll-window'>
+        {html_portfolio_table}
+    </div>
+    
+    <script>
+        document.querySelectorAll("#portfolio-screener th").forEach((header, index) => {{
+            header.addEventListener("click", () => {{
+                const table = document.getElementById("portfolio-screener");
+                const tbody = table.querySelector("tbody");
+                const rows = Array.from(tbody.querySelectorAll("tr"));
+                const isAscending = header.classList.contains("sort-asc");
+                
+                table.querySelectorAll("th").forEach(th => th.classList.remove("sort-asc", "sort-desc"));
+                
+                rows.sort((rowA, rowB) => {{
+                    let cellA = rowA.children[index].textContent.replace(/[\\$,%x\\s]/g, "").trim();
+                    let cellB = rowB.children[index].textContent.replace(/[\\$,%x\\s]/g, "").trim();
+                    
+                    cellA = cellA.replace(/🟢/g, "").trim();
+                    cellB = cellB.replace(/🟢/g, "").trim();
+                    
+                    const numA = parseFloat(cellA);
+                    const numB = parseFloat(cellB);
+                    
+                    if (!isNaN(numA) && !isNaN(numB)) return isAscending ? numB - numA : numA - numB;
+                    return isAscending ? cellB.localeCompare(cellA) : cellA.localeCompare(cellB);
+                }});
+                
+                header.classList.toggle("sort-asc", !isAscending);
+                header.classList.toggle("sort-desc", isAscending);
+                
+                rows.forEach(row => tbody.appendChild(row));
+            }});
+        }});
+    </script>
+    """
+    
+    # Renders inside a specialized native component window to execute scripts with zero sandboxing interference
+    st.components.v1.html(portfolio_combined_html, height=500, scrolling=False)
+    st.markdown("<br>", unsafe_allow_html=True)
 
 st.markdown("#### 📐 Layer C: Volatility-Adjusted Position Sizing Calculator")
 if chart_list:

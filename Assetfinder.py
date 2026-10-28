@@ -7,7 +7,7 @@ import altair as alt
 from datetime import datetime, timedelta
 
 # =============================================================================
-# 1. WINDOW SETUP & HIGH-CONTRAST LAYOUT STYLING
+# 1. WINDOW SETUP & LIGHT-THEME STYLING
 # =============================================================================
 st.set_page_config(
     page_title="Asset Finder",
@@ -15,13 +15,21 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Core page title configurations
+# Core page title configurations optimized for Light Theme text contrast
 st.markdown("""
     <style>
         .block-container { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; max-width: 100% !important; }
         div[data-testid="stTitle"] { margin-top: -20px !important; margin-bottom: -10px !important; }
-        h1 { font-size: 2.0rem !important; font-weight: 800 !important; color: #FFFFFF !important; }
-        .small-header { font-size: 1.25rem !important; font-weight: bold !important; color: #4A90E2 !important; margin-bottom: 4px !important; }
+        h1 { font-size: 2.0rem !important; font-weight: 800 !important; color: #111111 !important; }
+        .small-header { font-size: 1.25rem !important; font-weight: bold !important; color: #007bff !important; margin-bottom: 4px !important; }
+        
+        /* 👑 STYLES THE DATAFRAME IN LIGHT MODE WITH CRISP BLACK FOR ALL TEXT ELEMENTS */
+        div[data-testid="stDataFrame"] *, 
+        div[data-testid="stDataFrame"] [role="columnheader"] span,
+        div[data-testid="stDataFrame"] div {
+            color: #111111 !important;
+            font-weight: 600 !important;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -169,7 +177,7 @@ with st.sidebar:
     max_price_filter = st.slider("Maximum Live Price to Display:", min_value=5, max_value=absolute_max_price, value=absolute_max_price, step=5, format="$%d")
 
 # =============================================================================
-# 6. INSTANT DATA SCREENER GRID VIEW
+# 6. INSTANT DATA SCREENER GRID VIEW (HTML INTERACTIVE SORT ENGINE)
 # =============================================================================
 if raw_breakouts:
     df_grid = pd.DataFrame(raw_breakouts)
@@ -178,7 +186,6 @@ if raw_breakouts:
         
     df_grid = df_grid[(df_grid["Live Price"] <= max_price_filter) & (df_grid["Vol Multiple"] >= min_vol_multiple)]
     
-    # Map raw string length of emoji stars back to integer for filtering
     df_grid["Star_Count"] = df_grid["Score"].apply(lambda x: len(x) if x != "❌" else 0)
     df_grid = df_grid[df_grid["Star_Count"] >= min_stars]
     df_grid = df_grid.drop(columns=["Star_Count"])
@@ -189,68 +196,139 @@ if raw_breakouts:
         cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Score", "Live Price", "Limit Entry Target", "Take Profit Target", "Vol Multiple", "ATR Risk", "Daily Change %", "RSI Momentum"]
         df_grid = df_grid[[c for c in cols_order if c in df_grid.columns]]
         
-        # Explicit clean dictionary column labels setup
         df_grid.columns = ["Market", "Ticker", "Asset Name", "System Status", "Confluence", "Price", "Limit Entry Target", "Take Profit Target", "RVOL Multiplier", "ATR Risk ($)", "Daily Change %", "RSI Momentum"]
         
-        # Converts data keys into neat strings before drawing HTML table container
+        # Format the strings cleanly for display
         df_display = df_grid.copy()
         df_display["Price"] = df_display["Price"].map("${:,.2f}".format)
         df_display["Limit Entry Target"] = df_display["Limit Entry Target"].map("${:,.2f}".format)
         df_display["Take Profit Target"] = df_display["Take Profit Target"].map("${:,.2f}".format)
-        df_display["RVOL Multiplier"] = df_display["RVOL Multiplier"].map("{:,.2f}x".format)
+        
+        # 🟢 Uniform green circle for High Volume (>= 1.50)
+        df_display["RVOL Multiplier"] = df_display["RVOL Multiplier"].apply(
+            lambda x: f"🟢 {x:,.2f}x" if x >= 1.50 else f"{x:,.2f}x"
+        )
+        
         df_display["ATR Risk ($)"] = df_display["ATR Risk ($)"].map("${:,.2f}".format)
-        df_display["Daily Change %"] = df_display["Daily Change %"].map("{:+.2f}%".format)
-        df_display["RSI Momentum"] = df_display["RSI Momentum"].map("{:,.1f}".format)
         
-        # Generates clean, predictable HTML source code
-        html_table = df_display.to_html(index=False, escape=False, table_id="finder-grid")
+        # 🟢 Uniform green circle for Big Daily Moves (>= 3.00%)
+        df_display["Daily Change %"] = df_display["Daily Change %"].apply(
+            lambda x: f"🟢 {x:+.2f}%" if x >= 3.00 else f"{x:+.2f}%"
+        )
         
-        custom_table_css = """
+        # 🟢 Uniform green circle for High Momentum RSI (>= 60.0)
+        df_display["RSI Momentum"] = df_display["RSI Momentum"].apply(
+            lambda x: f"🟢 {x:,.1f}" if x >= 60.0 else f"{x:,.1f}"
+        )
+
+        html_table = df_display.to_html(index=False, escape=False, table_id="interactive-screener")
+        
+        # 👑 THE UNBREAKABLE CANVAS MATRIX: Merges styles and scripts inside an isolated frame for perfect click-sorting
+        screener_combined_html = f"""
         <style>
-            .stMarkdown div { overflow: visible !important; }
-            
-            #finder-grid { 
-                width: 100%; 
-                border-collapse: collapse; 
-                margin: 15px 0; 
-                font-family: sans-serif; 
-                background-color: #161A22 !important; 
-            }
-            
-            /* 👑 FIXED STICKY HEADER REWIRE: Locks the double-height row at the top during scrolls */
-            #finder-grid th { 
+            body {{
+                margin: 0;
+                padding: 0;
+                background-color: transparent;
+            }}
+            .scroll-window {{
+                max-height: 650px;
+                overflow-y: auto !important;
+                overflow-x: auto !important;
+                border: 1px solid #D1D5DB;
+            }}
+            #interactive-screener {{
+                width: 100%;
+                border-collapse: collapse;
+                font-family: sans-serif;
+                background-color: #FFFFFF !important;
+            }}
+            /* Lock the headers visibly at the top with solid, readable colors */
+            #interactive-screener th {{
+                position: -webkit-sticky !important;
                 position: sticky !important;
                 top: 0 !important;
                 z-index: 10 !important;
-                background-color: #000000 !important; 
-                color: #FFFFFF !important; 
-                font-size: 1.05rem !important; 
-                padding: 22px 14px !important; 
-                text-align: left; 
-                border-bottom: 3px solid #4A90E2 !important; 
+                background-color: #E5E7EB !important; /* Distinct light gray header bar */
+                color: #111111 !important; /* Bold, highly visible black text labels */
+                font-size: 1.00rem !important;
                 font-weight: bold !important;
+                
+                /* Layout Spacing Upgrades */
+                padding: 0px 12px !important;
+                height: 90px !important;
+                
+                /* Unbreakable Absolute Vertical Centering Engine */
+                display: table-cell !important;
+                vertical-align: middle !important;
+                line-height: 90px !important;
+                
+                text-align: left;
+                border-bottom: 3px solid #007bff !important;
                 white-space: nowrap !important;
-                box-shadow: inset 0 -3px 0 #4A90E2; /* Prevents border bleed on scroll */
-            }
-            
-            #finder-grid td { 
-                color: #FFFFFF !important; 
-                font-size: 1.00rem !important; 
-                padding: 14px 14px !important; 
-                border-bottom: 1px solid #2d313f !important; 
-                font-weight: 500 !important;
+                cursor: pointer !important;
+                user-select: none;
+            }}
+            #interactive-screener th::after {{
+                content: " ↕";
+                font-size: 0.8rem;
+                color: #888;
+                padding-left: 5px;
+                display: inline-block !important;
+                vertical-align: middle !important;
+                line-height: normal !important;
+            }}
+            #interactive-screener td {{
+                color: #222222 !important;
+                font-size: 0.95rem !important;
+                padding: 12px 12px !important;
+                border-bottom: 1px solid #E5E7EB !important;
                 white-space: nowrap !important;
-            }
-            #finder-grid tr:nth-child(even) { background-color: #1c212c !important; }
-            #finder-grid tr:hover { background-color: #242b38 !important; }
+            }}
+            #interactive-screener tr:nth-child(even) {{ background-color: #F9FAFB !important; }}
+            #interactive-screener tr:hover {{ background-color: #F3F4F6 !important; }}
         </style>
-        """
-
-        # 🚀 FIXED THE HANDSHAKE FAULT: Separate the layout CSS rules from the print container
-        st.markdown(custom_table_css, unsafe_allow_html=True)
-        st.markdown(f"<div style='overflow-x:auto;'>{html_table}</div>", unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_allow_html=True)
         
+        <div class='scroll-window'>
+            {html_table}
+        </div>
+        
+        <script>
+            document.querySelectorAll("#interactive-screener th").forEach((header, index) => {{
+                header.addEventListener("click", () => {{
+                    const table = document.getElementById("interactive-screener");
+                    const tbody = table.querySelector("tbody");
+                    const rows = Array.from(tbody.querySelectorAll("tr"));
+                    const isAscending = header.classList.contains("sort-asc");
+                    
+                    table.querySelectorAll("th").forEach(th => th.classList.remove("sort-asc", "sort-desc"));
+                    
+                    rows.sort((rowA, rowB) => {{
+                        let cellA = rowA.children[index].textContent.replace(/[\\$,%x\\s]/g, "").trim();
+                        let cellB = rowB.children[index].textContent.replace(/[\\$,%x\\s]/g, "").trim();
+                        
+                        cellA = cellA.replace(/🟢/g, "").trim();
+                        cellB = cellB.replace(/🟢/g, "").trim();
+                        
+                        const numA = parseFloat(cellA);
+                        const numB = parseFloat(cellB);
+                        
+                        if (!isNaN(numA) && !isNaN(numB)) return isAscending ? numB - numA : numA - numB;
+                        return isAscending ? cellB.localeCompare(cellA) : cellA.localeCompare(cellB);
+                    }});
+                    
+                    header.classList.toggle("sort-asc", !isAscending);
+                    header.classList.toggle("sort-desc", isAscending);
+                    
+                    rows.forEach(row => tbody.appendChild(row));
+                }});
+            }});
+        </script>
+        """
+        
+        # Renders via Streamlit HTML component to ensure cross-tab javascript click detection works
+        st.components.v1.html(screener_combined_html, height=700, scrolling=False)
+        st.markdown("<br>", unsafe_allow_html=True)        
         # =============================================================================
         # 7. HIGH-SPEED LIGHTWEIGHT OVERLAY CHART
         # =============================================================================

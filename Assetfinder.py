@@ -163,7 +163,7 @@ with st.sidebar:
     show_bears = st.checkbox("Include Structural Bears in Matrix", value=True)
     min_vol_multiple = st.slider("Minimum Vol Multiple Filter:", min_value=0.0, max_value=5.0, value=0.0, step=0.1, format="%.1fx")
     
-    # 🚀 NEW CONFLUENCE FILTER SLIDER ADDED HERE
+    # NEW CONFLUENCE FILTER SLIDER ADDED HERE
     min_stars = st.slider("Minimum Confluence Rating (Stars):", min_value=0, max_value=5, value=0, step=1, format="%d ⭐")
 
 ticker_universe = list(load_company_names_matrix().keys())
@@ -205,7 +205,7 @@ if raw_breakouts:
         # Explicit clean dictionary column labels setup
         df_grid.columns = ["Market", "Ticker", "Asset Name", "System Status", "Confluence", "Price", "Limit Entry Target", "Take Profit Target", "RVOL Multiplier", "ATR Risk ($)", "Daily Change %", "RSI Momentum"]
         
-        # 🚀 PERMANENT FIX: Converts data keys into neat strings before drawing HTML table container
+        # PERMANENT FIX: Converts data keys into neat strings before drawing HTML table container
         df_display = df_grid.copy()
         df_display["Price"] = df_display["Price"].map("${:,.2f}".format)
         df_display["Limit Entry Target"] = df_display["Limit Entry Target"].map("${:,.2f}".format)
@@ -228,17 +228,17 @@ if raw_breakouts:
                 font-size: 1.05rem !important; 
                 padding: 22px 14px !important; 
                 text-align: left; 
-                border-bottom: 3px solid #4A90E2; 
-                font-weight: bold;
-                white-space: nowrap;
+                border-bottom: 3px solid #4A90E2 !important; 
+                font-weight: bold !important;
+                white-space: nowrap !important;
             }
             .finder-grid td { 
                 color: #FFFFFF !important; 
                 font-size: 1.00rem !important; 
                 padding: 14px 14px !important; 
-                border-bottom: 1px solid #2d313f; 
-                font-weight: 500;
-                white-space: nowrap;
+                border-bottom: 1px solid #2d313f !important; 
+                font-weight: 500 !important;
+                white-space: nowrap !important;
             }
             .finder-grid tr:nth-child(even) { background-color: #1c212c !important; }
             .finder-grid tr:hover { background-color: #242b38 !important; }
@@ -266,10 +266,11 @@ if raw_breakouts:
                 chart_df['Fast_MA_Line'] = chart_df['Close'].rolling(window=int(fast_ma_slider), min_periods=1).mean()
                 chart_df['Slow_MA_Line'] = chart_df['Close'].rolling(window=int(slow_ma_slider), min_periods=1).mean()
                 
-                chart_df = chart_df.tail(120).reset_index()
+                # FIXED: Strip index metadata to prevent clean text column tracking faults
+                chart_df = chart_df.tail(120)
+                chart_df.index = pd.to_datetime(chart_df.index).strftime('%Y-%m-%d')
+                chart_df = chart_df.reset_index().rename(columns={'index': 'Date'})
                 chart_df.columns = [str(c) for c in chart_df.columns]
-                chart_df.rename(columns={chart_df.columns[0]: 'Date'}, inplace=True)
-                chart_df['Date'] = pd.to_datetime(chart_df['Date']).dt.strftime('%Y-%m-%d')
                 
                 y_scale = alt.Scale(domain=[chart_df['Close'].min() * 0.95, chart_df['Close'].max() * 1.05], clamp=True)
                 base = alt.Chart(chart_df).encode(x='Date:T').properties(height=300)
@@ -283,6 +284,6 @@ if raw_breakouts:
             except Exception as chart_fault:
                 st.info("Chart alignment processing. Checking data parameters.")
     else:
-        st.info("No active setups match your filtering criteria right now.")
+        st.sidebar.info("No active setups match your filtering criteria right now.")
 else:
-    st.info("No tickers matching crossover momentum velocity rules right now.")
+    st.sidebar.info("No tickers matching crossover momentum velocity rules right now.")

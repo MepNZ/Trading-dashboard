@@ -149,6 +149,16 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 🎯 Display Filters")
     show_bears = st.checkbox("Include Structural Bears in Matrix", value=True)
+    
+    # 🚀 NEW VALUE FILTER ADDED HERE: Screen out weak breakout patterns
+    min_vol_multiple = st.slider(
+        "Minimum Volume Multiple Filter:", 
+        min_value=0.0, 
+        max_value=5.0, 
+        value=0.0, 
+        step=0.1,
+        format="%.1fx"
+    )
 
 # Run data collection matrix instantaneously
 ticker_universe = list(load_company_names_matrix().keys())
@@ -186,10 +196,16 @@ if raw_breakouts:
         
     df_grid = df_grid[df_grid["Live Price"] <= max_price_filter]
     
+    # Apply new volume filter calculation matrix
+    df_grid = df_grid[df_grid["Vol Multiple"] >= min_vol_multiple]
+    
     if not df_grid.empty:
         df_grid = df_grid.sort_values(by=["Daily Change %"], ascending=False)
         cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Live Price", "Limit Entry Target", "Take Profit Target", "Vol Multiple", "Daily Change %", "RSI Momentum"]
         df_grid = df_grid[[c for c in cols_order if c in df_grid.columns]]
+        
+        # Explicit dictionary headers override structure
+        df_grid.columns = ["Market", "Ticker", "Asset Name", "Alert Status", "Live Price", "Limit Entry Target", "Take Profit Target", "Vol Multiple", "Daily Change %", "RSI Momentum"]
         
         st.dataframe(
             df_grid,
@@ -197,7 +213,10 @@ if raw_breakouts:
             hide_index=True,
             height=400,
             column_config={
-                "Alert Status": st.column_config.Column("Alert Status"),
+                "Market": st.column_config.TextColumn("Market"),
+                "Ticker": st.column_config.TextColumn("Ticker"),
+                "Asset Name": st.column_config.TextColumn("Asset Name"),
+                "Alert Status": st.column_config.TextColumn("Alert Status"),
                 "Live Price": st.column_config.NumberColumn("Live Price", format="$%.2f"),
                 "Limit Entry Target": st.column_config.NumberColumn("Limit Entry Target", format="$%.2f"),
                 "Take Profit Target": st.column_config.NumberColumn("Take Profit Target", format="$%.2f"),

@@ -57,47 +57,16 @@ TARGETS_FILE = "portfolio_targets.json"
 # 3. HIGH-SPEED COMPANY NAME DICTIONARY MAPPING ENGINE
 # =============================================================================
 def load_company_names():
-    # 🔍 STEP 1: Dynamically determine the absolute root folder of your workspace project
-    possible_roots = [
-        os.getcwd(),                                      # The running directory context
-        os.path.dirname(os.path.abspath(__file__)),       # The direct folder containing Portfolio.py
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # Step one full level up to root context
-    ]
-    
-    # 🔍 STEP 2: Multi-level dynamic fallback matrix scan
-    paths_to_check = []
-    for root in possible_roots:
-        paths_to_check.extend([
-            os.path.join(root, "ticker_names.csv"),
-            os.path.join(root, "pages", "ticker_names.csv"),
-            os.path.join(root, "..", "ticker_names.csv")
-        ])
-    
-    # Filter down to absolute unique file locations to eliminate scan redundancy
-    unique_paths = list(dict.fromkeys(paths_to_check))
-    
-    # 🔍 STEP 3: Execute file read with case-insensitive dictionary processing
-    for csv_path in unique_paths:
-        if os.path.exists(csv_path):
-            for encoding_variant in ['latin-1', 'cp1252', 'utf-8-sig', 'utf-8']:
-                try:
-                    m_df = pd.read_csv(csv_path, encoding=encoding_variant)
-                    m_df.columns = m_df.columns.astype(str).str.strip()
-                    
-                    csv_data = {}
-                    for _, row in m_df.iterrows():
-                        ticker_key = str(row['Ticker']).strip()
-                        name_val = str(row['True_Name']).strip()
-                        
-                        # Store both variants so lookups never fail a string check
-                        csv_data[ticker_key.upper()] = name_val
-                        csv_data[ticker_key.lower()] = name_val
-                        
-                    return csv_data
-                except Exception:
-                    continue
-                    
-    # Return empty dictionary if file completely vanishes off disk
+    csv_path = "ticker_names.csv"
+    if os.path.exists(csv_path):
+        for encoding_variant in ['latin-1', 'cp1252', 'utf-8-sig', 'utf-8']:
+            try:
+                m_df = pd.read_csv(csv_path, encoding=encoding_variant)
+                m_df.columns = m_df.columns.astype(str).str.strip()
+                return dict(zip(m_df['Ticker'].astype(str).str.strip().str.upper(), 
+                                m_df['True_Name'].astype(str).str.strip()))
+            except Exception:
+                continue
     return {}
 
 company_name_map = load_company_names()
@@ -289,18 +258,25 @@ else:
 if not RAW_MARKET_BATCH.empty:
     for ticker in extended_fetching_tickers:
         try:
-            if len(extended_fetching_tickers) > 1:
+            # 🟢 Clean the lookups strings to guarantee matching across index files
+            clean_ticker_key = str(ticker).strip().upper()
+            
+            # Extract individual price blocks cleanly to match Assetfinder's data structure
+            if isinstance(RAW_MARKET_BATCH.columns, pd.MultiIndex):
                 if ticker in RAW_MARKET_BATCH.columns.get_level_values(0):
-                    df_t = RAW_MARKET_BATCH[ticker].copy().ffill().bfill().dropna(subset=['Close'])
+                    df_t = RAW_MARKET_BATCH[ticker].copy()
+                elif clean_ticker_key in RAW_MARKET_BATCH.columns.get_level_values(0):
+                    df_t = RAW_MARKET_BATCH[clean_ticker_key].copy()
                 else:
                     continue
             else:
-                df_t = RAW_MARKET_BATCH.copy().ffill().bfill().dropna(subset=['Close'])
+                df_t = RAW_MARKET_BATCH.copy()
                 
+            df_t = df_t.ffill().bfill().dropna(subset=['Close'])
             if df_t.empty:
                 continue
 
-            # Core Indicators Math
+            # Core Technical Indicator Mathematics
             df_t['Fast_MA'] = df_t['Close'].rolling(window=int(st.session_state["fast_ma"]), min_periods=1).mean()
             df_t['Slow_MA'] = df_t['Close'].rolling(window=int(st.session_state["slow_ma"]), min_periods=1).mean()
             
@@ -310,10 +286,8 @@ if not RAW_MARKET_BATCH.empty:
                     (df_t['High'] - df_t['Close'].shift(1)).abs(), 
                     (df_t['Low'] - df_t['Close'].shift(1)).abs()
                 ], axis=1).max(axis=1)
-                df_t['Volume_Avg'] = df_t['Volume'].rolling(window=20, min_periods=1).mean() if 'Volume' in df_t.columns else 1.0
             else:
                 df_t['True_Range'] = df_t['Close'] * 0.02
-                df_t['Volume_Avg'] = 1.0
                 
             df_t['ATR'] = df_t['True_Range'].rolling(window=14, min_periods=1).mean()
             
@@ -323,6 +297,8 @@ if not RAW_MARKET_BATCH.empty:
             df_t['RSI'] = 100 - (100 / (1 + (gain / loss.replace(0, np.nan)))).fillna(50)
             
             operational_dfs[ticker] = df_t
+            operational_dfs[clean_ticker_key] = df_t
+            
             last_close = float(df_t['Close'].iloc[-1])
             rsi_val = float(df_t['RSI'].iloc[-1])
             
@@ -338,13 +314,12 @@ if not RAW_MARKET_BATCH.empty:
             slow_ma_val = float(df_t['Slow_MA'].iloc[-1])
             atr_val = float(df_t['ATR'].iloc[-1]) if df_t['ATR'].iloc[-1] > 0 else (last_close * 0.02)
             
-            # Exact execution tracking targets preserved
             safe_daily_limit_target = round((last_close - (0.50 * atr_val)) * 0.981, 2)
             safe_take_profit_target = round((safe_daily_limit_target + (2.0 * atr_val)) * 1.019, 2)
             
-            resolved_name = company_name_map.get(ticker.upper().strip(), f"{ticker} Corporation Asset")
+            # 🟢 Clean resolution from the mapping file (Matches the exact Assetfinder logic)
+            resolved_name = company_name_map.get(clean_ticker_key, f"{ticker}")
             
-            # 🚀 NEW AUTOMATED SAFETY FILTER: Requires price to be above BOTH moving averages
             if last_close > fast_ma_val and last_close > slow_ma_val:
                 strategy_status = "🟩 DUAL-TREND BREAKOUT"
             else:
@@ -356,7 +331,7 @@ if not RAW_MARKET_BATCH.empty:
             window_start_p = float(hist_sliced['Close'].iloc[0]) if not hist_sliced.empty else last_close
             ticker_roi = ((last_close - window_start_p) / window_start_p) * 100
             
-            if ticker in all_active_workspace_tickers:
+            if ticker in all_active_workspace_tickers or clean_ticker_key in all_active_workspace_tickers:
                 master_unified_rows.append({
                     "Ticker": ticker, "Sector": asset_sector_tags.get(ticker, "Other"), "Asset Name": resolved_name, 
                     "Price": last_close, "Return": ticker_roi, "Limit Buy at": safe_daily_limit_target, 
@@ -364,8 +339,8 @@ if not RAW_MARKET_BATCH.empty:
                     "Slow MA": slow_ma_val, "RSI": rsi_val, "ATR": atr_val
                 })
                 
-            if ticker in clean_portfolio_list:
-                stored_block = runtime_positions.get(ticker, {})
+            if ticker in clean_portfolio_list or clean_ticker_key in clean_portfolio_list:
+                stored_block = runtime_positions.get(ticker, runtime_positions.get(clean_ticker_key, {}))
                 shares_num = float(stored_block.get("shares", 0.0))
                 entry_p = float(stored_block.get("entry", 0.0))
                 
@@ -381,21 +356,8 @@ if not RAW_MARKET_BATCH.empty:
                         "Take Profit": safe_take_profit_target, "Cost (Loc)": cost_loc, "Cost (NZD)": cost_loc * mult, 
                         "Value (Loc)": val_loc, "Value (NZD)": val_loc * mult, "Stop Loss": last_close - (2.0 * atr_val)
                     })
-
-        except Exception: pass
-
-def apply_market_signal_theme(df):
-    def style_metric_cells(row):
-        styles = [''] * len(row)
-        if 'Status' in row.index:
-            val = row['Status']
-            idx = row.index.get_loc('Status')
-            if val == "🟩 DUAL TREND BREAKOUT": 
-                styles[idx] = 'background-color: #e0f2fe; color: #0369a1; font-weight: bold;'
-            elif val == "🔴 Structural Bear": 
-                styles[idx] = 'background-color: #fee2e2; color: #b91c1c; font-weight: bold;'
-        return styles
-    return df.style.apply(style_metric_cells, axis=1)
+        except Exception:
+            pass
 st.markdown("#### 💼 Layer A: My Portfolio Ledger")
 if active_live_positions:
     p_df = pd.DataFrame(active_live_positions)

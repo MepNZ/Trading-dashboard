@@ -38,16 +38,13 @@ def load_company_names_matrix():
         "CEN.NZ": "Contact Energy", "MEL.NZ": "Meridian Energy", "BHP.AX": "BHP Group", 
         "CBA.AX": "Commonwealth Bank", "TLS.AX": "Telstra Group", "FMG.AX": "Fortescue Ltd", "RIO.AX": "Rio Tinto"
     }
-
 # =============================================================================
 # 3. HIGH-SPEED CONCURRENT LIVE DATA DOWNLOAD LAYER
 # =============================================================================
 @st.cache_data(ttl=300) # Locked 5-minute live memory cache safety buffer
 def fetch_live_market_data(tickers):
-    """
-    Downloads structural matrix from yfinance and flattens column headers 
-    to prevent row dropouts from new library layout updates.
-    """
+    if not tickers:
+        return pd.DataFrame()
     lookback_start = datetime.today() - timedelta(days=365)
     try:
         fresh_data = yf.download(tickers, start=lookback_start, progress=False)
@@ -111,7 +108,6 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma):
             
             c_today, f_today, s_today = float(df['Close'].iloc[-1]), float(df['Fast_MA'].iloc[-1]), float(df['Slow_MA'].iloc[-1])
             c_yest, f_yest, s_yest = float(df['Close'].iloc[-2]), float(df['Fast_MA'].iloc[-2]), float(df['Slow_MA'].iloc[-2])
-            c_db4, f_db4, s_db4 = float(df['Close'].iloc[-3]), float(df['Fast_MA'].iloc[-3]), float(df['Slow_MA'].iloc[-3])
             
             pct_change = ((c_today - c_yest) / c_yest) * 100
             current_volume = int(df['Volume'].iloc[-1])
@@ -126,12 +122,11 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma):
             safe_daily_limit_target = round((c_today - (0.50 * atr_val)) * 0.981, 2)
             safe_take_profit_target = round((safe_daily_limit_target + (2.0 * atr_val)) * 1.019, 2)
 
+            # 🚀 MATCHING LOGIC FIX: Syncs layout status string completely with portfolio.py
             if c_today > f_today and c_today > s_today:
-                was_below_yest = (c_yest <= f_yest or c_yest <= s_yest)
-                was_below_db4 = (c_db4 <= f_db4 or c_db4 <= s_db4)
-                breakout_signal = "🚀 FRESH DAY-1 BREAKOUT" if (was_below_yest or was_below_db4) else "🟩 SUSTAINED TREND"
+                breakout_signal = "🟩 DUAL-TREND BREAKOUT"
             elif c_today > f_today and c_today <= s_today:
-                breakout_signal = "🟢 Bullish Turning (High Volume)" if volume_multiple >= 1.1 else "🟡 Bullish Turning (Low Volume)"
+                breakout_signal = "🟢 Turning Bullish (High Vol)" if volume_multiple >= 1.1 else "🟡 Turning Bullish (Low Vol)"
             else:
                 breakout_signal = "🔴 Structural Bear"
 
@@ -147,7 +142,7 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma):
 # 5. USER PREFERENCE SIDEBAR CONTROLS
 # =============================================================================
 with st.sidebar:
-    st.markdown("### 🛠     Technical Settings Layer")
+    st.markdown("### 🛠 Technical Settings Layer")
     fast_ma_slider = st.slider("Fast MA Filter Window:", min_value=5, max_value=30, value=10, step=1)
     slow_ma_slider = st.slider("Slow MA Filter Window:", min_value=20, max_value=150, value=50, step=5)
     
@@ -233,7 +228,6 @@ if raw_breakouts:
                     'Close': raw_batch_data[close_col]
                 }).ffill().bfill().dropna(subset=['Close'])
                 
-                # Render slider indicators instantly using memory data entries
                 chart_df['Fast_MA_Line'] = chart_df['Close'].rolling(window=int(fast_ma_slider), min_periods=1).mean()
                 chart_df['Slow_MA_Line'] = chart_df['Close'].rolling(window=int(slow_ma_slider), min_periods=1).mean()
                 

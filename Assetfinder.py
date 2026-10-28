@@ -199,61 +199,47 @@ if raw_breakouts:
     if not df_grid.empty:
         df_grid = df_grid.sort_values(by=["Daily Change %"], ascending=False)
         
-                # 🚀 HARD DESIGN OVERRIDE: Forces spacious, visible headers
-        st.markdown(
-            """
-            <style>
-                /* Forces grid header containers to be twice the width/height with clear breathing room */
-                div[data-testid="stDataFrame"] div[role="columnheader"] {
-                    background-color: #000000 !important;
-                    color: #FFFFFF !important;
-                    font-weight: 900 !important;
-                    border-bottom: 2px solid #4A90E2 !important;
-                    padding-top: 24px !important;
-                    padding-bottom: 24px !important;
-                    line-height: 2.0 !important;
-                    height: auto !important;
-                }
-                div[data-testid="stDataFrame"] div[role="columnheader"] span {
-                    color: #FFFFFF !important;
-                    font-weight: 900 !important;
-                    font-size: 1.1rem !important;
-                }
-            </style>
-            """, 
-            unsafe_allow_html=True
-        )
+                # 🚀 PERMANENT FIX: Converts the table to HTML with formatted numerical strings
+        df_display = df_grid.copy()
         
-                # 🚀 PERMANENT FIX: Converts the table to HTML to completely bypass canvas limitations
-        html_table = df_grid.to_html(index=False, escape=False)
+        # Round and format numerical columns explicitly before converting to HTML
+        df_display["Live Price"] = df_display["Live Price"].map("${:,.2f}".format)
+        df_display["Limit Entry Target"] = df_display["Limit Entry Target"].map("${:,.2f}".format)
+        df_display["Take Profit Target"] = df_display["Take Profit Target"].map("${:,.2f}".format)
+        df_display["Vol Multiple"] = df_display["Vol Multiple"].map("{:,.2f}x".format)
+        df_display["ATR Risk"] = df_display["ATR Risk"].map("${:,.2f}".format)
+        df_display["Daily Change %"] = df_display["Daily Change %"].map("{:+.2f}%".format)
+        df_display["RSI Momentum"] = df_display["RSI Momentum"].map("{:,.1f}".format)
         
-        # Injects direct styling to double the header row height (padding) and match your dark theme
+        html_table = df_display.to_html(index=False, escape=False)
+        
         custom_table_css = """
         <style>
-            .finder-grid { width: 100%; border-collapse: collapse; margin: 10px 0; font-family: sans-serif; }
+            .finder-grid { width: 100%; border-collapse: collapse; margin: 15px 0; font-family: sans-serif; background-color: #161A22; }
             
-            /* 🔥 PHYSICAL DOUBLE-SIZE OVERRIDE: 24px top/bottom padding doubles the height instantly */
+            /* 🔥 PHYSICAL DOUBLE-HEIGHT OVERRIDE: Large padding stretches headers out */
             .finder-grid th { 
                 background-color: #000000 !important; 
                 color: #FFFFFF !important; 
                 font-size: 1.05rem !important; 
-                padding: 24px 12px !important; 
+                padding: 22px 14px !important; 
                 text-align: left; 
-                border-bottom: 2px solid #4A90E2; 
+                border-bottom: 3px solid #4A90E2; 
                 font-weight: bold;
+                white-space: nowrap;
             }
             .finder-grid td { 
                 color: #FFFFFF !important; 
-                font-size: 0.95rem !important; 
-                padding: 12px 12px; 
+                font-size: 1.00rem !important; 
+                padding: 14px 14px !important; 
                 border-bottom: 1px solid #2d313f; 
+                font-weight: 500;
             }
-            .finder-grid tr { background-color: #161A22 !important; }
-            .finder-grid tr:hover { background-color: #1e2430 !important; }
+            .finder-grid tr:nth-child(even) { background-color: #1c212c !important; }
+            .finder-grid tr:hover { background-color: #242b38 !important; }
         </style>
         """
         
-        # Render the clean HTML table structure natively
         formatted_html = html_table.replace('class="dataframe"', 'class="finder-grid"')
         st.markdown(f"{custom_table_css}<div style='overflow-x:auto;'>{formatted_html}</div>", unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)

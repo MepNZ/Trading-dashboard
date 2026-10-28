@@ -199,20 +199,25 @@ if raw_breakouts:
     if not df_grid.empty:
         df_grid = df_grid.sort_values(by=["Daily Change %"], ascending=False)
         
-        # 🚀 HARD DESIGN OVERRIDE: Uses raw markdown container to force crisp high-contrast header rendering
+                # 🚀 HARD DESIGN OVERRIDE: Forces spacious, visible headers
         st.markdown(
             """
             <style>
-                /* Forces grid header containers to be pitch black with bright crisp white typography */
+                /* Forces grid header containers to be twice the width/height with clear breathing room */
                 div[data-testid="stDataFrame"] div[role="columnheader"] {
                     background-color: #000000 !important;
                     color: #FFFFFF !important;
                     font-weight: 900 !important;
                     border-bottom: 2px solid #4A90E2 !important;
+                    padding-top: 24px !important;
+                    padding-bottom: 24px !important;
+                    line-height: 2.0 !important;
+                    height: auto !important;
                 }
                 div[data-testid="stDataFrame"] div[role="columnheader"] span {
                     color: #FFFFFF !important;
                     font-weight: 900 !important;
+                    font-size: 1.1rem !important;
                 }
             </style>
             """, 

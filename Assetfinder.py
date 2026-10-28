@@ -224,28 +224,40 @@ if raw_breakouts:
             unsafe_allow_html=True
         )
         
-                # 🚀 PHYSICAL OVERRIDE: Forces the system grid to draw double-sized header dimensions natively
-        st.dataframe(
-            df_grid,
-            use_container_width=True,
-            hide_index=True,
-            height=400,
-            column_config={
-                "Market": st.column_config.TextColumn("Market"),
-                "Ticker": st.column_config.TextColumn("Ticker"),
-                "Company Name": st.column_config.TextColumn("Asset Name"),
-                "Alert Status": st.column_config.TextColumn("System Status"),
-                "Score": st.column_config.TextColumn("Confluence"),
-                "Live Price": st.column_config.NumberColumn("Price", format="$%.2f"),
-                "Limit Entry Target": st.column_config.NumberColumn("Limit Entry Target", format="$%.2f"),
-                "Take Profit Target": st.column_config.NumberColumn("Take Profit Target", format="$%.2f"),
-                "Vol Multiple": st.column_config.NumberColumn("RVOL Multiplier", format="%.2fx"),
-                "ATR Risk": st.column_config.NumberColumn("ATR Risk ($)", format="%.2f"),
-                "Daily Change %": st.column_config.NumberColumn("Daily Change %", format="%+.2f%%"),
-                "RSI Momentum": st.column_config.NumberColumn("RSI Momentum", format="%.1f")
-            }
-        )
+                # 🚀 PERMANENT FIX: Converts the table to HTML to completely bypass canvas limitations
+        html_table = df_grid.to_html(index=False, escape=False)
         
+        # Injects direct styling to double the header row height (padding) and match your dark theme
+        custom_table_css = """
+        <style>
+            .finder-grid { width: 100%; border-collapse: collapse; margin: 10px 0; font-family: sans-serif; }
+            
+            /* 🔥 PHYSICAL DOUBLE-SIZE OVERRIDE: 24px top/bottom padding doubles the height instantly */
+            .finder-grid th { 
+                background-color: #000000 !important; 
+                color: #FFFFFF !important; 
+                font-size: 1.05rem !important; 
+                padding: 24px 12px !important; 
+                text-align: left; 
+                border-bottom: 2px solid #4A90E2; 
+                font-weight: bold;
+            }
+            .finder-grid td { 
+                color: #FFFFFF !important; 
+                font-size: 0.95rem !important; 
+                padding: 12px 12px; 
+                border-bottom: 1px solid #2d313f; 
+            }
+            .finder-grid tr { background-color: #161A22 !important; }
+            .finder-grid tr:hover { background-color: #1e2430 !important; }
+        </style>
+        """
+        
+        # Render the clean HTML table structure natively
+        formatted_html = html_table.replace('class="dataframe"', 'class="finder-grid"')
+        st.markdown(f"{custom_table_css}<div style='overflow-x:auto;'>{formatted_html}</div>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+
         # =============================================================================
         # 7. HIGH-SPEED LIGHTWEIGHT OVERLAY CHART
         # =============================================================================

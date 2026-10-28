@@ -205,8 +205,10 @@ if raw_breakouts:
         # Generates clean, predictable HTML source code
         html_table = df_display.to_html(index=False, escape=False, table_id="finder-grid")
         
-        custom_table_css = """
+                custom_table_css = """
         <style>
+            .stMarkdown div { overflow: visible !important; }
+            
             #finder-grid { 
                 width: 100%; 
                 border-collapse: collapse; 
@@ -215,17 +217,22 @@ if raw_breakouts:
                 background-color: #161A22 !important; 
             }
             
-            /* 🔥 TRUE EXPLICIT DOUBLE-HEIGHT SPACED HEADERS */
+            /* 👑 FIXED STICKY HEADER REWIRE: Locks the double-height row at the top during scrolls */
             #finder-grid th { 
+                position: sticky !important;
+                top: 0 !important;
+                z-index: 10 !important;
                 background-color: #000000 !important; 
                 color: #FFFFFF !important; 
                 font-size: 1.05rem !important; 
-                padding: 24px 14px !important; 
+                padding: 22px 14px !important; 
                 text-align: left; 
                 border-bottom: 3px solid #4A90E2 !important; 
                 font-weight: bold !important;
                 white-space: nowrap !important;
+                box-shadow: inset 0 -3px 0 #4A90E2; /* Prevents border bleed on scroll */
             }
+            
             #finder-grid td { 
                 color: #FFFFFF !important; 
                 font-size: 1.00rem !important; 
@@ -238,7 +245,7 @@ if raw_breakouts:
             #finder-grid tr:hover { background-color: #242b38 !important; }
         </style>
         """
-        
+
         # 🚀 FIXED THE HANDSHAKE FAULT: Separate the layout CSS rules from the print container
         st.markdown(custom_table_css, unsafe_allow_html=True)
         st.markdown(f"<div style='overflow-x:auto;'>{html_table}</div>", unsafe_allow_html=True)

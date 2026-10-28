@@ -205,7 +205,7 @@ if raw_breakouts:
         # Generates clean, predictable HTML source code
         html_table = df_display.to_html(index=False, escape=False, table_id="finder-grid")
         
-                custom_table_css = """
+        custom_table_css = """
         <style>
             .stMarkdown div { overflow: visible !important; }
             

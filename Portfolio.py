@@ -53,7 +53,9 @@ st.markdown(
 )
 
 TARGETS_FILE = "portfolio_targets.json"
-# 3. High-Speed Company Name Dictionary Mapping Engine
+# =============================================================================
+# 3. HIGH-SPEED COMPANY NAME DICTIONARY MAPPING ENGINE
+# =============================================================================
 def load_company_names():
     current_folder = os.getcwd()
     script_folder = os.path.dirname(os.path.abspath(__file__)) # ⬅️ ADD THIS TO FIX MULTI-TAB PATH DRIFT
@@ -72,8 +74,17 @@ def load_company_names():
                 try:
                     m_df = pd.read_csv(csv_path, encoding=encoding_variant)
                     m_df.columns = m_df.columns.astype(str).str.strip()
-                    return dict(zip(m_df['Ticker'].astype(str).str.strip().str.upper(), 
-                                    m_df['True_Name'].astype(str).str.strip()))
+                    
+                    # 🟢 Create a dual-mapped lookup dictionary that matches BOTH uppercase and lowercase variants of your CSV data
+                    csv_data = {}
+                    for _, row in m_df.iterrows():
+                        ticker_key = str(row['Ticker']).strip()
+                        name_val = str(row['True_Name']).strip()
+                        
+                        csv_data[ticker_key.upper()] = name_val
+                        csv_data[ticker_key.lower()] = name_val
+                        
+                    return csv_data
                 except Exception:
                     continue
     return {}

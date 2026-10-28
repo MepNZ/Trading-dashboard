@@ -365,7 +365,7 @@ if not RAW_MARKET_BATCH.empty:
                     val_loc = shares_num * last_close
                     
                     active_live_positions.append({
-                        "Ticker": ticker, "Asset Name": resolved_name, "Shares": shares_num, "Currency": currency_lbl,
+                        "Ticker": clean_ticker_key, "Asset Name": resolved_name, "Shares": shares_num, "Currency": currency_lbl,
                         "Bought at": entry_p, "Live price": last_close, "New Limit Buy": safe_daily_limit_target,   
                         "Take Profit": safe_take_profit_target, "Cost (Loc)": cost_loc, "Cost (NZD)": cost_loc * mult, 
                         "Value (Loc)": val_loc, "Value (NZD)": val_loc * mult, "Stop Loss": last_close - (2.0 * atr_val)

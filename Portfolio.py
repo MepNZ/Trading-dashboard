@@ -56,7 +56,11 @@ TARGETS_FILE = "portfolio_targets.json"
 # 3. High-Speed Company Name Dictionary Mapping Engine
 def load_company_names():
     current_folder = os.getcwd()
+    script_folder = os.path.dirname(os.path.abspath(__file__)) # ⬅️ ADD THIS TO FIX MULTI-TAB PATH DRIFT
+    
     paths_to_check = [
+        os.path.join(script_folder, "ticker_names.csv"),       # ⬅️ CHECKS DIRECTLY NEXT TO PORTFOLIO.PY
+        os.path.join(script_folder, "..", "ticker_names.csv"),  # ⬅️ CHECKS UP ONE LEVEL IN THE COCKPIT ROOT
         os.path.join(current_folder, "ticker_names.csv"),
         os.path.join(current_folder, "pages", "ticker_names.csv"),
         "ticker_names.csv"

@@ -57,36 +57,47 @@ TARGETS_FILE = "portfolio_targets.json"
 # 3. HIGH-SPEED COMPANY NAME DICTIONARY MAPPING ENGINE
 # =============================================================================
 def load_company_names():
-    current_folder = os.getcwd()
-    script_folder = os.path.dirname(os.path.abspath(__file__)) # ⬅️ ADD THIS TO FIX MULTI-TAB PATH DRIFT
-    
-    paths_to_check = [
-        os.path.join(script_folder, "ticker_names.csv"),       # ⬅️ CHECKS DIRECTLY NEXT TO PORTFOLIO.PY
-        os.path.join(script_folder, "..", "ticker_names.csv"),  # ⬅️ CHECKS UP ONE LEVEL IN THE COCKPIT ROOT
-        os.path.join(current_folder, "ticker_names.csv"),
-        os.path.join(current_folder, "pages", "ticker_names.csv"),
-        "ticker_names.csv"
+    # 🔍 STEP 1: Dynamically determine the absolute root folder of your workspace project
+    possible_roots = [
+        os.getcwd(),                                      # The running directory context
+        os.path.dirname(os.path.abspath(__file__)),       # The direct folder containing Portfolio.py
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # Step one full level up to root context
     ]
     
-    for csv_path in paths_to_check:
+    # 🔍 STEP 2: Multi-level dynamic fallback matrix scan
+    paths_to_check = []
+    for root in possible_roots:
+        paths_to_check.extend([
+            os.path.join(root, "ticker_names.csv"),
+            os.path.join(root, "pages", "ticker_names.csv"),
+            os.path.join(root, "..", "ticker_names.csv")
+        ])
+    
+    # Filter down to absolute unique file locations to eliminate scan redundancy
+    unique_paths = list(dict.fromkeys(paths_to_check))
+    
+    # 🔍 STEP 3: Execute file read with case-insensitive dictionary processing
+    for csv_path in unique_paths:
         if os.path.exists(csv_path):
             for encoding_variant in ['latin-1', 'cp1252', 'utf-8-sig', 'utf-8']:
                 try:
                     m_df = pd.read_csv(csv_path, encoding=encoding_variant)
                     m_df.columns = m_df.columns.astype(str).str.strip()
-                    st.write("DEBUG - Found Columns:", m_df.columns.tolist()) # ⬅️ ADD THIS EXACT LINE
-                    # 🟢 Create a dual-mapped lookup dictionary that matches BOTH uppercase and lowercase variants of your CSV data
+                    
                     csv_data = {}
                     for _, row in m_df.iterrows():
                         ticker_key = str(row['Ticker']).strip()
                         name_val = str(row['True_Name']).strip()
                         
+                        # Store both variants so lookups never fail a string check
                         csv_data[ticker_key.upper()] = name_val
                         csv_data[ticker_key.lower()] = name_val
                         
                     return csv_data
                 except Exception:
                     continue
+                    
+    # Return empty dictionary if file completely vanishes off disk
     return {}
 
 company_name_map = load_company_names()

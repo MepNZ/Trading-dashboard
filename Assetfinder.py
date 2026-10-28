@@ -178,6 +178,7 @@ if raw_breakouts:
         
     df_grid = df_grid[(df_grid["Live Price"] <= max_price_filter) & (df_grid["Vol Multiple"] >= min_vol_multiple)]
     
+    # Map raw string length of emoji stars back to integer for filtering
     df_grid["Star_Count"] = df_grid["Score"].apply(lambda x: len(x) if x != "❌" else 0)
     df_grid = df_grid[df_grid["Star_Count"] >= min_stars]
     df_grid = df_grid.drop(columns=["Star_Count"])
@@ -188,8 +189,10 @@ if raw_breakouts:
         cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Score", "Live Price", "Limit Entry Target", "Take Profit Target", "Vol Multiple", "ATR Risk", "Daily Change %", "RSI Momentum"]
         df_grid = df_grid[[c for c in cols_order if c in df_grid.columns]]
         
+        # Explicit clean dictionary column labels setup
         df_grid.columns = ["Market", "Ticker", "Asset Name", "System Status", "Confluence", "Price", "Limit Entry Target", "Take Profit Target", "RVOL Multiplier", "ATR Risk ($)", "Daily Change %", "RSI Momentum"]
         
+        # Converts data keys into neat strings before drawing HTML table container
         df_display = df_grid.copy()
         df_display["Price"] = df_display["Price"].map("${:,.2f}".format)
         df_display["Limit Entry Target"] = df_display["Limit Entry Target"].map("${:,.2f}".format)
@@ -199,19 +202,25 @@ if raw_breakouts:
         df_display["Daily Change %"] = df_display["Daily Change %"].map("{:+.2f}%".format)
         df_display["RSI Momentum"] = df_display["RSI Momentum"].map("{:,.1f}".format)
         
-        # FIXED: Injects the explicit table_id parameter directly into the native table node wrapper
+        # Generates clean, predictable HTML source code
         html_table = df_display.to_html(index=False, escape=False, table_id="finder-grid")
         
         custom_table_css = """
         <style>
-            #finder-grid { width: 100%; border-collapse: collapse; margin: 15px 0; font-family: sans-serif; background-color: #161A22 !important; }
+            #finder-grid { 
+                width: 100%; 
+                border-collapse: collapse; 
+                margin: 15px 0; 
+                font-family: sans-serif; 
+                background-color: #161A22 !important; 
+            }
             
-            /* 🔥 DOUBLE-HEIGHT HEADER DEFINITIONS UNIQUE ANCHOR */
+            /* 🔥 TRUE EXPLICIT DOUBLE-HEIGHT SPACED HEADERS */
             #finder-grid th { 
                 background-color: #000000 !important; 
                 color: #FFFFFF !important; 
                 font-size: 1.05rem !important; 
-                padding: 22px 14px !important; 
+                padding: 24px 14px !important; 
                 text-align: left; 
                 border-bottom: 3px solid #4A90E2 !important; 
                 font-weight: bold !important;
@@ -230,7 +239,9 @@ if raw_breakouts:
         </style>
         """
         
-        st.markdown(f"{custom_table_css}<div style='overflow-x:auto;'>{html_table}</div>", unsafe_allow_html=True)
+        # 🚀 FIXED THE HANDSHAKE FAULT: Separate the layout CSS rules from the print container
+        st.markdown(custom_table_css, unsafe_allow_html=True)
+        st.markdown(f"<div style='overflow-x:auto;'>{html_table}</div>", unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
         
         # =============================================================================

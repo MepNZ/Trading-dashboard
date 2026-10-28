@@ -15,22 +15,13 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# FIXED CSS: Explicitly forces Streamlit table header blocks back to highly visible blocks
+# Core page title configurations
 st.markdown("""
     <style>
         .block-container { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; max-width: 100% !important; }
         div[data-testid="stTitle"] { margin-top: -20px !important; margin-bottom: -10px !important; }
         h1 { font-size: 2.0rem !important; font-weight: 800 !important; color: #FFFFFF !important; }
         .small-header { font-size: 1.25rem !important; font-weight: bold !important; color: #4A90E2 !important; margin-bottom: 4px !important; }
-        
-        /* Forces standard column header row to display crisply */
-        div[data-testid="stDataFrame"] [role="columnheader"], 
-        div[data-testid="stDataFrame"] .ag-header-cell-text {
-            color: #FFFFFF !important;
-            font-weight: bold !important;
-            font-size: 1.05rem !important;
-            background-color: #161A22 !important;
-        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -125,7 +116,6 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma):
             safe_daily_limit_target = round((c_today - (0.50 * atr_val)) * 0.981, 2)
             safe_take_profit_target = round((safe_daily_limit_target + (2.0 * atr_val)) * 1.019, 2)
 
-            # Sizing Strategy Trend Logic Setup
             if c_today > f_today and c_today > s_today:
                 breakout_signal = "🟩 DUAL-TREND BREAKOUT"
             elif c_today > f_today and c_today <= s_today:
@@ -133,12 +123,11 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma):
             else:
                 breakout_signal = "🔴 Structural Bear"
 
-            # 🚀 NEW INDICATOR: Automated 5-Star Confluence Score Formula Engine
             stars = 0
             if c_today > f_today: stars += 1
             if c_today > s_today: stars += 1
             if volume_multiple >= 1.5: stars += 1
-            if 45 <= rsi_val <= 68: stars += 1  # Momentum with runway left
+            if 45 <= rsi_val <= 68: stars += 1
             if pct_change > 0: stars += 1
             star_rating = "⭐" * stars if stars > 0 else "❌"
 
@@ -162,8 +151,6 @@ with st.sidebar:
     st.markdown("### 🎯 Display Filters")
     show_bears = st.checkbox("Include Structural Bears in Matrix", value=True)
     min_vol_multiple = st.slider("Minimum Vol Multiple Filter:", min_value=0.0, max_value=5.0, value=0.0, step=0.1, format="%.1fx")
-    
-    # NEW CONFLUENCE FILTER SLIDER ADDED HERE
     min_stars = st.slider("Minimum Confluence Rating (Stars):", min_value=0, max_value=5, value=0, step=1, format="%d ⭐")
 
 ticker_universe = list(load_company_names_matrix().keys())
@@ -191,7 +178,6 @@ if raw_breakouts:
         
     df_grid = df_grid[(df_grid["Live Price"] <= max_price_filter) & (df_grid["Vol Multiple"] >= min_vol_multiple)]
     
-    # Map raw string length of emoji stars back to integer for filtering
     df_grid["Star_Count"] = df_grid["Score"].apply(lambda x: len(x) if x != "❌" else 0)
     df_grid = df_grid[df_grid["Star_Count"] >= min_stars]
     df_grid = df_grid.drop(columns=["Star_Count"])
@@ -202,10 +188,8 @@ if raw_breakouts:
         cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Score", "Live Price", "Limit Entry Target", "Take Profit Target", "Vol Multiple", "ATR Risk", "Daily Change %", "RSI Momentum"]
         df_grid = df_grid[[c for c in cols_order if c in df_grid.columns]]
         
-        # Explicit clean dictionary column labels setup
         df_grid.columns = ["Market", "Ticker", "Asset Name", "System Status", "Confluence", "Price", "Limit Entry Target", "Take Profit Target", "RVOL Multiplier", "ATR Risk ($)", "Daily Change %", "RSI Momentum"]
         
-        # PERMANENT FIX: Converts data keys into neat strings before drawing HTML table container
         df_display = df_grid.copy()
         df_display["Price"] = df_display["Price"].map("${:,.2f}".format)
         df_display["Limit Entry Target"] = df_display["Limit Entry Target"].map("${:,.2f}".format)
@@ -215,14 +199,15 @@ if raw_breakouts:
         df_display["Daily Change %"] = df_display["Daily Change %"].map("{:+.2f}%".format)
         df_display["RSI Momentum"] = df_display["RSI Momentum"].map("{:,.1f}".format)
         
-        html_table = df_display.to_html(index=False, escape=False)
+        # FIXED: Injects the explicit table_id parameter directly into the native table node wrapper
+        html_table = df_display.to_html(index=False, escape=False, table_id="finder-grid")
         
         custom_table_css = """
         <style>
-            .finder-grid { width: 100%; border-collapse: collapse; margin: 15px 0; font-family: sans-serif; background-color: #161A22; }
+            #finder-grid { width: 100%; border-collapse: collapse; margin: 15px 0; font-family: sans-serif; background-color: #161A22 !important; }
             
-            /* 🔥 PHYSICAL DOUBLE-HEIGHT OVERRIDE: Large vertical padding stretches headers open */
-            .finder-grid th { 
+            /* 🔥 DOUBLE-HEIGHT HEADER DEFINITIONS UNIQUE ANCHOR */
+            #finder-grid th { 
                 background-color: #000000 !important; 
                 color: #FFFFFF !important; 
                 font-size: 1.05rem !important; 
@@ -232,7 +217,7 @@ if raw_breakouts:
                 font-weight: bold !important;
                 white-space: nowrap !important;
             }
-            .finder-grid td { 
+            #finder-grid td { 
                 color: #FFFFFF !important; 
                 font-size: 1.00rem !important; 
                 padding: 14px 14px !important; 
@@ -240,13 +225,12 @@ if raw_breakouts:
                 font-weight: 500 !important;
                 white-space: nowrap !important;
             }
-            .finder-grid tr:nth-child(even) { background-color: #1c212c !important; }
-            .finder-grid tr:hover { background-color: #242b38 !important; }
+            #finder-grid tr:nth-child(even) { background-color: #1c212c !important; }
+            #finder-grid tr:hover { background-color: #242b38 !important; }
         </style>
         """
         
-        formatted_html = html_table.replace('class="dataframe"', 'class="finder-grid"')
-        st.markdown(f"{custom_table_css}<div style='overflow-x:auto;'>{formatted_html}</div>", unsafe_allow_html=True)
+        st.markdown(f"{custom_table_css}<div style='overflow-x:auto;'>{html_table}</div>", unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
         
         # =============================================================================
@@ -266,7 +250,6 @@ if raw_breakouts:
                 chart_df['Fast_MA_Line'] = chart_df['Close'].rolling(window=int(fast_ma_slider), min_periods=1).mean()
                 chart_df['Slow_MA_Line'] = chart_df['Close'].rolling(window=int(slow_ma_slider), min_periods=1).mean()
                 
-                # FIXED: Strip index metadata to prevent clean text column tracking faults
                 chart_df = chart_df.tail(120)
                 chart_df.index = pd.to_datetime(chart_df.index).strftime('%Y-%m-%d')
                 chart_df = chart_df.reset_index().rename(columns={'index': 'Date'})

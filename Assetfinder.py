@@ -7,7 +7,7 @@ import altair as alt
 from datetime import datetime, timedelta
 
 # =============================================================================
-# 1. WINDOW SETUP & HIGH-CONTRAST DARK LAYOUT STYLING
+# 1. WINDOW SETUP & HIGH-CONTRAST LAYOUT STYLING
 # =============================================================================
 st.set_page_config(
     page_title="Asset Finder",
@@ -15,17 +15,27 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# FIXED CSS: Explicitly forces Streamlit table header blocks back to highly visible blocks
 st.markdown("""
     <style>
         .block-container { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; max-width: 100% !important; }
         div[data-testid="stTitle"] { margin-top: -20px !important; margin-bottom: -10px !important; }
         h1 { font-size: 2.0rem !important; font-weight: 800 !important; color: #FFFFFF !important; }
         .small-header { font-size: 1.25rem !important; font-weight: bold !important; color: #4A90E2 !important; margin-bottom: 4px !important; }
+        
+        /* Forces standard column header row to display crisply */
+        div[data-testid="stDataFrame"] [role="columnheader"], 
+        div[data-testid="stDataFrame"] .ag-header-cell-text {
+            color: #FFFFFF !important;
+            font-weight: bold !important;
+            font-size: 1.05rem !important;
+            background-color: #161A22 !important;
+        }
     </style>
 """, unsafe_allow_html=True)
 
 # =============================================================================
-# 2. DICTIONARY MAPPING FOR COMPLETE TICKER DATASET (28 ACTIVE TICKERS)
+# 2. DICTIONARY MAPPING FOR COMPLETE TICKER DATASET
 # =============================================================================
 def load_company_names_matrix():
     return {
@@ -41,25 +51,22 @@ def load_company_names_matrix():
 # =============================================================================
 # 3. HIGH-SPEED CONCURRENT LIVE DATA DOWNLOAD LAYER
 # =============================================================================
-@st.cache_data(ttl=300) # Locked 5-minute live memory cache safety buffer
+@st.cache_data(ttl=300)
 def fetch_live_market_data(tickers):
     if not tickers:
         return pd.DataFrame()
     lookback_start = datetime.today() - timedelta(days=365)
     try:
         fresh_data = yf.download(tickers, start=lookback_start, progress=False)
-        
-        # FIX: Flattens MultiIndex column headers to keep old-school code running perfectly
         if isinstance(fresh_data.columns, pd.MultiIndex):
             fresh_data.columns = ['_'.join(col).strip() for col in fresh_data.columns.values]
-            
         return fresh_data
     except Exception as e:
         st.error(f"yfinance bulk ingestion fault: {str(e)}")
         return pd.DataFrame()
 
 # =============================================================================
-# 4. ORIGINAL BREAKOUT ALGORITHMS & MATHEMATICAL MATRIX RULES
+# 4. UPGRADED BREAKOUT ALGORITHMS & MATHEMATICAL CONFLUENCE SCORING
 # =============================================================================
 def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma):
     if raw_batch.empty: 
@@ -70,7 +77,6 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma):
     
     for ticker in tickers:
         try:
-            # Build safe tracking mappings from newly flattened database columns
             open_col = f"Open_{ticker}" if f"Open_{ticker}" in raw_batch.columns else 'Open'
             high_col = f"High_{ticker}" if f"High_{ticker}" in raw_batch.columns else 'High'
             low_col = f"Low_{ticker}" if f"Low_{ticker}" in raw_batch.columns else 'Low'
@@ -81,11 +87,8 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma):
                 continue
                 
             df = pd.DataFrame({
-                'Open': raw_batch[open_col],
-                'High': raw_batch[high_col],
-                'Low': raw_batch[low_col],
-                'Close': raw_batch[close_col],
-                'Volume': raw_batch[vol_col]
+                'Open': raw_batch[open_col], 'High': raw_batch[high_col],
+                'Low': raw_batch[low_col], 'Close': raw_batch[close_col], 'Volume': raw_batch[vol_col]
             }).ffill().bfill().dropna(subset=['Close'])
             
             if len(df) < max(s_ma_int, 25): 
@@ -107,7 +110,7 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma):
             df['RSI'] = 100 - (100 / (1 + (gain / loss.replace(0, np.nan)))).fillna(50)
             
             c_today, f_today, s_today = float(df['Close'].iloc[-1]), float(df['Fast_MA'].iloc[-1]), float(df['Slow_MA'].iloc[-1])
-            c_yest, f_yest, s_yest = float(df['Close'].iloc[-2]), float(df['Fast_MA'].iloc[-2]), float(df['Slow_MA'].iloc[-2])
+            c_yest = float(df['Close'].iloc[-2])
             
             pct_change = ((c_today - c_yest) / c_yest) * 100
             current_volume = int(df['Volume'].iloc[-1])
@@ -122,7 +125,7 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma):
             safe_daily_limit_target = round((c_today - (0.50 * atr_val)) * 0.981, 2)
             safe_take_profit_target = round((safe_daily_limit_target + (2.0 * atr_val)) * 1.019, 2)
 
-            # 🚀 MATCHING LOGIC FIX: Syncs layout status string completely with portfolio.py
+            # Sizing Strategy Trend Logic Setup
             if c_today > f_today and c_today > s_today:
                 breakout_signal = "🟩 DUAL-TREND BREAKOUT"
             elif c_today > f_today and c_today <= s_today:
@@ -130,11 +133,20 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma):
             else:
                 breakout_signal = "🔴 Structural Bear"
 
+            # 🚀 NEW INDICATOR: Automated 5-Star Confluence Score Formula Engine
+            stars = 0
+            if c_today > f_today: stars += 1
+            if c_today > s_today: stars += 1
+            if volume_multiple >= 1.5: stars += 1
+            if 45 <= rsi_val <= 68: stars += 1  # Momentum with runway left
+            if pct_change > 0: stars += 1
+            star_rating = "⭐" * stars if stars > 0 else "❌"
+
             b_rows.append({
                 "Market": market_label, "Ticker": ticker, "Company Name": resolved_name, 
-                "Alert Status": breakout_signal, "Live Price": c_today, "Limit Entry Target": safe_daily_limit_target,
-                "Take Profit Target": safe_take_profit_target, "Vol Multiple": volume_multiple, 
-                "Daily Change %": pct_change, "RSI Momentum": rsi_val
+                "Alert Status": breakout_signal, "Score": star_rating, "Live Price": c_today, 
+                "Limit Entry Target": safe_daily_limit_target, "Take Profit Target": safe_take_profit_target, 
+                "Vol Multiple": volume_multiple, "ATR Risk": atr_val, "Daily Change %": pct_change, "RSI Momentum": rsi_val
             })
         except: continue
     return b_rows
@@ -149,63 +161,63 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 🎯 Display Filters")
     show_bears = st.checkbox("Include Structural Bears in Matrix", value=True)
+    min_vol_multiple = st.slider("Minimum Vol Multiple Filter:", min_value=0.0, max_value=5.0, value=0.0, step=0.1, format="%.1fx")
     
-    # 🚀 NEW VALUE FILTER ADDED HERE: Screen out weak breakout patterns
-    min_vol_multiple = st.slider(
-        "Minimum Volume Multiple Filter:", 
-        min_value=0.0, 
-        max_value=5.0, 
-        value=0.0, 
-        step=0.1,
-        format="%.1fx"
-    )
+    # 🚀 NEW CONFLUENCE FILTER SLIDER ADDED HERE
+    min_stars = st.slider("Minimum Confluence Rating (Stars):", min_value=0, max_value=5, value=0, step=1, format="%d ⭐")
 
-# Run data collection matrix instantaneously
 ticker_universe = list(load_company_names_matrix().keys())
 raw_batch_data = fetch_live_market_data(ticker_universe)
-
 raw_breakouts = calculate_momentum_matrix(raw_batch_data, ticker_universe, fast_ma_slider, slow_ma_slider)
 
 if raw_breakouts:
     prices_list = [row["Live Price"] for row in raw_breakouts]
-    absolute_max_price = math.ceil(max(prices_list)) if prices_list else 1000
-    absolute_max_price = max(absolute_max_price, 500) 
+    absolute_max_price = max(math.ceil(max(prices_list)) if prices_list else 1000, 500)
 else:
     absolute_max_price = 1000
 
 with st.sidebar:
     st.markdown("---")
     st.markdown("### 💸 Price Restrictions")
-    max_price_filter = st.slider(
-        "Maximum Live Price to Display:", 
-        min_value=5, 
-        max_value=absolute_max_price, 
-        value=absolute_max_price, 
-        step=5,
-        format="$%d"
-    )
+    max_price_filter = st.slider("Maximum Live Price to Display:", min_value=5, max_value=absolute_max_price, value=absolute_max_price, step=5, format="$%d")
 
 # =============================================================================
 # 6. INSTANT DATA SCREENER GRID VIEW
 # =============================================================================
 if raw_breakouts:
     df_grid = pd.DataFrame(raw_breakouts)
-    
     if not show_bears:
         df_grid = df_grid[df_grid["Alert Status"] != "🔴 Structural Bear"]
         
-    df_grid = df_grid[df_grid["Live Price"] <= max_price_filter]
+    df_grid = df_grid[(df_grid["Live Price"] <= max_price_filter) & (df_grid["Vol Multiple"] >= min_vol_multiple)]
     
-    # Apply new volume filter calculation matrix
-    df_grid = df_grid[df_grid["Vol Multiple"] >= min_vol_multiple]
+    # Map raw string length of emoji stars back to integer for filtering
+    df_grid["Star_Count"] = df_grid["Score"].apply(lambda x: len(x) if x != "❌" else 0)
+    df_grid = df_grid[df_grid["Star_Count"] >= min_stars]
+    df_grid = df_grid.drop(columns=["Star_Count"])
     
     if not df_grid.empty:
         df_grid = df_grid.sort_values(by=["Daily Change %"], ascending=False)
-        cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Live Price", "Limit Entry Target", "Take Profit Target", "Vol Multiple", "Daily Change %", "RSI Momentum"]
-        df_grid = df_grid[[c for c in cols_order if c in df_grid.columns]]
         
-        # Explicit dictionary headers override structure
-        df_grid.columns = ["Market", "Ticker", "Asset Name", "Alert Status", "Live Price", "Limit Entry Target", "Take Profit Target", "Vol Multiple", "Daily Change %", "RSI Momentum"]
+        # 🚀 HARD DESIGN OVERRIDE: Uses raw markdown container to force crisp high-contrast header rendering
+        st.markdown(
+            """
+            <style>
+                /* Forces grid header containers to be pitch black with bright crisp white typography */
+                div[data-testid="stDataFrame"] div[role="columnheader"] {
+                    background-color: #000000 !important;
+                    color: #FFFFFF !important;
+                    font-weight: 900 !important;
+                    border-bottom: 2px solid #4A90E2 !important;
+                }
+                div[data-testid="stDataFrame"] div[role="columnheader"] span {
+                    color: #FFFFFF !important;
+                    font-weight: 900 !important;
+                }
+            </style>
+            """, 
+            unsafe_allow_html=True
+        )
         
         st.dataframe(
             df_grid,
@@ -215,12 +227,14 @@ if raw_breakouts:
             column_config={
                 "Market": st.column_config.TextColumn("Market"),
                 "Ticker": st.column_config.TextColumn("Ticker"),
-                "Asset Name": st.column_config.TextColumn("Asset Name"),
-                "Alert Status": st.column_config.TextColumn("Alert Status"),
-                "Live Price": st.column_config.NumberColumn("Live Price", format="$%.2f"),
+                "Company Name": st.column_config.TextColumn("Asset Name"),
+                "Alert Status": st.column_config.TextColumn("System Status"),
+                "Score": st.column_config.TextColumn("Confluence"),
+                "Live Price": st.column_config.NumberColumn("Price", format="$%.2f"),
                 "Limit Entry Target": st.column_config.NumberColumn("Limit Entry Target", format="$%.2f"),
                 "Take Profit Target": st.column_config.NumberColumn("Take Profit Target", format="$%.2f"),
-                "Vol Multiple": st.column_config.NumberColumn("Vol Multiple", format="%.2fx"),
+                "Vol Multiple": st.column_config.NumberColumn("RVOL Multiplier", format="%.2fx"),
+                "ATR Risk": st.column_config.NumberColumn("ATR Risk ($)", format="%.2f"),
                 "Daily Change %": st.column_config.NumberColumn("Daily Change %", format="%+.2f%%"),
                 "RSI Momentum": st.column_config.NumberColumn("RSI Momentum", format="%.1f")
             }
@@ -233,19 +247,12 @@ if raw_breakouts:
         st.markdown("<div class='small-header'>📈 Global Chart Engine Analytics Overlay</div>", unsafe_allow_html=True)
         
         available_charts = df_grid["Ticker"].tolist()
-        selected_ticker = st.radio(
-            "Select an Asset to View Moving Average Overlays:",
-            options=available_charts,
-            horizontal=True
-        )
+        selected_ticker = st.radio("Select an Asset to View Moving Average Overlays:", options=available_charts, horizontal=True)
         
         if selected_ticker and not raw_batch_data.empty:
             try:
                 close_col = f"Close_{selected_ticker}" if f"Close_{selected_ticker}" in raw_batch_data.columns else 'Close'
-                
-                chart_df = pd.DataFrame({
-                    'Close': raw_batch_data[close_col]
-                }).ffill().bfill().dropna(subset=['Close'])
+                chart_df = pd.DataFrame({'Close': raw_batch_data[close_col]}).ffill().bfill().dropna(subset=['Close'])
                 
                 chart_df['Fast_MA_Line'] = chart_df['Close'].rolling(window=int(fast_ma_slider), min_periods=1).mean()
                 chart_df['Slow_MA_Line'] = chart_df['Close'].rolling(window=int(slow_ma_slider), min_periods=1).mean()
@@ -264,7 +271,6 @@ if raw_breakouts:
                 
                 st.altair_chart(alt.layer(c_line, f_line, s_line), use_container_width=True)
                 st.caption(f"🔵 Blue = Price | 🟢 Green = {fast_ma_slider}-Day Fast MA | 🔴 Red = {slow_ma_slider}-Day Slow MA")
-                
             except Exception as chart_fault:
                 st.info("Chart alignment processing. Checking data parameters.")
     else:

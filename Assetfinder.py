@@ -199,15 +199,19 @@ if raw_breakouts:
     if not df_grid.empty:
         df_grid = df_grid.sort_values(by=["Daily Change %"], ascending=False)
         
-                # 🚀 PERMANENT FIX: Converts the table to HTML with formatted numerical strings
-        df_display = df_grid.copy()
+        cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Score", "Live Price", "Limit Entry Target", "Take Profit Target", "Vol Multiple", "ATR Risk", "Daily Change %", "RSI Momentum"]
+        df_grid = df_grid[[c for c in cols_order if c in df_grid.columns]]
         
-        # Round and format numerical columns explicitly before converting to HTML
-        df_display["Live Price"] = df_display["Live Price"].map("${:,.2f}".format)
+        # Explicit clean dictionary column labels setup
+        df_grid.columns = ["Market", "Ticker", "Asset Name", "System Status", "Confluence", "Price", "Limit Entry Target", "Take Profit Target", "RVOL Multiplier", "ATR Risk ($)", "Daily Change %", "RSI Momentum"]
+        
+        # 🚀 PERMANENT FIX: Converts data keys into neat strings before drawing HTML table container
+        df_display = df_grid.copy()
+        df_display["Price"] = df_display["Price"].map("${:,.2f}".format)
         df_display["Limit Entry Target"] = df_display["Limit Entry Target"].map("${:,.2f}".format)
         df_display["Take Profit Target"] = df_display["Take Profit Target"].map("${:,.2f}".format)
-        df_display["Vol Multiple"] = df_display["Vol Multiple"].map("{:,.2f}x".format)
-        df_display["ATR Risk"] = df_display["ATR Risk"].map("${:,.2f}".format)
+        df_display["RVOL Multiplier"] = df_display["RVOL Multiplier"].map("{:,.2f}x".format)
+        df_display["ATR Risk ($)"] = df_display["ATR Risk ($)"].map("${:,.2f}".format)
         df_display["Daily Change %"] = df_display["Daily Change %"].map("{:+.2f}%".format)
         df_display["RSI Momentum"] = df_display["RSI Momentum"].map("{:,.1f}".format)
         
@@ -217,7 +221,7 @@ if raw_breakouts:
         <style>
             .finder-grid { width: 100%; border-collapse: collapse; margin: 15px 0; font-family: sans-serif; background-color: #161A22; }
             
-            /* 🔥 PHYSICAL DOUBLE-HEIGHT OVERRIDE: Large padding stretches headers out */
+            /* 🔥 PHYSICAL DOUBLE-HEIGHT OVERRIDE: Large vertical padding stretches headers open */
             .finder-grid th { 
                 background-color: #000000 !important; 
                 color: #FFFFFF !important; 
@@ -234,6 +238,7 @@ if raw_breakouts:
                 padding: 14px 14px !important; 
                 border-bottom: 1px solid #2d313f; 
                 font-weight: 500;
+                white-space: nowrap;
             }
             .finder-grid tr:nth-child(even) { background-color: #1c212c !important; }
             .finder-grid tr:hover { background-color: #242b38 !important; }
@@ -243,7 +248,7 @@ if raw_breakouts:
         formatted_html = html_table.replace('class="dataframe"', 'class="finder-grid"')
         st.markdown(f"{custom_table_css}<div style='overflow-x:auto;'>{formatted_html}</div>", unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
-
+        
         # =============================================================================
         # 7. HIGH-SPEED LIGHTWEIGHT OVERLAY CHART
         # =============================================================================

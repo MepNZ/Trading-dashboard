@@ -20,7 +20,6 @@ st.set_page_config(
 # Core page title configurations optimized for Light Theme text contrast
 st.markdown("""
     <style>
-        /* 🟢 Pushed top padding to 2.5rem to permanently clear browser header title cut-off issues */
         .block-container { padding-top: 2.5rem !important; padding-bottom: 0.5rem !important; max-width: 100% !important; }
         div[data-testid="stTitle"] { margin-top: -20px !important; margin-bottom: -10px !important; }
         h1 { font-size: 2.0rem !important; font-weight: 800 !important; color: #111111 !important; }
@@ -36,7 +35,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 🟢 Render page headers immediately on screen so you never see a blank canvas
+# Render page headers immediately on screen so you never see a blank canvas
 st.title("💼 Financial Asset Discovery Dashboard")
 
 # =============================================================================
@@ -79,14 +78,13 @@ def load_company_names_matrix():
 # =============================================================================
 # 3. HIGH-SPEED CHUNKED CONCURRENT LIVE DATA DOWNLOAD LAYER
 # =============================================================================
-# 🟢 Separate function focused strictly on caching smaller, 50-stock data blocks
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_single_chunk_cached(chunk_list, lookback_date):
     try:
         chunk_data = yf.download(chunk_list, start=lookback_date, progress=False, group_by='ticker')
         if not chunk_data.empty:
             if len(chunk_list) == 1:
-                t_name = chunk_list[0]
+                t_name = chunk_list
                 chunk_data.columns = [f"{col}_{t_name}" for col in chunk_data.columns]
                 return chunk_data
             
@@ -102,7 +100,6 @@ def fetch_single_chunk_cached(chunk_list, lookback_date):
         pass
     return pd.DataFrame()
 
-# Main workflow engine that handles visual progress updates live on screen
 def fetch_live_market_data(tickers):
     if not tickers:
         return pd.DataFrame()
@@ -112,21 +109,16 @@ def fetch_live_market_data(tickers):
     ticker_chunks = [tickers[i:i + chunk_size] for i in range(0, len(tickers), chunk_size)]
     
     master_frames = []
-    
-    # 🟢 Renders directly to the live viewport container immediately
     progress_bar = st.progress(0, text="📥 Ingesting live market data arrays...")
     
     for idx, chunk in enumerate(ticker_chunks):
-        # Call our sub-cached downloader row by row
         chunk_df = fetch_single_chunk_cached(chunk, lookback_start)
         if not chunk_df.empty:
             master_frames.append(chunk_df)
             
-        # Update progress tracking layout fluidly on screen
         progress_pct = int(((idx + 1) / len(ticker_chunks)) * 100)
         progress_bar.progress(progress_pct, text=f"📥 Loaded {min((idx+1)*chunk_size, len(tickers))} of {len(tickers)} assets...")
     
-    # Remove progress bar layout cleanly once complete
     progress_bar.empty()
     
     if not master_frames:
@@ -229,7 +221,6 @@ with st.sidebar:
         default=["US", "NZ", "AUS"]
     )
     
-    # 🟢 NEW UPGRADE: On-Demand Gatekeeper switch to keep remaining 403 US stocks in reserve by default
     include_all_us = st.checkbox("Load Extended S&P 500 (Remaining 403 Stocks)", value=False)
 
     st.markdown("---")
@@ -244,7 +235,7 @@ with st.sidebar:
     min_stars = st.slider("Minimum Confluence Rating (Stars):", min_value=0, max_value=5, value=0, step=1, format="%d ⭐")
 
 # =============================================================================
-# 🟢 ON-DEMAND TICKER SELECTION PATHWAY
+# 🟢 STATE CONTROLLER ENGINE (PREVENTS RE-DOWNLOADING ON SLIDER MOVES)
 # =============================================================================
 csv_path = "ticker_names.csv"
 ticker_universe = []
@@ -253,36 +244,43 @@ if os.path.exists(csv_path):
     try:
         m_df = pd.read_csv(csv_path, encoding='latin-1')
         m_df.columns = m_df.columns.astype(str).str.strip()
+        m_df['Market'] = m_df['Market'].astype(str).str.strip().str.upper()
         
-        for _, row in m_df.iterrows():
-            t_col = str(row['Ticker']).strip().upper()
-            m_col = str(row['Market']).strip().upper()
-            p_col = str(row['Core_Priority']).strip()
+        us_assets = m_df[m_df['Market'] == 'US']
+        nz_assets = m_df[m_df['Market'] == 'NZ']
+        aus_assets = m_df[m_df['Market'] == 'AUS']
+        
+        if "US" in market_choice:
+            if include_all_us:
+                ticker_universe.extend(us_assets['Ticker'].astype(str).str.strip().str.upper().tolist())
+            else:
+                ticker_universe.extend(us_assets.head(100)['Ticker'].astype(str).str.strip().str.upper().tolist())
+                
+        if "NZ" in market_choice:
+            ticker_universe.extend(nz_assets['Ticker'].astype(str).str.strip().str.upper().tolist())
             
-            # Condition A: Always load the Top 100 US Megacaps if "US" horizon is checked
-            if m_col == "US" and p_col == "Top100" and "US" in market_choice:
-                ticker_universe.append(t_col)
-                
-            # Condition B: Load remaining 403 US tickers ONLY if explicit sidebar toggle is clicked
-            elif m_col == "US" and p_col == "Standard" and "US" in market_choice and include_all_us:
-                ticker_universe.append(t_col)
-                
-            # Condition C: Load NZX assets ONLY if "NZ" horizon is checked
-            elif m_col == "NZ" and "NZ" in market_choice:
-                ticker_universe.append(t_col)
-                
-            # Condition D: Load ASX assets ONLY if "AUS" horizon is checked
-            elif m_col == "AUS" and "AUS" in market_choice:
-                ticker_universe.append(t_col)
+        if "AUS" in market_choice:
+            ticker_universe.extend(aus_assets['Ticker'].astype(str).str.strip().str.upper().tolist())
+            
     except Exception as parse_error:
         st.sidebar.error(f"Source file routing error: {str(parse_error)}")
 
-# Fallback block to keep app operational if everything is deselected
 if not ticker_universe:
     ticker_universe = ["AAPL", "NVDA"]
 
-raw_batch_data = fetch_live_market_data(ticker_universe)
-raw_breakouts = calculate_momentum_matrix(raw_batch_data, ticker_universe, fast_ma_slider, slow_ma_slider)
+ticker_universe = list(dict.fromkeys(ticker_universe))
+
+# 👑 LOCK DOWNLOAD DATA INTO A SESSION VAULT
+# String tracking fingerprint key to monitor target tickers shifts
+vault_key = f"data_{hash(tuple(ticker_universe))}"
+
+if "active_vault_key" not in st.session_state or st.session_state.active_vault_key != vault_key:
+    # Trigger active pipeline only if targeted tickers are checked/shifted
+    st.session_state.cached_raw_data = fetch_live_market_data(ticker_universe)
+    st.session_state.active_vault_key = vault_key
+
+# Run moving averages indicators loop instantly out of local memory cache variables
+raw_breakouts = calculate_momentum_matrix(st.session_state.cached_raw_data, ticker_universe, fast_ma_slider, slow_ma_slider)
 
 if raw_breakouts:
     prices_list = [row["Live Price"] for row in raw_breakouts]
@@ -312,7 +310,6 @@ if raw_breakouts:
     df_grid = df_grid.drop(columns=["Star_Count"])
     
     if not df_grid.empty:
-        # 🟢 Default sorted immediately by Relative Volume Multiple (RVOL) breakout activity
         df_grid = df_grid.sort_values(by=["Vol Multiple"], ascending=False)
         
         cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Score", "Live Price", "Limit Entry Target", "Take Profit Target", "Vol Multiple", "ATR Risk", "Daily Change %", "RSI Momentum"]
@@ -449,10 +446,10 @@ if raw_breakouts:
         available_charts = df_grid["Ticker"].tolist()
         selected_ticker = st.radio("Select an Asset to View Moving Average Overlays:", options=available_charts, horizontal=True)
         
-        if selected_ticker and not raw_batch_data.empty:
+        if selected_ticker and not st.session_state.cached_raw_data.empty:
             try:
-                close_col = f"Close_{selected_ticker}" if f"Close_{selected_ticker}" in raw_batch_data.columns else 'Close'
-                chart_df = pd.DataFrame({'Close': raw_batch_data[close_col]}).ffill().bfill().dropna(subset=['Close'])
+                close_col = f"Close_{selected_ticker}" if f"Close_{selected_ticker}" in st.session_state.cached_raw_data.columns else 'Close'
+                chart_df = pd.DataFrame({'Close': st.session_state.cached_raw_data[close_col]}).ffill().bfill().dropna(subset=['Close'])
                 
                 chart_df['Fast_MA_Line'] = chart_df['Close'].rolling(window=int(fast_ma_slider), min_periods=1).mean()
                 chart_df['Slow_MA_Line'] = chart_df['Close'].rolling(window=int(slow_ma_slider), min_periods=1).mean()

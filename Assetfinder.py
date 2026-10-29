@@ -5,6 +5,8 @@ import math
 import yfinance as yf
 import altair as alt
 from datetime import datetime, timedelta
+import os
+import json
 
 # =============================================================================
 # 1. WINDOW SETUP & LIGHT-THEME STYLING
@@ -18,7 +20,8 @@ st.set_page_config(
 # Core page title configurations optimized for Light Theme text contrast
 st.markdown("""
     <style>
-        .block-container { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; max-width: 100% !important; }
+        /* 🟢 Pushed top padding to 2.5rem to permanently clear browser header title cut-off issues */
+        .block-container { padding-top: 2.5rem !important; padding-bottom: 0.5rem !important; max-width: 100% !important; }
         div[data-testid="stTitle"] { margin-top: -20px !important; margin-bottom: -10px !important; }
         h1 { font-size: 2.0rem !important; font-weight: 800 !important; color: #111111 !important; }
         .small-header { font-size: 1.25rem !important; font-weight: bold !important; color: #007bff !important; margin-bottom: 4px !important; }
@@ -33,37 +36,103 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# 🟢 Render page headers immediately on screen so you never see a blank canvas
+st.title("💼 Financial Asset Discovery Dashboard")
+
 # =============================================================================
-# 2. DICTIONARY MAPPING FOR COMPLETE TICKER DATASET
+# 2. DICTIONARY MAPPING FOR COMPLETE TICKER DATASET (JSON MASTER SYNC)
 # =============================================================================
 def load_company_names_matrix():
-    return {
-        "AAPL": "Apple Inc.", "MSFT": "Microsoft Corp.", "GOOGL": "Alphabet Inc.", "AMZN": "Amazon.com Inc.",
-        "META": "Meta Platforms", "NVDA": "NVIDIA Corp.", "TSLA": "Tesla Inc.", "PLTR": "Palantir Technologies",
-        "JPM": "JPMorgan Chase & Co.", "AMD": "Advanced Micro Devices", "XOM": "Exxon Mobil Corp.", 
-        "F": "Ford Motor Co.", "GM": "General Motors", "PFE": "Pfizer Inc.", "T": "AT&T Inc.",
-        "MDT": "Medtronic plc", "VZ": "Verizon Communications", "SOFI": "SoFi Technologies", 
-        "AIR.NZ": "Air New Zealand", "SPK.NZ": "Spark NZ", "FBU.NZ": "Fletcher Building", 
-        "CEN.NZ": "Contact Energy", "MEL.NZ": "Meridian Energy", "BHP.AX": "BHP Group", 
-        "CBA.AX": "Commonwealth Bank", "TLS.AX": "Telstra Group", "FMG.AX": "Fortescue Ltd", "RIO.AX": "Rio Tinto"
-    }
+    json_path = "master_tickers.json"
+    csv_path = "ticker_names.csv"
+    
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            pass
+
+    if os.path.exists(csv_path):
+        try:
+            m_df = pd.read_csv(csv_path, encoding='latin-1')
+            m_df.columns = m_df.columns.astype(str).str.strip()
+            
+            t_col = 'Ticker' if 'Ticker' in m_df.columns else m_df.columns
+            n_col = 'True_Name' if 'True_Name' in m_df.columns else m_df.columns
+            
+            csv_data = {}
+            for _, row in m_df.iterrows():
+                ticker_key = str(row[t_col]).strip().upper()
+                name_val = str(row[n_col]).strip()
+                csv_data[ticker_key] = name_val
+            
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(csv_data, f, indent=4)
+                
+            return csv_data
+        except Exception:
+            pass
+            
+    return {}
+
 # =============================================================================
-# 3. HIGH-SPEED CONCURRENT LIVE DATA DOWNLOAD LAYER
+# 3. HIGH-SPEED CHUNKED CONCURRENT LIVE DATA DOWNLOAD LAYER
 # =============================================================================
-@st.cache_data(ttl=300)
+# 🟢 Separate function focused strictly on caching smaller, 50-stock data blocks
+@st.cache_data(ttl=300, show_spinner=False)
+def fetch_single_chunk_cached(chunk_list, lookback_date):
+    try:
+        chunk_data = yf.download(chunk_list, start=lookback_date, progress=False, group_by='ticker')
+        if not chunk_data.empty:
+            if len(chunk_list) == 1:
+                t_name = chunk_list[0]
+                chunk_data.columns = [f"{col}_{t_name}" for col in chunk_data.columns]
+                return chunk_data
+            
+            new_cols = []
+            for item, ticker in chunk_data.columns.values:
+                if item in ['Open', 'High', 'Low', 'Close', 'Volume']:
+                    new_cols.append(f"{item}_{ticker}")
+                else:
+                    new_cols.append(f"{ticker}_{item}")
+            chunk_data.columns = new_cols
+            return chunk_data
+    except Exception:
+        pass
+    return pd.DataFrame()
+
+# Main workflow engine that handles visual progress updates live on screen
 def fetch_live_market_data(tickers):
     if not tickers:
         return pd.DataFrame()
-    lookback_start = datetime.today() - timedelta(days=365)
-    try:
-        fresh_data = yf.download(tickers, start=lookback_start, progress=False)
-        if isinstance(fresh_data.columns, pd.MultiIndex):
-            fresh_data.columns = ['_'.join(col).strip() for col in fresh_data.columns.values]
-        return fresh_data
-    except Exception as e:
-        st.error(f"yfinance bulk ingestion fault: {str(e)}")
+        
+    lookback_start = datetime.today() - timedelta(days=90)
+    chunk_size = 50
+    ticker_chunks = [tickers[i:i + chunk_size] for i in range(0, len(tickers), chunk_size)]
+    
+    master_frames = []
+    
+    # 🟢 Renders directly to the live viewport container immediately
+    progress_bar = st.progress(0, text="📥 Ingesting live market data arrays...")
+    
+    for idx, chunk in enumerate(ticker_chunks):
+        # Call our sub-cached downloader row by row
+        chunk_df = fetch_single_chunk_cached(chunk, lookback_start)
+        if not chunk_df.empty:
+            master_frames.append(chunk_df)
+            
+        # Update progress tracking layout fluidly on screen
+        progress_pct = int(((idx + 1) / len(ticker_chunks)) * 100)
+        progress_bar.progress(progress_pct, text=f"📥 Loaded {min((idx+1)*chunk_size, len(tickers))} of {len(tickers)} assets...")
+    
+    # Remove progress bar layout cleanly once complete
+    progress_bar.empty()
+    
+    if not master_frames:
         return pd.DataFrame()
-
+        
+    return pd.concat(master_frames, axis=1).ffill().bfill()
 # =============================================================================
 # 4. UPGRADED BREAKOUT ALGORITHMS & MATHEMATICAL CONFLUENCE SCORING
 # =============================================================================
@@ -139,29 +208,79 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma):
             if pct_change > 0: stars += 1
             star_rating = "⭐" * stars if stars > 0 else "❌"
 
-            b_rows.append({
-                "Market": market_label, "Ticker": ticker, "Company Name": resolved_name, 
-                "Alert Status": breakout_signal, "Score": star_rating, "Live Price": c_today, 
-                "Limit Entry Target": safe_daily_limit_target, "Take Profit Target": safe_take_profit_target, 
-                "Vol Multiple": volume_multiple, "ATR Risk": atr_val, "Daily Change %": pct_change, "RSI Momentum": rsi_val
-            })
+            if stars >= 1 or breakout_signal != "🔴 Structural Bear":
+                b_rows.append({
+                    "Market": market_label, "Ticker": ticker, "Company Name": resolved_name, 
+                    "Alert Status": breakout_signal, "Score": star_rating, "Live Price": c_today, 
+                    "Limit Entry Target": safe_daily_limit_target, "Take Profit Target": safe_take_profit_target, 
+                    "Vol Multiple": volume_multiple, "ATR Risk": atr_val, "Daily Change %": pct_change, "RSI Momentum": rsi_val
+                })
         except: continue
     return b_rows
+
 # =============================================================================
 # 5. USER PREFERENCE SIDEBAR CONTROLS
 # =============================================================================
 with st.sidebar:
+    st.markdown("### 🌐 Market Universe Horizon")
+    market_choice = st.multiselect(
+        "Select Active Trading Horizons:",
+        options=["US", "NZ", "AUS"],
+        default=["US", "NZ", "AUS"]
+    )
+    
+    # 🟢 NEW UPGRADE: On-Demand Gatekeeper switch to keep remaining 403 US stocks in reserve by default
+    include_all_us = st.checkbox("Load Extended S&P 500 (Remaining 403 Stocks)", value=False)
+
+    st.markdown("---")
     st.markdown("### 🛠 Technical Settings Layer")
     fast_ma_slider = st.slider("Fast MA Filter Window:", min_value=5, max_value=30, value=10, step=1)
     slow_ma_slider = st.slider("Slow MA Filter Window:", min_value=20, max_value=150, value=50, step=5)
     
     st.markdown("---")
     st.markdown("### 🎯 Display Filters")
-    show_bears = st.checkbox("Include Structural Bears in Matrix", value=True)
+    show_bears = st.checkbox("Include Structural Bears in Matrix", value=False)
     min_vol_multiple = st.slider("Minimum Vol Multiple Filter:", min_value=0.0, max_value=5.0, value=0.0, step=0.1, format="%.1fx")
     min_stars = st.slider("Minimum Confluence Rating (Stars):", min_value=0, max_value=5, value=0, step=1, format="%d ⭐")
 
-ticker_universe = list(load_company_names_matrix().keys())
+# =============================================================================
+# 🟢 ON-DEMAND TICKER SELECTION PATHWAY
+# =============================================================================
+csv_path = "ticker_names.csv"
+ticker_universe = []
+
+if os.path.exists(csv_path):
+    try:
+        m_df = pd.read_csv(csv_path, encoding='latin-1')
+        m_df.columns = m_df.columns.astype(str).str.strip()
+        
+        for _, row in m_df.iterrows():
+            t_col = str(row['Ticker']).strip().upper()
+            m_col = str(row['Market']).strip().upper()
+            p_col = str(row['Core_Priority']).strip()
+            
+            # Condition A: Always load the Top 100 US Megacaps if "US" horizon is checked
+            if m_col == "US" and p_col == "Top100" and "US" in market_choice:
+                ticker_universe.append(t_col)
+                
+            # Condition B: Load remaining 403 US tickers ONLY if explicit sidebar toggle is clicked
+            elif m_col == "US" and p_col == "Standard" and "US" in market_choice and include_all_us:
+                ticker_universe.append(t_col)
+                
+            # Condition C: Load NZX assets ONLY if "NZ" horizon is checked
+            elif m_col == "NZ" and "NZ" in market_choice:
+                ticker_universe.append(t_col)
+                
+            # Condition D: Load ASX assets ONLY if "AUS" horizon is checked
+            elif m_col == "AUS" and "AUS" in market_choice:
+                ticker_universe.append(t_col)
+    except Exception as parse_error:
+        st.sidebar.error(f"Source file routing error: {str(parse_error)}")
+
+# Fallback block to keep app operational if everything is deselected
+if not ticker_universe:
+    ticker_universe = ["AAPL", "NVDA"]
+
 raw_batch_data = fetch_live_market_data(ticker_universe)
 raw_breakouts = calculate_momentum_matrix(raw_batch_data, ticker_universe, fast_ma_slider, slow_ma_slider)
 
@@ -175,12 +294,14 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 💸 Price Restrictions")
     max_price_filter = st.slider("Maximum Live Price to Display:", min_value=5, max_value=absolute_max_price, value=absolute_max_price, step=5, format="$%d")
-
 # =============================================================================
 # 6. INSTANT DATA SCREENER GRID VIEW (HTML INTERACTIVE SORT ENGINE)
 # =============================================================================
 if raw_breakouts:
     df_grid = pd.DataFrame(raw_breakouts)
+    
+    df_grid = df_grid[df_grid["Market"].isin(market_choice)]
+    
     if not show_bears:
         df_grid = df_grid[df_grid["Alert Status"] != "🔴 Structural Bear"]
         
@@ -191,39 +312,35 @@ if raw_breakouts:
     df_grid = df_grid.drop(columns=["Star_Count"])
     
     if not df_grid.empty:
-        df_grid = df_grid.sort_values(by=["Daily Change %"], ascending=False)
+        # 🟢 Default sorted immediately by Relative Volume Multiple (RVOL) breakout activity
+        df_grid = df_grid.sort_values(by=["Vol Multiple"], ascending=False)
         
         cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Score", "Live Price", "Limit Entry Target", "Take Profit Target", "Vol Multiple", "ATR Risk", "Daily Change %", "RSI Momentum"]
         df_grid = df_grid[[c for c in cols_order if c in df_grid.columns]]
         
         df_grid.columns = ["Market", "Ticker", "Asset Name", "System Status", "Confluence", "Price", "Limit Entry Target", "Take Profit Target", "RVOL Multiplier", "ATR Risk ($)", "Daily Change %", "RSI Momentum"]
         
-        # Format the strings cleanly for display
         df_display = df_grid.copy()
         df_display["Price"] = df_display["Price"].map("${:,.2f}".format)
         df_display["Limit Entry Target"] = df_display["Limit Entry Target"].map("${:,.2f}".format)
         df_display["Take Profit Target"] = df_display["Take Profit Target"].map("${:,.2f}".format)
         
-        # 🟢 Uniform green circle for High Volume (>= 1.50)
         df_display["RVOL Multiplier"] = df_display["RVOL Multiplier"].apply(
             lambda x: f"🟢 {x:,.2f}x" if x >= 1.50 else f"{x:,.2f}x"
         )
         
         df_display["ATR Risk ($)"] = df_display["ATR Risk ($)"].map("${:,.2f}".format)
         
-        # 🟢 Uniform green circle for Big Daily Moves (>= 3.00%)
         df_display["Daily Change %"] = df_display["Daily Change %"].apply(
             lambda x: f"🟢 {x:+.2f}%" if x >= 3.00 else f"{x:+.2f}%"
         )
         
-        # 🟢 Uniform green circle for High Momentum RSI (>= 60.0)
         df_display["RSI Momentum"] = df_display["RSI Momentum"].apply(
             lambda x: f"🟢 {x:,.1f}" if x >= 60.0 else f"{x:,.1f}"
         )
 
         html_table = df_display.to_html(index=False, escape=False, table_id="interactive-screener")
         
-        # 👑 THE UNBREAKABLE CANVAS MATRIX: Merges styles and scripts inside an isolated frame for perfect click-sorting
         screener_combined_html = f"""
         <style>
             body {{
@@ -243,26 +360,20 @@ if raw_breakouts:
                 font-family: sans-serif;
                 background-color: #FFFFFF !important;
             }}
-            /* Lock the headers visibly at the top with solid, readable colors */
             #interactive-screener th {{
                 position: -webkit-sticky !important;
                 position: sticky !important;
                 top: 0 !important;
                 z-index: 10 !important;
-                background-color: #E5E7EB !important; /* Distinct light gray header bar */
-                color: #111111 !important; /* Bold, highly visible black text labels */
+                background-color: #E5E7EB !important;
+                color: #111111 !important;
                 font-size: 1.00rem !important;
                 font-weight: bold !important;
-                
-                /* Layout Spacing Upgrades */
                 padding: 0px 12px !important;
                 height: 90px !important;
-                
-                /* Unbreakable Absolute Vertical Centering Engine */
                 display: table-cell !important;
                 vertical-align: middle !important;
                 line-height: 90px !important;
-                
                 text-align: left;
                 border-bottom: 3px solid #007bff !important;
                 white-space: nowrap !important;
@@ -326,9 +437,9 @@ if raw_breakouts:
         </script>
         """
         
-        # Renders via Streamlit HTML component to ensure cross-tab javascript click detection works
         st.components.v1.html(screener_combined_html, height=700, scrolling=False)
         st.markdown("<br>", unsafe_allow_html=True)        
+
         # =============================================================================
         # 7. HIGH-SPEED LIGHTWEIGHT OVERLAY CHART
         # =============================================================================

@@ -54,19 +54,45 @@ st.markdown(
 
 TARGETS_FILE = "portfolio_targets.json"
 # =============================================================================
-# 3. HIGH-SPEED COMPANY NAME DICTIONARY MAPPING ENGINE
+# 3. HIGH-SPEED COMPANY NAME DICTIONARY MAPPING ENGINE (AUTO-JSON GENERATION)
 # =============================================================================
 def load_company_names():
+    json_path = "master_tickers.json"
     csv_path = "ticker_names.csv"
+    
+    # 🔍 STEP 1: If the clean JSON file already exists, load it directly in microseconds
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            pass
+
+    # 🔍 STEP 2: Auto-compile engine (runs ONLY once if the JSON file is missing)
     if os.path.exists(csv_path):
-        for encoding_variant in ['latin-1', 'cp1252', 'utf-8-sig', 'utf-8']:
-            try:
-                m_df = pd.read_csv(csv_path, encoding=encoding_variant)
-                m_df.columns = m_df.columns.astype(str).str.strip()
-                return dict(zip(m_df['Ticker'].astype(str).str.strip().str.upper(), 
-                                m_df['True_Name'].astype(str).str.strip()))
-            except Exception:
-                continue
+        try:
+            m_df = pd.read_csv(csv_path, encoding='latin-1')
+            m_df.columns = m_df.columns.astype(str).str.strip()
+            
+            # Extract column keys dynamically
+            t_col = 'Ticker' if 'Ticker' in m_df.columns else m_df.columns[0]
+            n_col = 'True_Name' if 'True_Name' in m_df.columns else m_df.columns[1]
+            
+            csv_data = {}
+            for _, row in m_df.iterrows():
+                ticker_key = str(row[t_col]).strip()
+                name_val = str(row[n_col]).strip()
+                csv_data[ticker_key.upper()] = name_val
+                csv_data[ticker_key.lower()] = name_val
+            
+            # Auto-save it to disk so the CSV layer never has to be read again
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(csv_data, f, indent=4)
+                
+            return csv_data
+        except Exception:
+            pass
+            
     return {}
 
 company_name_map = load_company_names()

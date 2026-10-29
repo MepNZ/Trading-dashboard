@@ -1,0 +1,604 @@
+Ticker,True_Name,Market,Core_Priority
+NVDA,NVIDIA Corporation,US,Top100
+AAPL,Apple Inc.,US,Top100
+MSFT,Microsoft Corporation,US,Top100
+AMZN,"Amazon.com, Inc.",US,Top100
+GOOGL,Alphabet Inc.,US,Top100
+AVGO,Broadcom Inc.,US,Top100
+GOOG,Alphabet Inc.,US,Top100
+META,"Meta Platforms, Inc.",US,Top100
+TSLA,"Tesla, Inc.",US,Top100
+LLY,Eli Lilly and Company,US,Top100
+BRK.B,Berkshire Hathaway Inc.,US,Top100
+MU,"Micron Technology, Inc.",US,Top100
+JPM,JPMorgan Chase & Co.,US,Top100
+AMD,"Advanced Micro Devices, Inc.",US,Top100
+XOM,ExxonMobil Holdings Corporation,US,Top100
+V,Visa Inc.,US,Top100
+JNJ,Johnson & Johnson,US,Top100
+WMT,Walmart Inc.,US,Top100
+ABBV,AbbVie Inc.,US,Top100
+MA,Mastercard Incorporated,US,Top100
+CVX,Chevron Corporation,US,Top100
+PLTR,Palantir Technologies Inc.,US,Top100
+COST,Costco Wholesale Corporation,US,Top100
+INTC,Intel Corporation,US,Top100
+CSCO,"Cisco Systems, Inc.",US,Top100
+UNH,UnitedHealth Group Incorporated,US,Top100
+PG,The Procter & Gamble Company,US,Top100
+KO,The Coca-Cola Company,US,Top100
+MRK,"Merck & Co., Inc.",US,Top100
+BAC,Bank of America Corporation,US,Top100
+HD,"The Home Depot, Inc.",US,Top100
+CAT,Caterpillar Inc.,US,Top100
+PM,Philip Morris International Inc.,US,Top100
+PANW,"Palo Alto Networks, Inc.",US,Top100
+AMAT,"Applied Materials, Inc.",US,Top100
+GE,GE Aerospace,US,Top100
+LRCX,Lam Research Corporation,US,Top100
+NFLX,"Netflix, Inc.",US,Top100
+CRWD,"CrowdStrike Holdings, Inc.",US,Top100
+TXN,Texas Instruments Incorporated,US,Top100
+RTX,RTX Corporation,US,Top100
+GS,"The Goldman Sachs Group, Inc.",US,Top100
+TMO,Thermo Fisher Scientific Inc.,US,Top100
+WFC,Wells Fargo & Company,US,Top100
+IBM,International Business Machines Corporation,US,Top100
+AMGN,Amgen Inc.,US,Top100
+LIN,Linde plc,US,Top100
+ORCL,Oracle Corporation,US,Top100
+GEV,GE Vernova Inc.,US,Top100
+MS,Morgan Stanley,US,Top100
+CRM,"Salesforce, Inc.",US,Top100
+C,Citigroup Inc.,US,Top100
+MRVL,"Marvell Technology, Inc.",US,Top100
+DIS,The Walt Disney Company,US,Top100
+GILD,"Gilead Sciences, Inc.",US,Top100
+ADI,"Analog Devices, Inc.",US,Top100
+KLAC,KLA Corporation,US,Top100
+QCOM,QUALCOMM Incorporated,US,Top100
+VZ,Verizon Communications Inc.,US,Top100
+PEP,"PepsiCo, Inc.",US,Top100
+APH,Amphenol Corporation,US,Top100
+COP,ConocoPhillips,US,Top100
+SNDK,Sandisk Corporation,US,Top100
+ANET,"Arista Networks, Inc.",US,Top100
+ABT,Abbott Laboratories,US,Top100
+MCD,McDonald's Corporation,US,Top100
+UNP,Union Pacific Corporation,US,Top100
+NEE,"NextEra Energy, Inc.",US,Top100
+PFE,Pfizer Inc.,US,Top100
+WELL,Welltower Inc.,US,Top100
+AXP,American Express Company,US,Top100
+NOW,"ServiceNow, Inc.",US,Top100
+DE,Deere & Company,US,Top100
+BLK,"BlackRock, Inc.",US,Top100
+TJX,"The TJX Companies, Inc.",US,Top100
+ISRG,"Intuitive Surgical, Inc.",US,Top100
+ACN,Accenture plc,US,Top100
+BA,The Boeing Company,US,Top100
+SCHW,The Charles Schwab Corporation,US,Top100
+DHR,Danaher Corporation,US,Top100
+T,AT&T Inc.,US,Top100
+STX,Seagate Technology Holdings plc,US,Top100
+ETN,Eaton Corporation plc,US,Top100
+DELL,Dell Technologies Inc.,US,Top100
+UBER,"Uber Technologies, Inc.",US,Top100
+SPGI,S&P Global Inc.,US,Top100
+VRTX,Vertex Pharmaceuticals Incorporated,US,Top100
+PGR,The Progressive Corporation,US,Top100
+MPC,Marathon Petroleum Corporation,US,Top100
+BMY,Bristol-Myers Squibb Company,US,Top100
+CB,Chubb Limited,US,Top100
+MO,"Altria Group, Inc.",US,Top100
+WDC,Western Digital Corporation,US,Top100
+COF,Capital One Financial Corporation,US,Top100
+LMT,Lockheed Martin Corporation,US,Top100
+ADP,"Automatic Data Processing, Inc.",US,Top100
+VLO,Valero Energy Corporation,US,Top100
+PLD,"Prologis, Inc.",US,Top100
+CVS,CVS Health Corporation,US,Top100
+MDT,Medtronic plc,US,Top100
+BKNG,Booking Holdings Inc.,US,Standard
+MCK,McKesson Corporation,US,Standard
+SBUX,Starbucks Corporation,US,Standard
+NEM,Newmont Corporation,US,Standard
+PSX,Phillips 66,US,Standard
+LOW,"Lowe's Companies, Inc.",US,Standard
+PH,Parker-Hannifin Corporation,US,Standard
+FTNT,"Fortinet, Inc.",US,Standard
+CME,CME Group Inc.,US,Standard
+SYK,Stryker Corporation,US,Standard
+SO,The Southern Company,US,Standard
+ADBE,Adobe Inc.,US,Standard
+BNY,The Bank of New York Mellon Corporation,US,Standard
+TT,Trane Technologies plc,US,Standard
+GLW,Corning Incorporated,US,Standard
+DUK,Duke Energy Corporation,US,Standard
+ELV,"Elevance Health, Inc.",US,Standard
+EQIX,"Equinix, Inc.",US,Standard
+MRSH,"Marsh & McLennan Companies, Inc.",US,Standard
+CSX,CSX Corporation,US,Standard
+INTU,Intuit Inc.,US,Standard
+FCX,Freeport-McMoRan Inc.,US,Standard
+USB,U.S. Bancorp,US,Standard
+ICE,"Intercontinental Exchange, Inc.",US,Standard
+DDOG,"Datadog, Inc.",US,Standard
+EMR,Emerson Electric Co.,US,Standard
+PNC,"The PNC Financial Services Group, Inc.",US,Standard
+MMM,3M Company,US,Standard
+WM,"Waste Management, Inc.",US,Standard
+GD,General Dynamics Corporation,US,Standard
+BX,Blackstone Inc.,US,Standard
+AMT,American Tower Corporation,US,Standard
+WMB,"The Williams Companies, Inc.",US,Standard
+JCI,Johnson Controls International plc,US,Standard
+CDNS,"Cadence Design Systems, Inc.",US,Standard
+EOG,"EOG Resources, Inc.",US,Standard
+CEG,Constellation Energy Corporation,US,Standard
+MAR,"Marriott International, Inc.",US,Standard
+TRV,"The Travelers Companies, Inc.",US,Standard
+SNPS,"Synopsys, Inc.",US,Standard
+PWR,"Quanta Services, Inc.",US,Standard
+MDLZ,"Mondelez International, Inc.",US,Standard
+CI,The Cigna Group,US,Standard
+CMCSA,Comcast Corporation,US,Standard
+MSI,"Motorola Solutions, Inc.",US,Standard
+REGN,"Regeneron Pharmaceuticals, Inc.",US,Standard
+SLB,SLB N.V.,US,Standard
+HLT,Hilton Worldwide Holdings Inc.,US,Standard
+CTAS,Cintas Corporation,US,Standard
+SHW,The Sherwin-Williams Company,US,Standard
+UPS,"United Parcel Service, Inc.",US,Standard
+HOOD,"Robinhood Markets, Inc.",US,Standard
+HPE,Hewlett Packard Enterprise Company,US,Standard
+CL,Colgate-Palmolive Company,US,Standard
+VRT,Vertiv Holdings Co,US,Standard
+MRNA,"Moderna, Inc.",US,Standard
+NSC,Norfolk Southern Corporation,US,Standard
+HWM,Howmet Aerospace Inc.,US,Standard
+NOC,Northrop Grumman Corporation,US,Standard
+ROST,"Ross Stores, Inc.",US,Standard
+ORLY,"O'Reilly Automotive, Inc.",US,Standard
+ECL,Ecolab Inc.,US,Standard
+ABNB,"Airbnb, Inc.",US,Standard
+MCO,Moody's Corporation,US,Standard
+ITW,Illinois Tool Works Inc.,US,Standard
+CMI,Cummins Inc.,US,Standard
+AEP,"American Electric Power Company, Inc.",US,Standard
+TMUS,"T-Mobile US, Inc.",US,Standard
+APP,AppLovin Corporation,US,Standard
+HON,Honeywell International Inc.,US,Standard
+TGT,Target Corporation,US,Standard
+HCA,"HCA Healthcare, Inc.",US,Standard
+AJG,Arthur J. Gallagher & Co.,US,Standard
+RCL,Royal Caribbean Cruises Ltd.,US,Standard
+APD,"Air Products and Chemicals, Inc.",US,Standard
+SPG,"Simon Property Group, Inc.",US,Standard
+URI,"United Rentals, Inc.",US,Standard
+KMI,"Kinder Morgan, Inc.",US,Standard
+DASH,"DoorDash, Inc.",US,Standard
+LITE,Lumentum Holdings Inc.,US,Standard
+GM,General Motors Company,US,Standard
+BSX,Boston Scientific Corporation,US,Standard
+MNST,Monster Beverage Corporation,US,Standard
+FDX,FedEx Corporation,US,Standard
+TRGP,Targa Resources Corp.,US,Standard
+AON,Aon plc,US,Standard
+ALL,The Allstate Corporation,US,Standard
+KKR,KKR & Co. Inc.,US,Standard
+COR,"Cencora, Inc.",US,Standard
+TDG,TransDigm Group Incorporated,US,Standard
+DLR,"Digital Realty Trust, Inc.",US,Standard
+OKE,"ONEOK, Inc.",US,Standard
+TEL,TE Connectivity plc,US,Standard
+FAST,Fastenal Company,US,Standard
+NXPI,NXP Semiconductors N.V.,US,Standard
+TFC,Truist Financial Corporation,US,Standard
+GWW,"W.W. Grainger, Inc.",US,Standard
+NUE,Nucor Corporation,US,Standard
+CAH,"Cardinal Health, Inc.",US,Standard
+D,"Dominion Energy, Inc.",US,Standard
+BE,Bloom Energy Corporation,US,Standard
+PCAR,PACCAR Inc,US,Standard
+CRH,CRH plc,US,Standard
+DVN,Devon Energy Corporation,US,Standard
+MPWR,"Monolithic Power Systems, Inc.",US,Standard
+BKR,Baker Hughes Company,US,Standard
+AME,"AMETEK, Inc.",US,Standard
+SRE,Sempra,US,Standard
+BDX,"Becton, Dickinson and Company",US,Standard
+KEYS,"Keysight Technologies, Inc.",US,Standard
+AFL,Aflac Incorporated,US,Standard
+O,Realty Income Corporation,US,Standard
+ADSK,"Autodesk, Inc.",US,Standard
+APO,"Apollo Global Management, Inc.",US,Standard
+MET,"MetLife, Inc.",US,Standard
+AZO,"AutoZone, Inc.",US,Standard
+PSA,Public Storage,US,Standard
+HONA,Honeywell Aerospace Inc.,US,Standard
+EW,Edwards Lifesciences Corporation,US,Standard
+HUM,Humana Inc.,US,Standard
+ETR,Entergy Corporation,US,Standard
+VYLR,Vylor Inc.,US,Standard
+A,"Agilent Technologies, Inc.",US,Standard
+XEL,Xcel Energy Inc.,US,Standard
+GRMN,Garmin Ltd.,US,Standard
+EBAY,eBay Inc.,US,Standard
+PYPL,"PayPal Holdings, Inc.",US,Standard
+TER,"Teradyne, Inc.",US,Standard
+VEEV,Veeva Systems Inc.,US,Standard
+FITB,Fifth Third Bancorp,US,Standard
+ROK,"Rockwell Automation, Inc.",US,Standard
+LHX,"L3Harris Technologies, Inc.",US,Standard
+KDP,Keurig Dr Pepper Inc.,US,Standard
+RSG,"Republic Services, Inc.",US,Standard
+OXY,Occidental Petroleum Corporation,US,Standard
+CARR,Carrier Global Corporation,US,Standard
+STT,State Street Corporation,US,Standard
+EXC,Exelon Corporation,US,Standard
+IQV,IQVIA Holdings Inc.,US,Standard
+WAB,Westinghouse Air Brake Technologies Corporation,US,Standard
+DAL,"Delta Air Lines, Inc.",US,Standard
+F,Ford Motor Company,US,Standard
+CIEN,Ciena Corporation,US,Standard
+NDAQ,"Nasdaq, Inc.",US,Standard
+VMRK,Vivmark Residential,US,Standard
+MSCI,MSCI Inc.,US,Standard
+NKE,"NIKE, Inc.",US,Standard
+WAT,Waters Corporation,US,Standard
+VTR,"Ventas, Inc.",US,Standard
+IDXX,"IDEXX Laboratories, Inc.",US,Standard
+VST,Vistra Corp.,US,Standard
+FERG,Ferguson Enterprises Inc.,US,Standard
+AMP,"Ameriprise Financial, Inc.",US,Standard
+ROP,"Roper Technologies, Inc.",US,Standard
+ED,"Consolidated Edison, Inc.",US,Standard
+AIG,"American International Group, Inc.",US,Standard
+NTAP,"NetApp, Inc.",US,Standard
+FANG,"Diamondback Energy, Inc.",US,Standard
+WDAY,"Workday, Inc.",US,Standard
+CVNA,Carvana Co.,US,Standard
+XYZ,"Block, Inc.",US,Standard
+COHR,Coherent Corp.,US,Standard
+P,"Everpure, Inc.",US,Standard
+FIX,"Comfort Systems USA, Inc.",US,Standard
+YUM,"Yum! Brands, Inc.",US,Standard
+ILMN,"Illumina, Inc.",US,Standard
+TWLO,Twilio Inc.,US,Standard
+MCHP,Microchip Technology Incorporated,US,Standard
+PRU,"Prudential Financial, Inc.",US,Standard
+SYY,Sysco Corporation,US,Standard
+ADM,Archer-Daniels-Midland Company,US,Standard
+KR,The Kroger Co.,US,Standard
+KVUE,Kenvue Inc.,US,Standard
+PAYX,"Paychex, Inc.",US,Standard
+DHI,"D.R. Horton, Inc.",US,Standard
+BIIB,Biogen Inc.,US,Standard
+HIG,"The Hartford Insurance Group, Inc.",US,Standard
+COIN,"Coinbase Global, Inc.",US,Standard
+KMB,Kimberly-Clark Corporation,US,Standard
+CCI,Crown Castle Inc.,US,Standard
+RMD,ResMed Inc.,US,Standard
+IBKR,"Interactive Brokers Group, Inc.",US,Standard
+WEC,"WEC Energy Group, Inc.",US,Standard
+PEG,Public Service Enterprise Group Incorporated,US,Standard
+CBOE,"Cboe Global Markets, Inc.",US,Standard
+TTWO,"Take-Two Interactive Software, Inc.",US,Standard
+CBRE,"CBRE Group, Inc.",US,Standard
+EQT,EQT Corporation,US,Standard
+CMG,"Chipotle Mexican Grill, Inc.",US,Standard
+CNC,Centene Corporation,US,Standard
+ACGL,Arch Capital Group Ltd.,US,Standard
+AXON,"Axon Enterprise, Inc.",US,Standard
+ODFL,"Old Dominion Freight Line, Inc.",US,Standard
+VMC,Vulcan Materials Company,US,Standard
+MTD,Mettler-Toledo International Inc.,US,Standard
+ZTS,Zoetis Inc.,US,Standard
+CCL,Carnival Corporation Ltd.,US,Standard
+EXPE,"Expedia Group, Inc.",US,Standard
+IRM,Iron Mountain Incorporated,US,Standard
+STLD,"Steel Dynamics, Inc.",US,Standard
+GEHC,GE HealthCare Technologies Inc.,US,Standard
+HBAN,Huntington Bancshares Incorporated,US,Standard
+MTB,M&T Bank Corporation,US,Standard
+UAL,"United Airlines Holdings, Inc.",US,Standard
+CTSH,Cognizant Technology Solutions Corporation,US,Standard
+HPQ,HP Inc.,US,Standard
+NTRS,Northern Trust Corporation,US,Standard
+MLM,"Martin Marietta Materials, Inc.",US,Standard
+EXR,Extra Space Storage Inc.,US,Standard
+WTW,Willis Towers Watson Public Limited Company,US,Standard
+AEE,Ameren Corporation,US,Standard
+WSM,"Williams-Sonoma, Inc.",US,Standard
+DG,Dollar General Corporation,US,Standard
+DXCM,"DexCom, Inc.",US,Standard
+HAL,Halliburton Company,US,Standard
+ATO,Atmos Energy Corporation,US,Standard
+TDY,Teledyne Technologies Incorporated,US,Standard
+JBL,Jabil Inc.,US,Standard
+EME,"EMCOR Group, Inc.",US,Standard
+OTIS,Otis Worldwide Corporation,US,Standard
+AWK,"American Water Works Company, Inc.",US,Standard
+FLEX,Flex Ltd.,US,Standard
+ON,ON Semiconductor Corporation,US,Standard
+PCG,PG&E Corporation,US,Standard
+WST,"West Pharmaceutical Services, Inc.",US,Standard
+CFG,"Citizens Financial Group, Inc.",US,Standard
+DTE,DTE Energy Company,US,Standard
+LYV,"Live Nation Entertainment, Inc.",US,Standard
+RJF,"Raymond James Financial, Inc.",US,Standard
+ARES,Ares Management Corporation,US,Standard
+CINF,Cincinnati Financial Corporation,US,Standard
+CNP,"CenterPoint Energy, Inc.",US,Standard
+DOV,Dover Corporation,US,Standard
+DGX,Quest Diagnostics Incorporated,US,Standard
+EL,The Estée Lauder Companies Inc.,US,Standard
+CPAY,"Corpay, Inc.",US,Standard
+ULTA,"Ulta Beauty, Inc.",US,Standard
+FISV,"Fiserv, Inc.",US,Standard
+LH,Labcorp Holdings Inc.,US,Standard
+PPL,PPL Corporation,US,Standard
+VICI,VICI Properties Inc.,US,Standard
+CASY,"Casey's General Stores, Inc.",US,Standard
+EXPD,"Expeditors International of Washington, Inc.",US,Standard
+FFIV,"F5, Inc.",US,Standard
+VRSK,"Verisk Analytics, Inc.",US,Standard
+ES,Eversource Energy,US,Standard
+VLTO,Veralto Corporation,US,Standard
+XYL,Xylem Inc.,US,Standard
+IR,Ingersoll Rand Inc.,US,Standard
+CHD,"Church & Dwight Co., Inc.",US,Standard
+HSY,The Hershey Company,US,Standard
+PPG,"PPG Industries, Inc.",US,Standard
+VRSN,"VeriSign, Inc.",US,Standard
+RF,Regions Financial Corporation,US,Standard
+CPRT,"Copart, Inc.",US,Standard
+IFF,International Flavors & Fragrances Inc.,US,Standard
+DLTR,"Dollar Tree, Inc.",US,Standard
+DRI,"Darden Restaurants, Inc.",US,Standard
+FE,FirstEnergy Corp.,US,Standard
+SYF,Synchrony Financial,US,Standard
+HUBB,Hubbell Incorporated,US,Standard
+DOW,Dow Inc.,US,Standard
+Q,"Qnity Electronics, Inc.",US,Standard
+STE,STERIS plc,US,Standard
+PHM,"PulteGroup, Inc.",US,Standard
+OMC,Omnicom Group Inc.,US,Standard
+TROW,"T. Rowe Price Group, Inc.",US,Standard
+EIX,Edison International,US,Standard
+SW,Smurfit Westrock Plc,US,Standard
+PKG,Packaging Corporation of America,US,Standard
+TPR,"Tapestry, Inc.",US,Standard
+CMS,CMS Energy Corporation,US,Standard
+EXE,Expand Energy Corporation,US,Standard
+KHC,The Kraft Heinz Company,US,Standard
+EFX,Equifax Inc.,US,Standard
+AMCR,Amcor plc,US,Standard
+PFG,"Principal Financial Group, Inc.",US,Standard
+RDDT,"Reddit, Inc.",US,Standard
+BRO,"Brown & Brown, Inc.",US,Standard
+BR,"Broadridge Financial Solutions, Inc.",US,Standard
+PTC,PTC Inc.,US,Standard
+STZ,"Constellation Brands, Inc.",US,Standard
+NI,NiSource Inc.,US,Standard
+VTRS,Viatris Inc.,US,Standard
+CDW,CDW Corporation,US,Standard
+LUV,Southwest Airlines Co.,US,Standard
+TPL,Texas Pacific Land Corporation,US,Standard
+BBY,"Best Buy Co., Inc.",US,Standard
+INCY,Incyte Corporation,US,Standard
+SBAC,SBA Communications Corporation,US,Standard
+EVRG,"Evergy, Inc.",US,Standard
+NRG,"NRG Energy, Inc.",US,Standard
+FIS,"Fidelity National Information Services, Inc.",US,Standard
+KEY,KeyCorp,US,Standard
+SWKS,"Skyworks Solutions, Inc.",US,Standard
+ZBH,"Zimmer Biomet Holdings, Inc.",US,Standard
+DD,"DuPont de Nemours, Inc.",US,Standard
+SMCI,"Super Micro Computer, Inc.",US,Standard
+FSLR,"First Solar, Inc.",US,Standard
+SNA,Snap-on Incorporated,US,Standard
+ZBRA,Zebra Technologies Corporation,US,Standard
+APA,APA Corporation,US,Standard
+FTV,Fortive Corporation,US,Standard
+GIS,"General Mills, Inc.",US,Standard
+GPN,Global Payments Inc.,US,Standard
+L,Loews Corporation,US,Standard
+CF,"CF Industries Holdings, Inc.",US,Standard
+ESS,"Essex Property Trust, Inc.",US,Standard
+LNT,Alliant Energy Corporation,US,Standard
+RVTY,"Revvity, Inc.",US,Standard
+FICO,Fair Isaac Corporation,US,Standard
+IP,International Paper Company,US,Standard
+TSCO,Tractor Supply Company,US,Standard
+BALL,Ball Corporation,US,Standard
+LYB,LyondellBasell Industries N.V.,US,Standard
+J,Jacobs Solutions Inc.,US,Standard
+LDOS,"Leidos Holdings, Inc.",US,Standard
+IEX,IDEX Corporation,US,Standard
+GPC,Genuine Parts Company,US,Standard
+HST,"Host Hotels & Resorts, Inc.",US,Standard
+NDSN,Nordson Corporation,US,Standard
+JBHT,"J.B. Hunt Transport Services, Inc.",US,Standard
+CHRW,"C.H. Robinson Worldwide, Inc.",US,Standard
+CRL,"Charles River Laboratories International, Inc.",US,Standard
+WRB,W. R. Berkley Corporation,US,Standard
+HAS,"Hasbro, Inc.",US,Standard
+BG,Bunge Global SA,US,Standard
+LEN,Lennar Corporation,US,Standard
+TSN,"Tyson Foods, Inc.",US,Standard
+KIM,Kimco Realty Corporation,US,Standard
+ALLE,Allegion plc,US,Standard
+NVR,"NVR, Inc.",US,Standard
+MAS,Masco Corporation,US,Standard
+SWK,"Stanley Black & Decker, Inc.",US,Standard
+TRMB,Trimble Inc.,US,Standard
+TYL,"Tyler Technologies, Inc.",US,Standard
+INVH,Invitation Homes Inc.,US,Standard
+IT,"Gartner, Inc.",US,Standard
+GDDY,GoDaddy Inc.,US,Standard
+RL,Ralph Lauren Corporation,US,Standard
+EG,"Everest Group, Ltd.",US,Standard
+AIZ,"Assurant, Inc.",US,Standard
+MAA,"Mid-America Apartment Communities, Inc.",US,Standard
+WY,Weyerhaeuser Company,US,Standard
+AVY,Avery Dennison Corporation,US,Standard
+SJM,The J. M. Smucker Company,US,Standard
+CSGP,"CoStar Group, Inc.",US,Standard
+AKAM,"Akamai Technologies, Inc.",US,Standard
+GEN,Gen Digital Inc.,US,Standard
+DOC,"Healthpeak Properties, Inc.",US,Standard
+FOXA,Fox Corporation,US,Standard
+TXT,Textron Inc.,US,Standard
+BAX,Baxter International Inc.,US,Standard
+FDXF,"FedEx Freight Holding Company, Inc.",US,Standard
+PNW,Pinnacle West Capital Corporation,US,Standard
+IVZ,Invesco Ltd.,US,Standard
+ECHO,EchoStar Corporation,US,Standard
+SOLV,Solventum Corporation,US,Standard
+MKC,"McCormick & Company, Incorporated",US,Standard
+REG,Regency Centers Corporation,US,Standard
+CHTR,"Charter Communications, Inc.",US,Standard
+GL,Globe Life Inc.,US,Standard
+COO,"The Cooper Companies, Inc.",US,Standard
+LII,Lennox International Inc.,US,Standard
+FDS,FactSet Research Systems Inc.,US,Standard
+JKHY,"Jack Henry & Associates, Inc.",US,Standard
+TECH,Bio-Techne Corporation,US,Standard
+NWSA,News Corporation,US,Standard
+ALB,Albemarle Corporation,US,Standard
+DECK,Deckers Outdoor Corporation,US,Standard
+GNRC,Generac Holdings Inc.,US,Standard
+HII,"Huntington Ingalls Industries, Inc.",US,Standard
+AES,The AES Corporation,US,Standard
+UDR,"UDR, Inc.",US,Standard
+CLX,The Clorox Company,US,Standard
+DPZ,"Domino's Pizza, Inc.",US,Standard
+LULU,lululemon athletica inc.,US,Standard
+PODD,Insulet Corporation,US,Standard
+CPT,Camden Property Trust,US,Standard
+ROL,"Rollins, Inc.",US,Standard
+TKO,"TKO Group Holdings, Inc.",US,Standard
+ALGN,"Align Technology, Inc.",US,Standard
+BXP,"BXP, Inc.",US,Standard
+UHS,"Universal Health Services, Inc.",US,Standard
+LVS,Las Vegas Sands Corp.,US,Standard
+APTV,Aptiv PLC,US,Standard
+BEN,Franklin Templeton Inc.,US,Standard
+PNR,Pentair plc,US,Standard
+FRT,Federal Realty Investment Trust,US,Standard
+HSIC,"Henry Schein, Inc.",US,Standard
+FOX,Fox Corporation,US,Standard
+NCLH,Norwegian Cruise Line Holdings Ltd.,US,Standard
+AOS,A. O. Smith Corporation,US,Standard
+ARE,"Alexandria Real Estate Equities, Inc.",US,Standard
+ERIE,Erie Indemnity Company,US,Standard
+DVA,DaVita Inc.,US,Standard
+HRL,Hormel Foods Corporation,US,Standard
+MOS,The Mosaic Company,US,Standard
+BF.B,Brown-Forman Corporation,US,Standard
+WYNN,"Wynn Resorts, Limited",US,Standard
+MGM,MGM Resorts International,US,Standard
+SKYD,Skydance Corporation,US,Standard
+NWS,News Corporation,US,Standard
+FPH.NZ,Fisher & Paykel Healthcare,NZ,Standard
+MEL.NZ,Meridian Energy,NZ,Standard
+AIA.NZ,Auckland Airport,NZ,Standard
+IFT.NZ,Infratil,NZ,Standard
+MCY.NZ,Mercury,NZ,Standard
+CEN.NZ,Contact Energy,NZ,Standard
+MFT.NZ,Mainfreight,NZ,Standard
+ATM.NZ,A2 Milk,NZ,Standard
+POT.NZ,Port of Tauranga,NZ,Standard
+VCT.NZ,Vector,NZ,Standard
+EBO.NZ,Ebos,NZ,Standard
+SPK.NZ,Spark,NZ,Standard
+CNU.NZ,Chorus,NZ,Standard
+FBU.NZ,Fletcher Building,NZ,Standard
+GNE.NZ,Genesis Energy,NZ,Standard
+GNZ.NZ,Goodman Property Trust,NZ,Standard
+FRW.NZ,Freightways,NZ,Standard
+RYM.NZ,Ryman Healthcare,NZ,Standard
+PCT.NZ,Precinct Properties,NZ,Standard
+SUM.NZ,Summerset Group,NZ,Standard
+SKL.NZ,Skellerup Holdings,NZ,Standard
+ANZ.NZ,ANZ Banking Group,NZ,Standard
+KPG.NZ,Kiwi Property Group,NZ,Standard
+VHP.NZ,Vital Healthcare Property,NZ,Standard
+WBC.NZ,Westpac Banking Corp,NZ,Standard
+CHI.NZ,Channel Infrastructure,NZ,Standard
+AIR.NZ,Air New Zealand,NZ,Standard
+HGH.NZ,Heartland Group Holdings,NZ,Standard
+PFI.NZ,Property for Industry,NZ,Standard
+FSF.NZ,Fonterra Shareholders',NZ,Standard
+VSL.NZ,Vulcan Steel,NZ,Standard
+SCL.NZ,Scales Corp,NZ,Standard
+BGP.NZ,Briscoe Group,NZ,Standard
+ARG.NZ,Argosy Property,NZ,Standard
+HLG.NZ,Hallenstein Glassons,NZ,Standard
+SKC.NZ,Skycity Entertainment,NZ,Standard
+TWR.NZ,Tower,NZ,Standard
+NPH.NZ,Napier Port Holdings,NZ,Standard
+TRA.NZ,Turners,NZ,Standard
+VGL.NZ,Vista Group,NZ,Standard
+THL.NZ,Tourism Holdings,NZ,Standard
+SPG.NZ,Stride Property,NZ,Standard
+SAN.NZ,Sanford,NZ,Standard
+GTK.NZ,Gentrack,NZ,Standard
+SKT.NZ,Sky Network Television,NZ,Standard
+NZX.NZ,NZX,NZ,Standard
+OCA.NZ,Oceania Healthcare,NZ,Standard
+IPL.NZ,Investore Property,NZ,Standard
+KMD.NZ,Kathmandu,NZ,Standard
+SKO.NZ,Serko,NZ,Standard
+AMP.AX,AMP Limited,AUS,Standard
+ANZ.AX,ANZ Group Holdings Limited,AUS,Standard
+APA.AX,APA Group,AUS,Standard
+ALL.AX,Aristocrat Leisure Limited,AUS,Standard
+ASX.AX,ASX Limited,AUS,Standard
+ALX.AX,Atlas Arteria,AUS,Standard
+AWC.AX,Alumina Limited,AUS,Standard
+BHP.AX,BHP Group Limited,AUS,Standard
+BSL.AX,Bluescope Steel Limited,AUS,Standard
+BXB.AX,Brambles Limited,AUS,Standard
+CAR.AX,CAR Group Limited,AUS,Standard
+CBA.AX,Commonwealth Bank of Australia,AUS,Standard
+COH.AX,Cochlear Limited,AUS,Standard
+COL.AX,Coles Group Limited,AUS,Standard
+CPU.AX,Computershare Limited,AUS,Standard
+CSL.AX,CSL Limited,AUS,Standard
+DXS.AX,Dexus,AUS,Standard
+EDV.AX,Endeavour Group Limited,AUS,Standard
+FMG.AX,Fortescue Ltd,AUS,Standard
+GMG.AX,Goodman Group,AUS,Standard
+IAG.AX,Insurance Australia Group Limited,AUS,Standard
+IGO.AX,IGO Limited,AUS,Standard
+JHX.AX,James Hardie Industries plc,AUS,Standard
+LCLR.AX,Light & Wonder Inc.,AUS,Standard
+LYC.AX,Lynas Rare Earths Limited,AUS,Standard
+MGR.AX,Mirvac Group,AUS,Standard
+MQG.AX,Macquarie Group Limited,AUS,Standard
+MIN.AX,Mineral Resources Limited,AUS,Standard
+NAB.AX,National Australia Bank Limited,AUS,Standard
+NEM.AX,Newmont Corporation,AUS,Standard
+NST.AX,Northern Star Resources Limited,AUS,Standard
+ORG.AX,Origin Energy Limited,AUS,Standard
+PLS.AX,Pilbara Minerals Limited,AUS,Standard
+QAN.AX,Qantas Airways Limited,AUS,Standard
+QBE.AX,QBE Insurance Group Limited,AUS,Standard
+REA.AX,REA Group Limited,AUS,Standard
+RIO.AX,Rio Tinto Limited,AUS,Standard
+RMD.AX,ResMed Inc.,AUS,Standard
+SCG.AX,Scentre Group,AUS,Standard
+SHL.AX,Sonic Healthcare Limited,AUS,Standard
+STO.AX,Santos Limited,AUS,Standard
+SUN.AX,Suncorp Group Limited,AUS,Standard
+TCL.AX,Transurban Group,AUS,Standard
+TLS.AX,Telstra Group Limited,AUS,Standard
+VCX.AX,Vicinity Centres,AUS,Standard
+WDS.AX,Woodside Energy Group Ltd,AUS,Standard
+WES.AX,Wesfarmers Limited,AUS,Standard
+WOW.AX,Woolworths Group Limited,AUS,Standard
+WTC.AX,WiseTech Global Limited,AUS,Standard
+XRO.AX,Xero Limited,AUS,Standard

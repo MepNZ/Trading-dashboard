@@ -1,14 +1,13 @@
 {
     "wallet_cash": {
-        "NZD": 14.52,
+        "NZD": 35.58,
         "AUD": 0.0,
-        "USD": 285.1
+        "USD": 2.03
     },
     "sliders": {
-        "fast_ma": 20,
-        "slow_ma": 50,
-        "roi_window": "1 Year",
-        "graph_horizon": "1 Year"
+        "fast_ma": 10,
+        "slow_ma": 30,
+        "roi_window": "1 Year"
     },
     "positions": {
         "XLE": {
@@ -19,44 +18,27 @@
         },
         "MDT": {
             "shares": 1.0,
-            "entry": 93.0,
+            "entry": 94.77,
             "upper": 0.0,
             "fixed_stop_distance": 0.0
+        },
+        "NZX.NZ": {
+            "shares": 150.0,
+            "entry": 1.48,
+            "upper": 0.0,
+            "fixed_stop_distance": 15.0
+        },
+        "AMP.AX": {
+            "shares": 80.0,
+            "entry": 2.48,
+            "upper": 0.0,
+            "fixed_stop_distance": 15.0
         }
     },
     "watchlist_tickers": [
-        "CLF"
+        "TSLA",
+        "AIR.NZ",
+        "CBA.AX"
     ],
-    "paper_positions": {
-        "HAS": {
-            "shares": 1.0,
-            "entry": 108.38,
-            "entry_date": "2026-10-20"
-        },
-        "HGH.NZ": {
-            "shares": 1.0,
-            "entry": 1.26,
-            "entry_date": "2026-10-20"
-        },
-        "NAB.AX": {
-            "shares": 1.0,
-            "entry": 39.2,
-            "entry_date": "2026-10-20"
-        },
-        "POT.NZ": {
-            "shares": 1.0,
-            "entry": 8.32,
-            "entry_date": "2026-10-20"
-        },
-        "SML.NZ": {
-            "shares": 1.0,
-            "entry": 0.48,
-            "entry_date": "2026-10-21"
-        },
-        "XLE": {
-            "shares": 1.0,
-            "entry": 64.44,
-            "entry_date": "2026-10-22"
-        }
-    }
+    "paper_positions": {}
 }

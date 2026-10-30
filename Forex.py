@@ -331,15 +331,15 @@ if not data.empty:
                 name=f"Short Slow MA ({ma_slow})"
             ))
             
-            # 4. Long-Term Macro Trend Signals (Changed to high-contrast dotted styles)
+                        # 4. Long-Term Macro Trend Signals (Enhanced visibility and thickness)
             fig.add_trace(go.Scatter(
                 x=chart_view_df.index, y=chart_view_df['Close'].rolling(20).mean(), 
-                mode='lines', line=dict(color='#F59E0B', width=2.0, dash='dot'), 
+                mode='lines', line=dict(color='#F59E0B', width=3.5, dash='dash'), 
                 name="Macro 20 MA (Amber)"
             ))
             fig.add_trace(go.Scatter(
                 x=chart_view_df.index, y=chart_view_df['Close'].rolling(50).mean(), 
-                mode='lines', line=dict(color='#8B5CF6', width=2.0, dash='dot'), 
+                mode='lines', line=dict(color='#8B5CF6', width=2.5, dash='dot'), 
                 name="Macro 50 MA (Purple)"
             ))
             

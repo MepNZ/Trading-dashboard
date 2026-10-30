@@ -184,11 +184,30 @@ with control_tab1:
         st.markdown("#### 📈 Analysis")
         st.slider("Fast Moving Average (MA)", 5, 30, int(runtime_sliders.get("fast_ma", 10)), key="fast_ma")
         st.slider("Slow Moving Average (MA)", 20, 200, int(runtime_sliders.get("slow_ma", 50)), key="slow_ma")
+    
     with c_col3:
-        st.markdown("#### 💼 Sharesies Vault")
-        cash_nzd = st.number_input("NZD $ Wallet", min_value=0.0, value=float(runtime_cash.get("NZD", 14.52)), step=1.0, format="%.2f", key="cash_nzd_input")
-        cash_aud = st.number_input("AUD $ Wallet", min_value=0.0, value=float(runtime_cash.get("AUD", 0.00)), step=1.0, format="%.2f", key="cash_aud_input")
-        cash_usd = st.number_input("USD $ Wallet", min_value=0.0, value=float(runtime_cash.get("USD", 78.24)), step=1.0, format="%.2f", key="cash_usd_input")
+        st.markdown("#### 💼 Sharesies Vault (Available vs Pending)")
+        
+        # --- NZD Row ---
+        nzd_left, nzd_right = st.columns(2)
+        with nzd_left:
+            cash_nzd = st.number_input("NZD $ Available", min_value=0.0, value=float(runtime_cash.get("NZD", 14.52)), step=1.0, format="%.2f", key="cash_nzd_input")
+        with nzd_right:
+            pending_nzd = st.number_input("NZD $ Pending", min_value=0.0, value=float(runtime_cash.get("Pending_NZD", 0.00)), step=1.0, format="%.2f", key="pending_nzd_input")
+            
+        # --- AUD Row ---
+        aud_left, aud_right = st.columns(2)
+        with aud_left:
+            cash_aud = st.number_input("AUD $ Available", min_value=0.0, value=float(runtime_cash.get("AUD", 0.00)), step=1.0, format="%.2f", key="cash_aud_input")
+        with aud_right:
+            pending_aud = st.number_input("AUD $ Pending", min_value=0.0, value=float(runtime_cash.get("Pending_AUD", 0.00)), step=1.0, format="%.2f", key="pending_aud_input")
+            
+        # --- USD Row ---
+        usd_left, usd_right = st.columns(2)
+        with usd_left:
+            cash_usd = st.number_input("USD $ Available", min_value=0.0, value=float(runtime_cash.get("USD", 78.24)), step=1.0, format="%.2f", key="cash_usd_input")
+        with usd_right:
+            pending_usd = st.number_input("USD $ Pending", min_value=0.0, value=float(runtime_cash.get("Pending_USD", 0.00)), step=1.0, format="%.2f", key="pending_usd_input")
 
 portfolio_slots = list(runtime_positions.keys())[:6]
 while len(portfolio_slots) < 6: portfolio_slots.append(f"EMPTY_PORT_{len(portfolio_slots)+1}")
@@ -242,13 +261,20 @@ with control_tab3:
 
 if save_trigger:
     live_bounds = {
-        "wallet_cash": {"NZD": cash_nzd, "AUD": cash_aud, "USD": cash_usd},
+        "wallet_cash": {
+            "NZD": cash_nzd, 
+            "AUD": cash_aud, 
+            "USD": cash_usd,
+            "Pending_NZD": pending_nzd,
+            "Pending_AUD": pending_aud,
+            "Pending_USD": pending_usd
+        },
         "sliders": {"fast_ma": int(st.session_state["fast_ma"]), "slow_ma": int(st.session_state["slow_ma"]), "roi_window": st.session_state["roi_window"]},
         "positions": {}, 
         "watchlist_tickers": runtime_watchlist, 
         "paper_positions": {}
     }
-    
+
     # Process portfolio slots
     for idx in range(6):
         t_input = st.session_state.get(f"port_slot_{idx}", "").upper().strip()
@@ -427,8 +453,13 @@ if active_live_positions:
     tot_equity_nzd = p_df["Value (NZD)"].sum()
     tot_profit_nzd = tot_equity_nzd - tot_invest_nzd
     tot_roi_nzd = (tot_profit_nzd / tot_invest_nzd) * 100 if tot_invest_nzd > 0 else 0.0
-    integ_cash_nzd = cash_nzd + (cash_aud * aud_to_nzd_rate) + (cash_usd * usd_to_nzd_rate)
+        # Calculate available and pending balances converted to native NZD
+    available_cash_nzd = cash_nzd + (cash_aud * aud_to_nzd_rate) + (cash_usd * usd_to_nzd_rate)
+    pending_cash_nzd = pending_nzd + (pending_aud * aud_to_nzd_rate) + (pending_usd * usd_to_nzd_rate)
+    integ_cash_nzd = available_cash_nzd + pending_cash_nzd
+    
     tot_app_value = tot_equity_nzd + integ_cash_nzd
+
     p_color, p_sign = ("#28a745", "+") if tot_profit_nzd >= 0 else ("#dc3545", "")
     
     currency_cols_a = ["Bought at", "Live price", "New Limit Buy", "Take Profit", "Cost (Loc)", "Cost (NZD)", "Value (Loc)", "Value (NZD)", "Stop Loss", "P&L (NZD)"]

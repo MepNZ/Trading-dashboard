@@ -297,56 +297,73 @@ if not data.empty:
                     <i>Institutional Verdict: Sidelines / No-Trade Zone. Short-term noise is fighting the macro structure. Wait for structural alignment to resume.</i>
                 </div>""", unsafe_allow_html=True)
                        # ==========================================
-            # 6. RESTYLED CHART PIPELINE
+                        # ==========================================
+            # 6. RESTYLED CHART PIPELINE (HIGH-CONTRAST ENHANCED)
             # ==========================================
             st.subheader("📈 Chart Visualization Track")
             fig = go.Figure()
             
-            # Dimmed background Candlesticks layout to push customized lines forward
+            # 1. Clean Background Candlesticks (De-emphasized to remove clutter)
             fig.add_trace(go.Candlestick(
                 x=chart_view_df.index, open=chart_view_df['Open'], high=chart_view_df['High'],
                 low=chart_view_df['Low'], close=chart_view_df['Close'],
                 increasing_line_color='#E2E8F0', decreasing_line_color='#E2E8F0',
                 increasing_fillcolor='#F8FAFC', decreasing_fillcolor='#F8FAFC',
-                opacity=0.3, showlegend=False, name="Market Candles"
+                opacity=0.2, showlegend=False, name="Market Candles"
             ))
             
-            # Primary Indicators Layer
-            fig.add_trace(go.Scatter(x=chart_view_df.index, y=chart_view_df['Close'], mode='lines', line=dict(color='#00E5FF', width=2.5), name="Price Line"))
-            fig.add_trace(go.Scatter(x=chart_view_df.index, y=chart_view_df['MA_Fast'], mode='lines', line=dict(color='#00FF66', width=2), name=f"Fast MA ({ma_fast})"))
-            fig.add_trace(go.Scatter(x=chart_view_df.index, y=chart_view_df['MA_Slow'], mode='lines', line=dict(color='#FF003C', width=2), name=f"Slow MA ({ma_slow})"))
+            # 2. Underlying Price Close Tracking (Changed to a subtle dark neutral)
+            fig.add_trace(go.Scatter(
+                x=chart_view_df.index, y=chart_view_df['Close'], 
+                mode='lines', line=dict(color='#475569', width=1.5), 
+                name="Price Close Line"
+            ))
             
-            # RESTYLED MACRO LINES: Green and Red Dotted Tracks
+            # 3. Short-Term Crossover Signals (Thicker, solid high-contrast neon lines)
+            fig.add_trace(go.Scatter(
+                x=chart_view_df.index, y=chart_view_df['MA_Fast'], 
+                mode='lines', line=dict(color='#10B981', width=2.5), 
+                name=f"Short Fast MA ({ma_fast})"
+            ))
+            fig.add_trace(go.Scatter(
+                x=chart_view_df.index, y=chart_view_df['MA_Slow'], 
+                mode='lines', line=dict(color='#EF4444', width=2.5), 
+                name=f"Short Slow MA ({ma_slow})"
+            ))
+            
+            # 4. Long-Term Macro Trend Signals (Changed to high-contrast dotted styles)
             fig.add_trace(go.Scatter(
                 x=chart_view_df.index, y=chart_view_df['Close'].rolling(20).mean(), 
-                mode='lines', line=dict(color='#00FF66', width=1.5, dash='dot'), 
-                name="Macro 20 MA"
+                mode='lines', line=dict(color='#F59E0B', width=2.0, dash='dot'), 
+                name="Macro 20 MA (Amber)"
             ))
             fig.add_trace(go.Scatter(
                 x=chart_view_df.index, y=chart_view_df['Close'].rolling(50).mean(), 
-                mode='lines', line=dict(color='#FF003C', width=1.5, dash='dot'), 
-                name="Macro 50 MA"
+                mode='lines', line=dict(color='#8B5CF6', width=2.0, dash='dot'), 
+                name="Macro 50 MA (Purple)"
             ))
             
-            # Risk Boundary Overlay Targets
-            fig.add_trace(go.Scatter(x=trade_period_df.index, y=[tp_target]*len(trade_period_df), mode='lines', line=dict(color='#10B981', width=1.5, dash='dot'), name="ATR TP"))
-            fig.add_trace(go.Scatter(x=trade_period_df.index, y=[sl_target]*len(trade_period_df), mode='lines', line=dict(color='#EF4444', width=1.5, dash='dot'), name="ATR SL"))
-            fig.add_shape(type="line", x0=trade_period_df.index, y0=entry_price, x1=trade_period_df.index[-1], y1=entry_price, line=dict(color="#3B82F6", width=2, dash="dash"))
+            # 5. Risk Boundary Target Overlays
+            fig.add_trace(go.Scatter(x=trade_period_df.index, y=[tp_target]*len(trade_period_df), mode='lines', line=dict(color='#059669', width=1.5, dash='dash'), name="ATR Target TP"))
+            fig.add_trace(go.Scatter(x=trade_period_df.index, y=[sl_target]*len(trade_period_df), mode='lines', line=dict(color='#DC2626', width=1.5, dash='dash'), name="ATR Stop SL"))
+            fig.add_shape(type="line", x0=trade_period_df.index, y0=entry_price, x1=trade_period_df.index[-1], y1=entry_price, line=dict(color="#2563EB", width=2, dash="longdash"))
             
+            # 6. Peak Danger Excursion Marker
             worst_idx = trade_period_df['Interim_Loss_USD'].idxmax()
             worst_price = trade_period_df.loc[worst_idx, 'Low'] if is_long else trade_period_df.loc[worst_idx, 'High']
             if ticker_input.upper() == "NZDUSD" and str(entry_date) == "2026-07-22" and str(exit_date) == "2026-08-31":
                 worst_price = entry_price - (max_drawdown_pips / pip_multiplier)
                 
-            fig.add_trace(go.Scatter(x=[worst_idx], y=[worst_price], mode="markers", marker=dict(color="#FF003C", size=12, symbol="x-dot"), name="Peak Adverse Risk"))
+            fig.add_trace(go.Scatter(x=[worst_idx], y=[worst_price], mode="markers", marker=dict(color="#EA580C", size=14, symbol="x-dot", line=dict(width=2, color="#000000")), name="Max Drawdown Threat"))
             
             fig.update_layout(
-                title=dict(text=f"{ticker_input.upper()}=X Real-Time Execution Path", font=dict(size=13, family="Inter, sans-serif")),
+                title=dict(text=f"{ticker_input.upper()}=X Clean Architectural Execution Path", font=dict(size=13, family="Inter, sans-serif")),
                 xaxis=dict(gridcolor='#F1F5F9', tickfont=dict(color='#64748B', size=10), rangeslider_visible=False),
                 yaxis=dict(gridcolor='#F1F5F9', tickfont=dict(color='#64748B', size=10)),
-                plot_bgcolor='white', paper_bgcolor='white', margin=dict(l=10, r=10, t=30, b=10), height=380
+                plot_bgcolor='white', paper_bgcolor='white', margin=dict(l=10, r=10, t=30, b=10), height=420
             )
             st.plotly_chart(fig, use_container_width=True)
+
         else:
             st.warning("Historical trade mask returned empty bounds. Align entry/exit metrics.")
 

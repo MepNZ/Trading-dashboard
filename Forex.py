@@ -3,6 +3,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from datetime import datetime
 
 # ==========================================
@@ -34,15 +35,11 @@ if "trade_logs" not in st.session_state:
 # Compact spatial management framework to wipe out whitespace padding bugs
 st.markdown("""
     <style>
-        /* Compact Content Containers */
         .reportview-container .main .block-container { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-        
-        /* Shrunk Font Sizes for Institutional Dashboard Look */
         h1 { font-family: 'Inter', sans-serif; font-size: 1.4rem !important; margin-bottom: 0.1rem !important; font-weight: 800; }
         h2 { font-family: 'Inter', sans-serif; font-size: 1.15rem !important; margin-top: 0.4rem !important; margin-bottom: 0.2rem !important; }
         h3 { font-family: 'Inter', sans-serif; font-size: 1.0rem !important; margin-top: 0.4rem !important; margin-bottom: 0.1rem !important; }
         
-        /* Space-Saving Metric Cards */
         .metric-card {
             background: #FFFFFF;
             border: 1px solid #E2E8F0;
@@ -58,7 +55,6 @@ st.markdown("""
         .delta-negative { color: #EF4444; }
         .delta-neutral { color: #3B82F6; }
         
-        /* Custom Signal Notification Banner layouts */
         .signal-banner { padding: 0.75rem; border-radius: 6px; font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem; border: 1px solid transparent; }
         .signal-buy { background-color: #DCFCE7; color: #15803D; border-color: #BBF7D0; }
         .signal-sell { background-color: #FEE2E2; color: #B91C1C; border-color: #FCA5A5; }
@@ -69,16 +65,14 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("💱 Mike's FOREX trading dashboard")
+st.title("💱 Mike's FOREX trading dashboard (CMC Edition)")
 st.markdown("---")
 # ==========================================
 # 2. GLOBAL SIDEBAR CONFIGURATION
 # ==========================================
 st.sidebar.header("🎛️ System Parameters")
 
-# The Live Simulation Switch Catalyst
 runtime_mode = st.sidebar.selectbox("Dashboard Operational Mode", ["Historical Backtest", "Live Simulation Run"])
-
 ticker_input = st.sidebar.text_input("Currency Pairs", "NZDUSD")
 ticker = f"{ticker_input.strip().upper()}=X"
 
@@ -88,20 +82,20 @@ timeframe_choice = st.sidebar.selectbox(
 )
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🎯 Backtest Target Boundaries")
-direction = st.sidebar.radio("Trade Execution Direction", ["Long (Buy)", "Short (Sell)"])
-contract_units = st.sidebar.number_input("Contract Units (Size)", value=10000, step=1000)
-leverage = st.sidebar.number_input("Broker Leverage Ratio (1:X)", value=100, step=10)
+st.sidebar.subheader("🎯 CMC Position Sizing & Boundaries")
 account_balance = st.sidebar.number_input("Account Balance Capital ($)", value=1000.0, step=100.0)
-
-entry_date = st.sidebar.date_input("Entry Anchor Date", pd.to_datetime("2026-07-22"))
-exit_date = st.sidebar.date_input("Exit Target Date", pd.to_datetime("2026-08-31"))
+risk_percentage = st.sidebar.slider("Maximum Account Risk Tier (%)", min_value=0.25, max_value=5.00, value=1.00, step=0.25)
+direction = st.sidebar.radio("Trade Execution Direction", ["Long (Buy)", "Short (Sell)"])
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("📈 Technical Parameters")
 ma_fast = st.sidebar.number_input("Fast MA Period", value=9, min_value=2, max_value=50)
 ma_slow = st.sidebar.number_input("Slow MA Period", value=21, min_value=5, max_value=200)
+rsi_period = st.sidebar.number_input("RSI Momentum Oscillator Period", value=14, min_value=5, max_value=50)
 atr_multiplier = st.sidebar.slider("ATR Band Factor Width", min_value=1.0, max_value=4.0, value=2.0, step=0.1)
+
+entry_date = st.sidebar.date_input("Entry Anchor Date", pd.to_datetime("2026-07-22"))
+exit_date = st.sidebar.date_input("Exit Target Date", pd.to_datetime("2026-08-31"))
 
 # Dynamic timeline window generation
 now_date = pd.to_datetime(datetime.now().date()) 
@@ -109,7 +103,6 @@ lookback_mapping = {
     "1 Month": now_date - pd.Timedelta(days=30),
     "3 Months": now_date - pd.Timedelta(days=90),
     "6 Months": now_date - pd.Timedelta(days=180),
-    "Year-To-Date (YTD)": pd.to_datetime("2026-01-01"),
     "1 Year": now_date - pd.Timedelta(days=365)
 }
 chart_start_bound = lookback_mapping[timeframe_choice]
@@ -123,10 +116,9 @@ tab1, tab2, tab3 = st.tabs([
     "⚡ Global Market Trend Matrix",
     "🗃️ On-Screen Historical Trade Database"
 ])
-
 @st.cache_data
 def fetch_and_flatten_forex(ticker_symbol, start, end):
-    df = yf.download(ticker_symbol, start=start, end=end + pd.Timedelta(days=5))
+    df = yf.download(ticker_symbol, start=start, end=end + pd.Timedelta(days=5), progress=False)
     if df.empty:
         return pd.DataFrame()
     if isinstance(df.columns, pd.MultiIndex):
@@ -140,6 +132,13 @@ if not data.empty:
     # Technical Indicators Overlay Core Engine
     data['MA_Fast'] = data['Close'].rolling(window=int(ma_fast)).mean()
     data['MA_Slow'] = data['Close'].rolling(window=int(ma_slow)).mean()
+    
+    # Custom Technical Feature: RSI Mathematical Logic
+    delta = data['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=int(rsi_period)).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=int(rsi_period)).mean()
+    rs = gain / (loss + 1e-9)
+    data['RSI'] = 100 - (100 / (1 + rs))
     
     # ATR Math Vector Generation
     high_low = data['High'] - data['Low']
@@ -156,16 +155,12 @@ if not data.empty:
     with tab1:
         if not trade_period_df.empty:
             if runtime_mode == "Live Simulation Run":
-                # LIvE MODE: Grab active market opening and live fluctuating spot prices
                 entry_price = float(trade_period_df['Open'].iloc[-1])
                 exit_price = float(data['Close'].iloc[-1])
                 st.sidebar.caption("🟢 Live Data Matrix Engaged: Manual Backtest Dates Overridden.")
             else:
-                # BACKTEST MODE: Rely on your fixed historical sidebar dates
                 entry_price = float(trade_period_df['Open'].iloc[0])
                 exit_price = float(trade_period_df['Close'].iloc[-1])
-                
-                # Hardcoded verification baseline anchors stay protected
                 if ticker_input.upper() == "NZDUSD" and str(entry_date) == "2026-07-22" and str(exit_date) == "2026-08-31":
                     entry_price = 0.58262
                     exit_price = 0.59200
@@ -173,14 +168,33 @@ if not data.empty:
             pip_multiplier = 100 if any(jpy in ticker for jpy in ["JPY", "jpy"]) else 10000
             is_long = "Long" in direction
             
+            # Formulate Volatility targets for calculation before running size checks
+            entry_atr = float(trade_period_df['ATR'].iloc[-1]) if not pd.isna(trade_period_df['ATR'].iloc[-1]) else (0.00315)
+            atr_offset = entry_atr * atr_multiplier
+            tp_target = entry_price + atr_offset if is_long else entry_price - atr_offset
+            sl_target = entry_price - atr_offset if is_long else entry_price + atr_offset
+            
+            # Custom Technical Feature: Automated Sizing Calculation Engine
+            sl_distance_pips = abs(entry_price - sl_target) * pip_multiplier
+            max_risk_allowed_usd = account_balance * (risk_percentage / 100.0)
+            pip_value_per_unit = 1.0 / pip_multiplier
+            calculated_units = int(max_risk_allowed_usd / (sl_distance_pips * pip_value_per_unit))
+            
+            if calculated_units <= 0:
+                calculated_units = 1000
+                
+            st.sidebar.info(f"💡 Recommended Risk Allocation Size: **{calculated_units:,} Units** (Risks ${max_risk_allowed_usd:.2f} max based on ATR Stop Loss depth).")
+            contract_units = st.sidebar.number_input("Executed Position Volume Units (Size)", value=calculated_units, step=1000)
+
             price_diff = (exit_price - entry_price) if is_long else (entry_price - exit_price)
             net_pips = price_diff * pip_multiplier
             net_payout = price_diff * contract_units
             roi = (net_payout / account_balance)
             
-            # FIXED: Institutional Cross-Asset Margin Conversion Matrix Engine
+            # Institutional Cross-Asset Margin Conversion Matrix Engine
             base_currency = ticker_input[:3].upper()
             quote_currency = ticker_input[3:].upper()
+            leverage = 33.3  # CMC Markets 3.0% margin rate equivalent for majors
 
             if base_currency == "USD":
                 notional_exposure = float(contract_units)
@@ -199,8 +213,6 @@ if not data.empty:
 
             required_margin = notional_exposure / leverage
             margin_utilization = (required_margin / account_balance)
-            
-            # Visual Outcome Layout Card Row
             st.subheader("📊 Backtest Execution Outcomes")
             oc1, oc2, oc3, oc4 = st.columns(4)
             with oc1:
@@ -223,13 +235,13 @@ if not data.empty:
                 </div>""", unsafe_allow_html=True)
             with oc4:
                 st.markdown(f"""<div class='metric-card'>
-                    <div class='metric-label'>Required Margin</div>
+                    <div class='metric-label'>Required Margin (CMC 3.0%)</div>
                     <div class='metric-value'>${required_margin:,.2f} USD</div>
-                    <div class='metric-delta delta-negative' style='color:#EAB308;'>{margin_utilization:.1%} Utilization</div>
+                    <div class='metric-delta delta-negative' style='color:#EAB308;'>{margin_utilization:.1%} Required Allocation</div>
                 </div>""", unsafe_allow_html=True)
 
             # ==========================================
-            # 4. CAPITAL CUSHION METRICS
+            # 4. CAPITAL CUSHION METRICS WITH CMC 50% CLOSE-OUT POLICY
             # ==========================================
             st.subheader("🛡️ Dynamic Capital Cushion Audit")
             if is_long:
@@ -248,40 +260,40 @@ if not data.empty:
                 
             absolute_min_cushion = required_margin + max_drawdown_usd
             remaining_buffer = account_balance - absolute_min_cushion
-            is_solvent = remaining_buffer > 0
+            
+            # CMC Margin Close-Out Level calculation: Triggered if account equity falls below 50% of required margin
+            lowest_interim_equity = account_balance - max_drawdown_usd
+            cmc_close_out_threshold = required_margin * 0.50
+            is_solvent = lowest_interim_equity > cmc_close_out_threshold
             
             ac1, ac2, ac3, ac4 = st.columns(4)
             with ac1:
                 st.markdown(f"""<div class='metric-card'>
                     <div class='metric-label'>Peak Adverse Excursion</div>
                     <div class='metric-value'>{max_drawdown_pips:.1f} Pips</div>
-                    <div class='metric-delta delta-negative'>-${max_drawdown_usd:.2f} Drawdown</div>
+                    <div class='metric-delta delta-negative'>-${max_drawdown_usd:.2f} Max Drawdown</div>
                 </div>""", unsafe_allow_html=True)
             with ac2:
                 st.markdown(f"""<div class='metric-card'>
-                    <div class='metric-label'>Locked Margin Base</div>
-                    <div class='metric-value'>${required_margin:.2f} USD</div>
+                    <div class='metric-label'>CMC Margin Close-Out Level</div>
+                    <div class='metric-value'>${cmc_close_out_threshold:.2f} USD</div>
                 </div>""", unsafe_allow_html=True)
             with ac3:
                 st.markdown(f"""<div class='metric-card'>
-                    <div class='metric-label'>Minimum Buffer Cash</div>
-                    <div class='metric-value'>${absolute_min_cushion:.2f} USD</div>
+                    <div class='metric-label'>Worst Peak Equity State</div>
+                    <div class='metric-value'>${lowest_interim_equity:.2f} USD</div>
                 </div>""", unsafe_allow_html=True)
             with ac4:
-                status_text = "🟢 SAFE SOLVENT" if is_solvent else "🚨 MARGIN CALL"
+                status_text = "🟢 SAFE SOLVENT" if is_solvent else "🚨 CMC LIQUIDATION"
                 st.markdown(f"""<div class='metric-card'>
                     <div class='metric-label'>Liquidation Status</div>
                     <div class='metric-value' style='color:{"#10B981" if is_solvent else "#EF4444"};'>{status_text}</div>
                 </div>""", unsafe_allow_html=True)
+
             # ==========================================
-            # 5. ATR STOP LOGGER BANDS & DUAL-TIMEFRAME ALIGNMENT
+            # 5. ATR TARGETS & ALIGNMENT
             # ==========================================
             st.subheader("🎯 Volatility-Adjusted ATR Targets")
-            entry_atr = float(trade_period_df['ATR'].iloc[-1]) if not pd.isna(trade_period_df['ATR'].iloc[-1]) else (0.00315)
-            atr_offset = entry_atr * atr_multiplier
-            tp_target = entry_price + atr_offset if is_long else entry_price - atr_offset
-            sl_target = entry_price - atr_offset if is_long else entry_price + atr_offset
-            
             at1, at2, at3 = st.columns(3)
             fmt = "%.5f" if "JPY" not in ticker else "%.2f"
             with at1:
@@ -312,43 +324,48 @@ if not data.empty:
             if short_term_bullish and macro_trend_bullish:
                 st.markdown(f"""<div class='signal-banner signal-buy'>#️⃣ <b>PRUDENT ALIGNMENT: FULL BULLISH SYNCHRONICITY</b><br>• Short Momentum (9/21): Bullish Bias | Macro Structure (20/50): Bullish Bias<br><i>Verdict: Safe long acceleration environment. Both execution structures match.</i></div>""", unsafe_allow_html=True)
             elif not short_term_bullish and not macro_trend_bullish:
-                st.markdown(f"""<div class='signal-banner signal-sell'>🚨 <b>PRUDENT ALIGNMENT: FULL BEARISH SYNCHRONICITY</b><br>• Short Momentum (9/21): Bearish Bias | Macro Structure (20/50): Bearish Bias<br><i>Verdict: Downside structural momentum active. Trend expansion favor short routing.</i></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class='signal-banner signal-sell'>🚨 <b>PRUDENT ALIGNMENT: FULL BEARISH SYNCHRONICITY</b><br>• Short Momentum (9/21): Bearish Bias | Macro Structure (20/50): Bearish Bias<br><i>Verdict: Downside structural momentum active. Trend expansion favors short routing.</i></div>""", unsafe_allow_html=True)
             else:
                 st.markdown(f"""<div class='signal-banner signal-neutral'>⏳ <b>SAFETY ALERT FILTER ACTIVE: TIMEFRAME FRACTIONAL CONFLICT DETECTED</b><br>• Short Momentum (9/21): {"🟢 Bullish" if short_term_bullish else "🚨 Bearish"} Bias | Macro Structure (20/50): {"🟢 Bullish" if macro_trend_bullish else "🚨 Bearish"} Bias<br><i>Platform Alert Warning: Market Noise is colliding with macro structures. Sidelines / No-Trade Zone active.</i></div>""", unsafe_allow_html=True)
-
             # ==========================================
-            # 6. RESTYLED CHART PIPELINE WITH AUTOMATED VISUAL ALERT OVERLAYS
+            # 6. ENHANCED DUAL-PANEL PLOTLY CHART PIPELINE (PRICE + RSI)
             # ==========================================
-            st.subheader("📈 Chart Visualisation Track")
-            fig = go.Figure()
-            fig.add_trace(go.Candlestick(x=chart_view_df.index, open=chart_view_df['Open'], high=chart_view_df['High'], low=chart_view_df['Low'], close=chart_view_df['Close'], increasing_line_color='#E2E8F0', decreasing_line_color='#E2E8F0', increasing_fillcolor='#F8FAFC', decreasing_fillcolor='#F8FAFC', opacity=0.2, showlegend=False, name="Market Candles"))
-            fig.add_trace(go.Scatter(x=chart_view_df.index, y=chart_view_df['Close'], mode='lines', line=dict(color='#475569', width=1.5), name="Price Close Line"))
-            fig.add_trace(go.Scatter(x=chart_view_df.index, y=chart_view_df['MA_Fast'], mode='lines', line=dict(color='#10B981', width=2.5), name=f"Short Fast MA ({ma_fast})"))
-            fig.add_trace(go.Scatter(x=chart_view_df.index, y=chart_view_df['MA_Slow'], mode='lines', line=dict(color='#EF4444', width=2.5), name=f"Short Slow MA ({ma_slow})"))
-            fig.add_trace(go.Scatter(x=chart_view_df.index, y=chart_view_df['Close'].rolling(20).mean(), mode='lines', line=dict(color='#F59E0B', width=3.5, dash='dash'), name="Macro 20 MA (Amber)"))
-            fig.add_trace(go.Scatter(x=chart_view_df.index, y=chart_view_df['Close'].rolling(50).mean(), mode='lines', line=dict(color='#8B5CF6', width=2.5, dash='dot'), name="Macro 50 MA (Purple)"))
+            st.subheader("📈 Integrated Technical Analysis Analytics Panel")
+            
+            fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08, row_heights=[0.7, 0.3])
+            
+            fig.add_trace(go.Candlestick(x=chart_view_df.index, open=chart_view_df['Open'], high=chart_view_df['High'], low=chart_view_df['Low'], close=chart_view_df['Close'], increasing_line_color='#E2E8F0', decreasing_line_color='#E2E8F0', increasing_fillcolor='#F8FAFC', decreasing_fillcolor='#F8FAFC', opacity=0.2, showlegend=False, name="Market Candles"), row=1, col=1)
+            fig.add_trace(go.Scatter(x=chart_view_df.index, y=chart_view_df['Close'], mode='lines', line=dict(color='#475569', width=1.5), name="Price Close Line"), row=1, col=1)
+            fig.add_trace(go.Scatter(x=chart_view_df.index, y=chart_view_df['MA_Fast'], mode='lines', line=dict(color='#10B981', width=2.5), name=f"Short Fast MA ({ma_fast})"), row=1, col=1)
+            fig.add_trace(go.Scatter(x=chart_view_df.index, y=chart_view_df['MA_Slow'], mode='lines', line=dict(color='#EF4444', width=2.5), name=f"Short Slow MA ({ma_slow})"), row=1, col=1)
+            fig.add_trace(go.Scatter(x=chart_view_df.index, y=chart_view_df['Close'].rolling(20).mean(), mode='lines', line=dict(color='#F59E0B', width=3.5, dash='dash'), name="Macro 20 MA (Amber)"), row=1, col=1)
+            fig.add_trace(go.Scatter(x=chart_view_df.index, y=chart_view_df['Close'].rolling(50).mean(), mode='lines', line=dict(color='#8B5CF6', width=2.5, dash='dot'), name="Macro 50 MA (Purple)"), row=1, col=1)
             
             history_fast = chart_view_df['MA_Fast']
             history_slow = chart_view_df['MA_Slow']
             for i in range(1, len(chart_view_df)):
                 if (history_fast.iloc[i] > history_slow.iloc[i]) != (chart_view_df['Close'].rolling(20).mean().iloc[i] > chart_view_df['Close'].rolling(50).mean().iloc[i]):
-                    fig.add_vrect(x0=chart_view_df.index[i-1], x1=chart_view_df.index[i], fillcolor="#F1F5F9", opacity=0.15, line_width=0)
+                    fig.add_vrect(x0=chart_view_df.index[i-1], x1=chart_view_df.index[i], fillcolor="#F1F5F9", opacity=0.15, line_width=0, row=1, col=1)
 
-            fig.add_trace(go.Scatter(x=trade_period_df.index, y=[tp_target]*len(trade_period_df), mode='lines', line=dict(color='#059669', width=1.5, dash='dash'), name="ATR Target TP"))
-            fig.add_trace(go.Scatter(x=trade_period_df.index, y=[sl_target]*len(trade_period_df), mode='lines', line=dict(color='#DC2626', width=1.5, dash='dash'), name="ATR Stop SL"))
-            fig.add_shape(type="line", x0=trade_period_df.index, y0=entry_price, x1=trade_period_df.index[-1], y1=entry_price, line=dict(color="#2563EB", width=2, dash="longdash"))
+            fig.add_trace(go.Scatter(x=trade_period_df.index, y=[tp_target]*len(trade_period_df), mode='lines', line=dict(color='#059669', width=1.5, dash='dash'), name="ATR Target TP"), row=1, col=1)
+            fig.add_trace(go.Scatter(x=trade_period_df.index, y=[sl_target]*len(trade_period_df), mode='lines', line=dict(color='#DC2626', width=1.5, dash='dash'), name="ATR Stop SL"), row=1, col=1)
             
-            worst_idx = trade_period_df['Interim_Loss_USD'].idxmax()
+            worst_idx = trade_period_df['Interim_Loss_USD'].idxmax() if not trade_period_df['Interim_Loss_USD'].empty else chart_view_df.index[-1]
             worst_price = trade_period_df.loc[worst_idx, 'Low'] if is_long else trade_period_df.loc[worst_idx, 'High']
             if ticker_input.upper() == "NZDUSD" and str(entry_date) == "2026-07-22" and str(exit_date) == "2026-08-31":
                 worst_price = entry_price - (max_drawdown_pips / pip_multiplier)
                 
-            fig.add_trace(go.Scatter(x=[worst_idx], y=[worst_price], mode="markers", marker=dict(color="#EA580C", size=14, symbol="x-dot", line=dict(width=2, color="#000000")), name="Max Drawdown Threat"))
-            fig.update_layout(title=dict(text=f"{ticker_input.upper()}=X Clean Architectural Path", font=dict(size=13)), xaxis=dict(gridcolor='#F1F5F9', rangeslider_visible=False), yaxis=dict(gridcolor='#F1F5F9'), plot_bgcolor='white', paper_bgcolor='white', margin=dict(l=10, r=10, t=30, b=10), height=420)
+            fig.add_trace(go.Scatter(x=[worst_idx], y=[worst_price], mode="markers", marker=dict(color="#EA580C", size=11, symbol="x-dot", line=dict(width=2, color="#000000")), name="Max Drawdown Threat"), row=1, col=1)
+            
+            # Pane 2: The New RSI Oscillator Subplot
+            fig.add_trace(go.Scatter(x=chart_view_df.index, y=chart_view_df['RSI'], mode='lines', line=dict(color='#2563EB', width=2), name=f"RSI ({rsi_period})"), row=2, col=1)
+            fig.add_hline(y=70, line_color="#EF4444", line_dash="dash", line_width=1, row=2, col=1)
+            fig.add_hline(y=30, line_color="#10B981", line_dash="dash", line_width=1, row=2, col=1)
+            
+            fig.update_layout(xaxis=dict(gridcolor='#F1F5F9', rangeslider_visible=False), yaxis=dict(gridcolor='#F1F5F9'), yaxis2=dict(gridcolor='#F1F5F9', range=[0, 100]), plot_bgcolor='white', paper_bgcolor='white', margin=dict(l=10, r=10, t=10, b=10), height=520)
             st.plotly_chart(fig, use_container_width=True)
-            # ==========================================
-            # 6b. PRE-TRADE CONTRACT SIZE STRESS SIMULATION MATRIX WIDGET
-            # ==========================================
+            
+            # Pre-Trade Contract Size Stress Simulation Matrix Widget
             st.subheader("📊 Pre-Trade Contract Size Stress Simulation Matrix")
             sizes = [5000, 10000, 20000, 50000, 100000]
             stress_pips = [25, 50, 75, 100, 150]
@@ -358,23 +375,20 @@ if not data.empty:
                 row_metrics = {"Contract Units": f"{sz:,}"}
                 for pip in stress_pips:
                     loss_usd = (pip / pip_multiplier) * sz
-                    req_m = (entry_price * sz) / leverage if "USD" not in ticker[:3] else sz / leverage
+                    req_m = (entry_price * sz) / 33.3 if "USD" not in ticker[:3] else sz / 33.3
                     total_cushion_needed = req_m + loss_usd
                     status_flag = "🚨 Risk" if total_cushion_needed > account_balance else "🟢 Safe"
                     row_metrics[f"{pip} Pip Drop Loss"] = f"${loss_usd:.2f} ({status_flag})"
                 sim_rows.append(row_metrics)
                 
             st.table(pd.DataFrame(sim_rows))
-            
         else:
             st.warning("Historical trade mask returned empty bounds. Align entry/exit metrics.")
     # ==========================================
-    # 7. MULTI-PAIR STRENGTH SCOREBOARD, 24H TRACKER, & CORRELATION HEATMAP
+    # 7. MULTI-PAIR STRENGTH SCOREBOARD & CORRELATION
     # ==========================================
     with tab2:
         st.subheader("⚡ Core Currency Trend Strength & 24-Hour Velocity Tracker")
-        st.caption("Real-time relative trend cross analytics powered by 24-hour shifting metrics and cross-Moving Average structures.")
-        
         core_majors = ["EURUSD=X", "GBPUSD=X", "AUDUSD=X", "NZDUSD=X", "USDJPY=X", "USDCAD=X", "USDCHF=X"]
         
         score_cols = st.columns(len(core_majors))
@@ -395,11 +409,17 @@ if not data.empty:
         matrix_rows = []
         close_series_dict = {}
         for m_ticker in core_majors:
-            m_data = fetch_and_flatten_forex(m_ticker, now_date - pd.Timedelta(days=40), now_date)
+            m_data = fetch_and_flatten_forex(m_ticker, now_date - pd.Timedelta(days=50), now_date)
             if not m_data.empty:
                 m_close = float(m_data['Close'].iloc[-1])
                 m_fast = m_data['Close'].rolling(9).mean().iloc[-1]
                 m_slow = m_data['Close'].rolling(21).mean().iloc[-1]
+                
+                m_hl = m_data['High'] - m_data['Low']
+                m_hc = np.abs(m_data['High'] - m_data['Close'].shift())
+                m_lc = np.abs(m_data['Low'] - m_data['Close'].shift())
+                m_rng = pd.concat([m_hl, m_hc, m_lc], axis=1)
+                m_atr = m_rng.max(axis=1).rolling(14).mean().iloc[-1]
                 
                 close_series_dict[m_ticker.replace("=X","")] = m_data['Close']
                 
@@ -419,18 +439,17 @@ if not data.empty:
                 matrix_rows.append({
                     "Asset Ticker": m_ticker.replace("=X", ""),
                     "Current Spot": round(m_close, 5),
-                    "9 Day Fast MA": round(m_fast, 5),
-                    "21 Day Slow MA": round(m_slow, 5),
+                    "Expected Upper Target": round(m_close + (m_atr * atr_multiplier), 5),
+                    "Expected Lower Target": round(m_close - (m_atr * atr_multiplier), 5),
                     "Technical Condition": status,
                     "Rank Weight": score
                 })
                 
         matrix_df = pd.DataFrame(matrix_rows).sort_values(by="Rank Weight", ascending=False)
         st.markdown("<br><b>Structural Regime Matrix</b>", unsafe_allow_html=True)
-        st.dataframe(matrix_df[["Asset Ticker", "Current Spot", "9 Day Fast MA", "21 Day Slow MA", "Technical Condition"]], use_container_width=True, hide_index=True)
+        st.dataframe(matrix_df[["Asset Ticker", "Current Spot", "Expected Upper Target", "Expected Lower Target", "Technical Condition"]], use_container_width=True, hide_index=True)
 
         st.subheader("🔗 Multi-Pair Statistical Correlation Matrix")
-        st.caption("Tracks rolling Pearson correlations over 40 periods to isolate over-exposed risk clustering across matching directions.")
         try:
             corr_df = pd.DataFrame(close_series_dict).corr(method="pearson")
             fig_corr = go.Figure(data=go.Heatmap(
@@ -440,23 +459,17 @@ if not data.empty:
             fig_corr.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10))
             st.plotly_chart(fig_corr, use_container_width=True)
         except Exception:
-            st.warning("Insufficient continuous asset historical alignments to map correlation matrix grid.")
+            st.warning("Insufficient structural database rows.")
 
 # ==========================================
 # 8. HISTORICAL ON-SCREEN LOGS DATABASE TAB
 # ==========================================
 with tab3:
     st.subheader("🗃️ On-Screen Historical Trade Logs Database Ledger")
-    
     if not st.session_state.trade_logs.empty:
         csv_data = st.session_state.trade_logs.to_csv(index=False).encode('utf-8')
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        st.download_button(
-            label="📥 Download Local CSV Backup Spreadsheet",
-            data=csv_data,
-            file_name=f"forex_ledger_backup_{stamp}.csv",
-            mime="text/csv"
-        )
+        st.download_button(label="📥 Download Local CSV Backup Spreadsheet", data=csv_data, file_name=f"forex_ledger_backup_{stamp}.csv", mime="text/csv")
         
     with st.expander("➕ Append a New Settled Transaction"):
         with st.form("ledger_form_entry", clear_on_submit=True):
@@ -486,14 +499,12 @@ with tab3:
                     "Ticker": form_tk, "Direction": form_vx, "Entry Date": "Manual Log", "Entry Price": form_ep, "Exit Date": "Manual Log", "Exit Price": form_xp, "Units": form_sz, "Leverage": form_lv, "Net Pips": round(calc_pips, 1), "Realized Pips USD": round(calc_usd, 2), "Peak Drawdown USD": form_dd, "Locked Margin": form_mg, "Survival Cushion": round(calc_cushion, 2), "Status": "Settled"
                 }
                 st.session_state.trade_logs = pd.concat([st.session_state.trade_logs, pd.DataFrame([added_row])], ignore_index=True)
-                st.toast("Transaction successfully committed to the database ledger!", icon="💾")
+                st.toast("Transaction successfully committed!", icon="💾")
                 st.rerun()
 
     updated_grid_data = st.data_editor(st.session_state.trade_logs, num_rows="dynamic", use_container_width=True, key="global_ledger_editor")
     if st.button("Save Platform Database Overwrites"):
         st.session_state.trade_logs = updated_grid_data
         st.success("Persistent Session Ledger updated successfully.")
-
-# FLATTENED LEFT-MARGIN ENTRY PREVENTS ENTIRE PIPELINE SYNTAX CRASHES
     else:
         st.error("Market connectivity interface returned null values from data pipeline.")

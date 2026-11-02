@@ -1,9 +1,9 @@
 {
     "wallet_cash": {
-        "NZD": 35.58,
-        "AUD": 0.0,
-        "USD": 2.03,
-        "Pending_NZD": 130.24,
+        "NZD": 258.34,
+        "AUD": 177.82,
+        "USD": 302.91,
+        "Pending_NZD": 0.0,
         "Pending_AUD": 0.0,
         "Pending_USD": 0.0
     },
@@ -14,28 +14,10 @@
     },
     "positions": {
         "XLE": {
-            "shares": 3.05383015,
-            "entry": 64.44,
+            "shares": 0.0,
+            "entry": 0.0,
             "upper": 0.0,
             "fixed_stop_distance": 0.0
-        },
-        "MDT": {
-            "shares": 1.0,
-            "entry": 94.77,
-            "upper": 0.0,
-            "fixed_stop_distance": 0.0
-        },
-        "NZX.NZ": {
-            "shares": 62.0,
-            "entry": 1.48,
-            "upper": 0.0,
-            "fixed_stop_distance": 15.0
-        },
-        "AMP.AX": {
-            "shares": 80.0,
-            "entry": 2.48,
-            "upper": 0.0,
-            "fixed_stop_distance": 15.0
         }
     },
     "watchlist_tickers": [

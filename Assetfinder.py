@@ -174,7 +174,9 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma, min_stars, m
             tr2 = (df['High'] - df['Close'].shift(1)).abs()
             tr3 = (df['Low'] - df['Close'].shift(1)).abs()
             df['TR'] = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-            df['Avg_Vol_20D'] = df['Volume'].rolling(window=20, min_periods=1).mean()
+            
+            # 🛠️ FIXED: Shift average window back by 1 day so today's live volume doesn't pollute the historical baseline
+            df['Avg_Vol_20D'] = df['Volume'].shift(1).rolling(window=20, min_periods=1).mean()
             df['ATR'] = df['TR'].rolling(window=14, min_periods=1).mean()
             
             delta = df['Close'].diff()
@@ -187,16 +189,26 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma, min_stars, m
             
             pct_change = ((c_today - c_yest) / c_yest) * 100
             current_volume = int(df['Volume'].iloc[-1])
-            avg_volume_20d = float(df['Avg_Vol_20D'].iloc[-1]) if df['Avg_Vol_20D'].iloc[-1] > 0 else 1.0
-            volume_multiple = current_volume / avg_volume_20d
             rsi_val = float(df['RSI'].iloc[-1])
             atr_val = float(df['ATR'].iloc[-1]) if not np.isnan(df['ATR'].iloc[-1]) else (c_today * 0.02)
             
-            market_label = "NZ" if ticker.endswith(".NZ") else ("AUS" if ticker.endswith(".AX") else "US")
             resolved_name = disk_names.get(ticker, f"{ticker}")
             
             safe_daily_limit_target = round((c_today - (0.50 * atr_val)) * 0.981, 2)
             safe_take_profit_target = round((safe_daily_limit_target + (2.0 * atr_val)) * 1.019, 2)
+
+            # Determine market locale
+            market_label = "NZ" if ticker.endswith(".NZ") else ("AUS" if ticker.endswith(".AX") else "US")
+            
+            # 🛠️ FIXED INTRADAY VOLUME MATH FLANNEL
+            if market_label == "US":
+                # For open US market: evaluate yesterday's closed volume against yesterday's historical 20D average
+                historical_avg = float(df['Avg_Vol_20D'].iloc[-2]) if df['Avg_Vol_20D'].iloc[-2] > 0 else 1.0
+                volume_multiple = float(df['Volume'].iloc[-2]) / historical_avg
+            else:
+                # For closed markets (NZ/AUS): use today's full completed session numbers safely
+                avg_volume_20d = float(df['Avg_Vol_20D'].iloc[-1]) if df['Avg_Vol_20D'].iloc[-1] > 0 else 1.0
+                volume_multiple = current_volume / avg_volume_20d
 
             if c_today > f_today and c_today > s_today:
                 breakout_signal = "🟩 DUAL-TREND BREAKOUT"
@@ -205,7 +217,7 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma, min_stars, m
             else:
                 breakout_signal = "🔴 Structural Bear"
 
-                        # ⚙️ STEP 1: CALCULATE STARS AND RATINGS LOCALLY (INSTANT)
+            # ⚙️ STEP 1: CALCULATE STARS AND RATINGS LOCALLY (INSTANT)
             stars = 0
             if c_today > f_today: stars += 1
             if c_today > s_today: stars += 1
@@ -242,8 +254,8 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma, min_stars, m
                 "Alert Status": breakout_signal, "Score": star_rating, "Live Price": c_today, 
                 "Limit Entry Target": safe_daily_limit_target, "Take Profit Target": safe_take_profit_target, 
                 "Vol Multiple": volume_multiple, "ATR Risk": atr_val, "Daily Change %": pct_change, "RSI Momentum": rsi_val,
-                "Trailing PE": trailing_pe if trailing_pe is not None else np.nan,  # <-- ADD THIS ROW
-                "Net Income": net_income if net_income is not None else np.nan     # <-- ADD THIS ROW
+                "Trailing PE": trailing_pe if trailing_pe is not None else np.nan,
+                "Net Income": net_income if net_income is not None else np.nan
             })
 
         except: 

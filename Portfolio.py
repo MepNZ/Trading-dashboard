@@ -440,6 +440,12 @@ if not RAW_MARKET_BATCH.empty:
         except Exception:
             pass
 st.markdown("#### 💼 Layer A: My Portfolio Ledger")
+
+# 1. ALWAYS calculate cash balances and FX conversions first (regardless of share positions)
+available_cash_nzd = cash_nzd + (cash_aud * aud_to_nzd_rate) + (cash_usd * usd_to_nzd_rate)
+pending_cash_nzd = pending_nzd + (pending_aud * aud_to_nzd_rate) + (pending_usd * usd_to_nzd_rate)
+integ_cash_nzd = available_cash_nzd + pending_cash_nzd
+
 if active_live_positions:
     p_df = pd.DataFrame(active_live_positions)
     p_df["P&L (NZD)"] = p_df["Value (NZD)"] - p_df["Cost (NZD)"]
@@ -453,11 +459,8 @@ if active_live_positions:
     tot_equity_nzd = p_df["Value (NZD)"].sum()
     tot_profit_nzd = tot_equity_nzd - tot_invest_nzd
     tot_roi_nzd = (tot_profit_nzd / tot_invest_nzd) * 100 if tot_invest_nzd > 0 else 0.0
-        # Calculate available and pending balances converted to native NZD
-    available_cash_nzd = cash_nzd + (cash_aud * aud_to_nzd_rate) + (cash_usd * usd_to_nzd_rate)
-    pending_cash_nzd = pending_nzd + (pending_aud * aud_to_nzd_rate) + (pending_usd * usd_to_nzd_rate)
-    integ_cash_nzd = available_cash_nzd + pending_cash_nzd
     
+    # Total portfolio calculation including equities
     tot_app_value = tot_equity_nzd + integ_cash_nzd
 
     p_color, p_sign = ("#28a745", "+") if tot_profit_nzd >= 0 else ("#dc3545", "")
@@ -480,9 +483,24 @@ if active_live_positions:
     """
     st.markdown(ledger_a_css, unsafe_allow_html=True)
     st.markdown(f"<div class='ledger-a-scroll-window'>{html_table_a}</div>", unsafe_allow_html=True)
+    
+    # Display full summary panel when shares exist
     st.markdown(f"""<div style='background-color: #f1f5f9; padding: 10px 14px; border-radius: 4px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; font-size: 0.88rem; font-weight: bold; margin-bottom: 20px; border: 1px solid #cbd5e1;'><div>🌎 FX: US/NZD: <span style='color: #0284c7;'>{usd_to_nzd_rate:.4f}</span> | AU/NZD: <span style='color: #0284c7;'>{aud_to_nzd_rate:.4f}</span></div><div>📋 Invested: <span style='color: #334155;'>${tot_invest_nzd:,.2f} NZD</span></div><div>💰 Cash: <span style='color: #0284c7;'>${integ_cash_nzd:,.2f} NZD</span></div><div style='background-color: #e2e8f0;'>👑 TOTAL VALUE:<br><span style='color: #0f172a; font-size: 1.15rem;'>${tot_app_value:,.2f} NZD</span></div><div>📈 Return: <span style='color: {p_color};'>{p_sign}${tot_profit_nzd:,.2f} ({p_sign}{tot_roi_nzd:.2f}%)</span></div></div>""", unsafe_allow_html=True)
+
 else:
-    st.info("💡 Portfolio ledger values are currently processing. Verify slot input expressions.")
+    # 2. RENDER THE CASH SUMMARY EVEN IF LIVE SHARERIES POSITIONS ARE EMPTY
+    tot_app_value = integ_cash_nzd
+    st.info("💡 No active share positions currently held in your portfolio ledger.")
+    
+    st.markdown(f"""
+        <div style='background-color: #f1f5f9; padding: 10px 14px; border-radius: 4px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; font-size: 0.88rem; font-weight: bold; margin-bottom: 20px; border: 1px solid #cbd5e1;'>
+            <div>🌎 FX: US/NZD: <span style='color: #0284c7;'>{usd_to_nzd_rate:.4f}</span> | AU/NZD: <span style='color: #0284c7;'>{aud_to_nzd_rate:.4f}</span></div>
+            <div>📋 Invested: <span style='color: #334155;'>$0.00 NZD</span></div>
+            <div>💰 Cash: <span style='color: #0284c7;'>${integ_cash_nzd:,.2f} NZD</span></div>
+            <div style='background-color: #e2e8f0;'>👑 TOTAL VALUE:<br><span style='color: #0f172a; font-size: 1.15rem;'>${tot_app_value:,.2f} NZD</span></div>
+            <div>📈 Return: <span style='color: #334155;'>$0.00 (0.00%)</span></div>
+        </div>
+    """, unsafe_allow_html=True)
 
 # =============================================================================
 # 📊 Layer B: Asset Comparison Grid (ORDERED BELOW A2)

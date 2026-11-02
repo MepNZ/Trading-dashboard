@@ -100,11 +100,23 @@ def fetch_single_chunk_cached(chunk_list, lookback_date):
         pass
     return pd.DataFrame()
 
-def fetch_live_market_data(tickers):
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_cached_fundamentals(ticker):
+    """Hits the network once per ticker per hour, caching the result instantly."""
+    try:
+        info = yf.Ticker(ticker).info
+        return {
+            "pe": info.get('trailingPE', None),
+            "income": info.get('netIncomeToCommon', None)
+        }
+    except:
+        return {"pe": None, "income": None}
+
+def fetch_live_market_data(tickers, days_lookback):
     if not tickers:
         return pd.DataFrame()
         
-    lookback_start = datetime.today() - timedelta(days=90)
+    lookback_start = datetime.today() - timedelta(days=days_lookback)
     chunk_size = 50
     ticker_chunks = [tickers[i:i + chunk_size] for i in range(0, len(tickers), chunk_size)]
     
@@ -125,10 +137,11 @@ def fetch_live_market_data(tickers):
         return pd.DataFrame()
         
     return pd.concat(master_frames, axis=1).ffill().bfill()
+
 # =============================================================================
 # 4. UPGRADED BREAKOUT ALGORITHMS & MATHEMATICAL CONFLUENCE SCORING
 # =============================================================================
-def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma):
+def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma, min_stars, min_vol_multiple, show_bears, require_positive_income, max_pe_hurdle):
     if raw_batch.empty: 
         return []
     disk_names = load_company_names_matrix()
@@ -192,6 +205,7 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma):
             else:
                 breakout_signal = "🔴 Structural Bear"
 
+                        # ⚙️ STEP 1: CALCULATE STARS AND RATINGS LOCALLY (INSTANT)
             stars = 0
             if c_today > f_today: stars += 1
             if c_today > s_today: stars += 1
@@ -200,14 +214,40 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma):
             if pct_change > 0: stars += 1
             star_rating = "⭐" * stars if stars > 0 else "❌"
 
-            if stars >= 1 or breakout_signal != "🔴 Structural Bear":
-                b_rows.append({
-                    "Market": market_label, "Ticker": ticker, "Company Name": resolved_name, 
-                    "Alert Status": breakout_signal, "Score": star_rating, "Live Price": c_today, 
-                    "Limit Entry Target": safe_daily_limit_target, "Take Profit Target": safe_take_profit_target, 
-                    "Vol Multiple": volume_multiple, "ATR Risk": atr_val, "Daily Change %": pct_change, "RSI Momentum": rsi_val
-                })
-        except: continue
+            # ⚙️ STEP 2: APPLY THE STRICT TECHNICAL GATE (LOCAL MEMORY)
+            if not show_bears and breakout_signal == "🔴 Structural Bear":
+                continue
+                
+            if volume_multiple < min_vol_multiple:
+                continue
+                
+            if stars < min_stars:
+                continue
+
+            # ⚙️ STEP 3: LAZY FETCH (CACHED) - Only runs for assets matching your precise UI settings
+            fundamentals = get_cached_fundamentals(ticker)
+            trailing_pe = fundamentals["pe"]
+            net_income = fundamentals["income"]
+
+            # ⚙️ STEP 4: RUN FUNDAMENTAL HURDLES
+            if require_positive_income and net_income is not None and net_income <= 0:
+                continue
+                
+            if trailing_pe is not None and trailing_pe > max_pe_hurdle:
+                continue
+
+            # APPEND ONLY IF PAST ALL GATES
+            b_rows.append({
+                "Market": market_label, "Ticker": ticker, "Company Name": resolved_name, 
+                "Alert Status": breakout_signal, "Score": star_rating, "Live Price": c_today, 
+                "Limit Entry Target": safe_daily_limit_target, "Take Profit Target": safe_take_profit_target, 
+                "Vol Multiple": volume_multiple, "ATR Risk": atr_val, "Daily Change %": pct_change, "RSI Momentum": rsi_val,
+                "Trailing PE": trailing_pe if trailing_pe is not None else np.nan,  # <-- ADD THIS ROW
+                "Net Income": net_income if net_income is not None else np.nan     # <-- ADD THIS ROW
+            })
+
+        except: 
+            continue
     return b_rows
 
 # =============================================================================
@@ -224,15 +264,44 @@ with st.sidebar:
     include_all_us = st.checkbox("Load Extended S&P 500 (Remaining 403 Stocks)", value=False)
 
     st.markdown("---")
+    st.markdown("### 📅 Financial History Timescale")
+    time_frame_map = {
+        "1 Week": 7,
+        "1 Month": 30,
+        "3 Months": 90,
+        "6 Months": 180,
+        "1 Year": 365,
+        "2 Years": 730
+    }
+    selected_timeframe = st.select_slider(
+        "Select Analysis Lookback Range:",
+        options=list(time_frame_map.keys()),
+        value="1 Year"
+    )
+    days_lookback_value = time_frame_map[selected_timeframe]
+
+    st.markdown("---")
     st.markdown("### 🛠 Technical Settings Layer")
     fast_ma_slider = st.slider("Fast MA Filter Window:", min_value=5, max_value=30, value=10, step=1)
-    slow_ma_slider = st.slider("Slow MA Filter Window:", min_value=20, max_value=150, value=50, step=5)
+    slow_ma_slider = st.slider("Slow MA Filter Window:", min_value=20, max_value=150, value=35, step=5)
     
     st.markdown("---")
     st.markdown("### 🎯 Display Filters")
     show_bears = st.checkbox("Include Structural Bears in Matrix", value=False)
-    min_vol_multiple = st.slider("Minimum Vol Multiple Filter:", min_value=0.0, max_value=5.0, value=0.0, step=0.1, format="%.1fx")
-    min_stars = st.slider("Minimum Confluence Rating (Stars):", min_value=0, max_value=5, value=0, step=1, format="%d ⭐")
+    min_vol_multiple = st.slider("Minimum Vol Multiple Filter:", min_value=0.0, max_value=5.0, value=1.5, step=0.1, format="%.1fx")
+    min_stars = st.slider("Minimum Confluence Rating (Stars):", min_value=0, max_value=5, value=4, step=1, format="%d ⭐")
+
+    st.markdown("---")
+    st.markdown("### 📊 Fundamental Health Layer")
+    require_positive_income = st.checkbox("Enforce Positive Net Income (12M)", value=True)
+    max_pe_hurdle = st.slider(
+        "Maximum Allowed Trailing P/E:",
+        min_value=5,
+        max_value=100,
+        value=40,
+        step=5,
+        format="%d×"
+    )
 
 # =============================================================================
 # 🟢 STATE CONTROLLER ENGINE (PREVENTS RE-DOWNLOADING ON SLIDER MOVES)
@@ -271,16 +340,25 @@ if not ticker_universe:
 ticker_universe = list(dict.fromkeys(ticker_universe))
 
 # 👑 LOCK DOWNLOAD DATA INTO A SESSION VAULT
-# String tracking fingerprint key to monitor target tickers shifts
-vault_key = f"data_{hash(tuple(ticker_universe))}"
+# 👑 LOCK DOWNLOAD DATA INTO A SESSION VAULT WITH TIMEFRAME KEY
+vault_key = f"data_{hash(tuple(ticker_universe))}_{days_lookback_value}"
 
 if "active_vault_key" not in st.session_state or st.session_state.active_vault_key != vault_key:
-    # Trigger active pipeline only if targeted tickers are checked/shifted
-    st.session_state.cached_raw_data = fetch_live_market_data(ticker_universe)
+    st.session_state.cached_raw_data = fetch_live_market_data(ticker_universe, days_lookback_value)
     st.session_state.active_vault_key = vault_key
 
 # Run moving averages indicators loop instantly out of local memory cache variables
-raw_breakouts = calculate_momentum_matrix(st.session_state.cached_raw_data, ticker_universe, fast_ma_slider, slow_ma_slider)
+raw_breakouts = calculate_momentum_matrix(
+    st.session_state.cached_raw_data, 
+    ticker_universe, 
+    fast_ma_slider, 
+    slow_ma_slider,
+    min_stars,
+    min_vol_multiple,
+    show_bears,
+    require_positive_income,
+    max_pe_hurdle
+)
 
 if raw_breakouts:
     prices_list = [row["Live Price"] for row in raw_breakouts]
@@ -312,11 +390,13 @@ if raw_breakouts:
     if not df_grid.empty:
         df_grid = df_grid.sort_values(by=["Vol Multiple"], ascending=False)
         
-        cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Score", "Live Price", "Limit Entry Target", "Take Profit Target", "Vol Multiple", "ATR Risk", "Daily Change %", "RSI Momentum"]
+        # Update your column ordering filter
+        cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Score", "Live Price", "Limit Entry Target", "Take Profit Target", "Vol Multiple", "ATR Risk", "Daily Change %", "RSI Momentum", "Trailing PE", "Net Income"]
         df_grid = df_grid[[c for c in cols_order if c in df_grid.columns]]
         
-        df_grid.columns = ["Market", "Ticker", "Asset Name", "System Status", "Confluence", "Price", "Limit Entry Target", "Take Profit Target", "RVOL Multiplier", "ATR Risk ($)", "Daily Change %", "RSI Momentum"]
-        
+        # Update your plain text display headers
+        df_grid.columns = ["Market", "Ticker", "Asset Name", "System Status", "Confluence", "Price", "Limit Entry Target", "Take Profit Target", "RVOL Multiplier", "ATR Risk ($)", "Daily Change %", "RSI Momentum", "Trailing P/E", "Net Income ($)"]
+
         df_display = df_grid.copy()
         df_display["Price"] = df_display["Price"].map("${:,.2f}".format)
         df_display["Limit Entry Target"] = df_display["Limit Entry Target"].map("${:,.2f}".format)
@@ -334,6 +414,14 @@ if raw_breakouts:
         
         df_display["RSI Momentum"] = df_display["RSI Momentum"].apply(
             lambda x: f"🟢 {x:,.1f}" if x >= 60.0 else f"{x:,.1f}"
+        )
+
+        # Format the fundamental metric strings
+        df_display["Trailing P/E"] = df_display["Trailing P/E"].apply(
+            lambda x: f"{x:.1f}×" if pd.notnull(x) else "N/A"
+        )
+        df_display["Net Income ($)"] = df_display["Net Income ($)"].apply(
+            lambda x: f"${x:,.0f}" if pd.notnull(x) else "N/A"
         )
 
         html_table = df_display.to_html(index=False, escape=False, table_id="interactive-screener")
@@ -454,7 +542,6 @@ if raw_breakouts:
                 chart_df['Fast_MA_Line'] = chart_df['Close'].rolling(window=int(fast_ma_slider), min_periods=1).mean()
                 chart_df['Slow_MA_Line'] = chart_df['Close'].rolling(window=int(slow_ma_slider), min_periods=1).mean()
                 
-                chart_df = chart_df.tail(120)
                 chart_df.index = pd.to_datetime(chart_df.index).strftime('%Y-%m-%d')
                 chart_df = chart_df.reset_index().rename(columns={'index': 'Date'})
                 chart_df.columns = [str(c) for c in chart_df.columns]

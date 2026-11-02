@@ -1,7 +1,7 @@
 {
     "wallet_cash": {
-        "NZD": 35.58,
-        "AUD": 0.0,
+        "NZD": 258.34,
+        "AUD": 177.82,
         "USD": 2.03,
         "Pending_NZD": 130.24,
         "Pending_AUD": 0.0,
@@ -24,19 +24,7 @@
             "entry": 94.77,
             "upper": 0.0,
             "fixed_stop_distance": 0.0
-        },
-        "NZX.NZ": {
-            "shares": 62.0,
-            "entry": 1.48,
-            "upper": 0.0,
-            "fixed_stop_distance": 15.0
-        },
-        "AMP.AX": {
-            "shares": 80.0,
-            "entry": 2.48,
-            "upper": 0.0,
-            "fixed_stop_distance": 15.0
-        }
+        },        
     },
     "watchlist_tickers": [
         "TSLA",

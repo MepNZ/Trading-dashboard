@@ -248,7 +248,7 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma, min_stars, m
                 "Market": market_label, "Ticker": ticker, "Company Name": resolved_name, 
                 "Alert Status": breakout_signal, "Score": star_rating, "Live Price": c_today, 
                 "Limit Entry Target": safe_daily_limit_target, "Take Profit Target": safe_take_profit_target, 
-                "Vol Multiple": volume_multiple, "ATR Risk": atr_val, "Daily Change %",: pct_change, "RSI Momentum": rsi_val,
+                "Vol Multiple": volume_multiple, "ATR Risk": atr_val, "Daily Change %": pct_change, "RSI Momentum": rsi_val,
                 "Trailing PE": trailing_pe if trailing_pe is not None else np.nan,  
                 "Net Income": net_income if net_income is not None else np.nan     
             })
@@ -494,10 +494,21 @@ with watch_col2:
     for wl_ticker, wl_meta in list(st.session_state.disk_memory["paper_positions"].items()):
         try:
             live_px = None
-            if not st.session_state.cached_raw_data.empty and f"Close_{wl_ticker}" in st.session_state.cached_raw_data.columns:
-                live_px = float(st.session_state.cached_raw_data[f"Close_{wl_ticker}"].dropna().iloc[-1])
-            else:
-                live_px = float(wl_meta.get("entry", 0.0))
+            live_vol = 0
+            
+            # 1. Attempt to extract price and volume from cached session data arrays
+            if not st.session_state.cached_raw_data.empty:
+                if f"Close_{wl_ticker}" in st.session_state.cached_raw_data.columns:
+                    live_px = float(st.session_state.cached_raw_data[f"Close_{wl_ticker}"].dropna().iloc[-1])
+                if f"Volume_{wl_ticker}" in st.session_state.cached_raw_data.columns:
+                    live_vol = int(st.session_state.cached_raw_data[f"Volume_{wl_ticker}"].dropna().iloc[-1])
+            
+            # 2. Fallback to live data request if ticker wasn't part of primary matrix universe
+            if live_px is None:
+                ticker_obj = yf.Ticker(wl_ticker)
+                hist = ticker_obj.history(period="1d")
+                live_px = float(hist['Close'].iloc[-1])
+                live_vol = int(hist['Volume'].iloc[-1]) if 'Volume' in hist.columns else 0
                 
             fixed_entry_px = float(wl_meta.get("entry", live_px))
             fixed_date = wl_meta.get("entry_date", "N/A")
@@ -514,6 +525,7 @@ with watch_col2:
                 "Date Added": fixed_date, 
                 "Fixed Entry": f"${fixed_entry_px:,.2f} {currency_lbl}",
                 "Current Live": f"${live_px:,.2f} {currency_lbl}", 
+                "Live Volume": f"{live_vol:,}" if live_vol > 0 else "N/A",  # Added Volume metric line here
                 "ROI ($)": f"+${roi_dollar:,.2f}" if roi_dollar >= 0 else f"-${abs(roi_dollar):,.2f}", 
                 "ROI (%)": f"+{roi_percent:,.2f}%" if roi_dollar >= 0 else f"{roi_percent:,.2f}%"
             })

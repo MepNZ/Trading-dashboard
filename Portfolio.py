@@ -53,7 +53,6 @@ st.markdown(
 )
 
 TARGETS_FILE = "portfolio_targets.json"
-
 # =============================================================================
 # 3. HIGH-SPEED COMPANY NAME DICTIONARY MAPPING ENGINE (AUTO-JSON GENERATION)
 # =============================================================================
@@ -93,6 +92,7 @@ def load_company_names():
     return {}
 
 company_name_map = load_company_names()
+
 # 4. Load Workspace json state files from local disk memory
 disk_memory = {}
 if os.path.exists(TARGETS_FILE):
@@ -105,7 +105,6 @@ runtime_watchlist = disk_memory.get("watchlist_tickers", [])
 runtime_cash = disk_memory.get("wallet_cash", {"NZD": 14.52, "AUD": 0.00, "USD": 78.24})
 runtime_sliders = disk_memory.get("sliders", {"fast_ma": 10, "slow_ma": 50, "roi_window": "1 Year"})
 runtime_paper = disk_memory.get("paper_positions", {})
-
 # 5. High-Speed Cached Concurrent Market Downloader Block
 @st.cache_data(ttl=300)
 def fetch_market_matrix_concurrent(tickers, lookback_days):
@@ -191,23 +190,23 @@ with control_tab1:
         # --- NZD Row ---
         nzd_left, nzd_right = st.columns(2)
         with nzd_left:
-            cash_nzd = st.number_input("NZD $ Available", min_value=0.0, value=float(runtime_cash.get("NZD", 14.52)), step=1.0, format="%.2f", key="cash_nzd_input")
+            st.number_input("NZD $ Available", min_value=0.0, value=float(runtime_cash.get("NZD", 14.52)), step=1.0, format="%.2f", key="cash_nzd_input")
         with nzd_right:
-            pending_nzd = st.number_input("NZD $ Pending", min_value=0.0, value=float(runtime_cash.get("Pending_NZD", 0.00)), step=1.0, format="%.2f", key="pending_nzd_input")
+            st.number_input("NZD $ Pending", min_value=0.0, value=float(runtime_cash.get("Pending_NZD", 0.00)), step=1.0, format="%.2f", key="pending_nzd_input")
             
         # --- AUD Row ---
         aud_left, aud_right = st.columns(2)
         with aud_left:
-            cash_aud = st.number_input("AUD $ Available", min_value=0.0, value=float(runtime_cash.get("AUD", 0.00)), step=1.0, format="%.2f", key="cash_aud_input")
+            st.number_input("AUD $ Available", min_value=0.0, value=float(runtime_cash.get("AUD", 0.00)), step=1.0, format="%.2f", key="cash_aud_input")
         with aud_right:
-            pending_aud = st.number_input("AUD $ Pending", min_value=0.0, value=float(runtime_cash.get("Pending_AUD", 0.00)), step=1.0, format="%.2f", key="pending_aud_input")
+            st.number_input("AUD $ Pending", min_value=0.0, value=float(runtime_cash.get("Pending_AUD", 0.00)), step=1.0, format="%.2f", key="pending_aud_input")
             
         # --- USD Row ---
         usd_left, usd_right = st.columns(2)
         with usd_left:
-            cash_usd = st.number_input("USD $ Available", min_value=0.0, value=float(runtime_cash.get("USD", 78.24)), step=1.0, format="%.2f", key="cash_usd_input")
+            st.number_input("USD $ Available", min_value=0.0, value=float(runtime_cash.get("USD", 78.24)), step=1.0, format="%.2f", key="cash_usd_input")
         with usd_right:
-            pending_usd = st.number_input("USD $ Pending", min_value=0.0, value=float(runtime_cash.get("Pending_USD", 0.00)), step=1.0, format="%.2f", key="pending_usd_input")
+            st.number_input("USD $ Pending", min_value=0.0, value=float(runtime_cash.get("Pending_USD", 0.00)), step=1.0, format="%.2f", key="pending_usd_input")
 
 portfolio_slots = list(runtime_positions.keys())[:6]
 while len(portfolio_slots) < 6: portfolio_slots.append(f"EMPTY_PORT_{len(portfolio_slots)+1}")
@@ -225,7 +224,6 @@ with control_tab2:
                 st.number_input("Entry Cost", min_value=0.0, value=float(stored.get("entry", 0.0)), step=0.01, format="%.2f", key=f"entry_{i}")
                 st.number_input("Upper Target", min_value=0.0, value=float(stored.get("upper", 0.0)), step=0.01, format="%.2f", key=f"up_{i}")
                 st.number_input("Stop Distance", min_value=0.0, value=float(stored.get("fixed_stop_distance", 15.0)), step=0.5, format="%.2f", key=f"fixed_stop_{i}")
-
 with control_tab3:
     paper_slots = list(runtime_paper.keys())[:6]
     while len(paper_slots) < 6: 
@@ -235,7 +233,6 @@ with control_tab3:
     for i in range(6):
         p_ticker = paper_slots[i]
         
-        # 🟢 FIX: Ensure empty state variables do not draw ghosts from memory
         if "EMPTY" in p_ticker:
             default_tk = ""
             default_ep = 0.0
@@ -252,7 +249,6 @@ with control_tab3:
             d_date = datetime.today().date()
             
         with paper_cols[i % 3]:
-            # Clean layout window header display resolution
             slot_header = f"Paper Slot {i+1}: {default_tk}" if default_tk else f"Paper Slot {i+1}: Empty"
             with st.expander(slot_header, expanded=False):
                 st.text_input(f"Paper Ticker Symbol", value=default_tk, key=f"paper_slot_{i}")
@@ -260,50 +256,59 @@ with control_tab3:
                 st.date_input("Calendar Entry Date", value=d_date, key=f"paper_date_{i}")
 
 if save_trigger:
-    live_bounds = {
-        "wallet_cash": {
-            "NZD": cash_nzd, 
-            "AUD": cash_aud, 
-            "USD": cash_usd,
-            "Pending_NZD": pending_nzd,
-            "Pending_AUD": pending_aud,
-            "Pending_USD": pending_usd
-        },
-        "sliders": {"fast_ma": int(st.session_state["fast_ma"]), "slow_ma": int(st.session_state["slow_ma"]), "roi_window": st.session_state["roi_window"]},
-        "positions": {}, 
-        "watchlist_tickers": runtime_watchlist, 
-        "paper_positions": {}
-    }
+    # 🟢 FIX 1: Read existing deep disk memory values to keep slots over index index 6 from getting deleted
+    live_positions = dict(runtime_positions)
+    live_paper = dict(runtime_paper)
 
-    # Process portfolio slots
+    # Process portfolio input fields 
     for idx in range(6):
         t_input = st.session_state.get(f"port_slot_{idx}", "").upper().strip()
-        if t_input and "EMPTY" not in t_input and t_input != "":
-            live_bounds["positions"][t_input] = {
+        if t_input and "EMPTY" not in t_input:
+            live_positions[t_input] = {
                 "shares": float(st.session_state.get(f"shares_{idx}", 0.0)), 
                 "entry": float(st.session_state.get(f"entry_{idx}", 0.0)),
                 "upper": float(st.session_state.get(f"up_{idx}", 0.0)), 
                 "fixed_stop_distance": float(st.session_state.get(f"fixed_stop_{idx}", 15.0))
             }
+        elif f"port_slot_{idx}" in st.session_state:
+            orig_ticker = portfolio_slots[idx]
+            if orig_ticker in live_positions: del live_positions[orig_ticker]
             
-    # Process paper trading slots with clear validation checks
+    # Process paper trading input fields
     for idx in range(6):
         p_input = st.session_state.get(f"paper_slot_{idx}", "").upper().strip()
-        if p_input and "EMPTY" not in p_input and p_input != "":
+        if p_input and "EMPTY" not in p_input:
             p_date = st.session_state.get(f"paper_date_{idx}", datetime.today().date())
-            live_bounds["paper_positions"][p_input] = {
+            live_paper[p_input] = {
                 "shares": 1.0, 
                 "entry": float(st.session_state.get(f"paper_entry_{idx}", 0.0)), 
                 "entry_date": p_date.strftime("%Y-%m-%d")
             }
+        elif f"paper_slot_{idx}" in st.session_state:
+            orig_paper = paper_slots[idx]
+            if orig_paper in live_paper: del live_paper[orig_paper]
+
+    # 🟢 FIX 2: Correctly pull live numbers from st.session_state widgets to sync the cash wallet inputs
+    live_bounds = {
+        "wallet_cash": {
+            "NZD": float(st.session_state.get("cash_nzd_input", 14.52)), 
+            "AUD": float(st.session_state.get("cash_aud_input", 0.00)), 
+            "USD": float(st.session_state.get("cash_usd_input", 78.24)),
+            "Pending_NZD": float(st.session_state.get("pending_nzd_input", 0.00)),
+            "Pending_AUD": float(st.session_state.get("pending_aud_input", 0.00)),
+            "Pending_USD": float(st.session_state.get("pending_usd_input", 0.00))
+        },
+        "sliders": {"fast_ma": int(st.session_state["fast_ma"]), "slow_ma": int(st.session_state["slow_ma"]), "roi_window": st.session_state["roi_window"]},
+        "positions": live_positions, 
+        "watchlist_tickers": runtime_watchlist, 
+        "paper_positions": live_paper
+    }
             
-    # Commit changes cleanly to JSON disk state memory
     with open(TARGETS_FILE, 'w') as f: 
         json.dump(live_bounds, f, indent=4)
         
     st.cache_data.clear()
     st.rerun()
-
 # 8. Core Sector Taxonomy Benchmarks List
 sector_mapping_dictionary = {
     "SPY": "🇺🇸 S&P 500 Index", "XLK": "Technology", "XLY": "Consumer Discretionary", 
@@ -395,20 +400,15 @@ if not RAW_MARKET_BATCH.empty:
             else:
                 strategy_status = "🔴 Structural Bear"
             
-            roi_cutoff = datetime.now() - timedelta(days=horizon_days)
-            localized_cutoff = roi_cutoff.tz_localize(df_t.index.tz) if df_t.index.tz else roi_cutoff
-            hist_sliced = df_t[df_t.index >= localized_cutoff]
-            window_start_p = float(hist_sliced['Close'].iloc[0]) if not hist_sliced.empty else last_close
-            ticker_roi = ((last_close - window_start_p) / window_start_p) * 100
-            
-                        # Calculate personal entry-based returns for Layer B tracking
+            # 🟢 FIX 3: Fully separate ROI formulas for Portfolio vs Paper setups inside the asset tracker grid
             if ticker in clean_portfolio_list or clean_ticker_key in clean_portfolio_list:
                 stored_block = runtime_positions.get(ticker, runtime_positions.get(clean_ticker_key, {}))
                 entry_p_calc = float(stored_block.get("entry", 0.0))
-                if entry_p_calc > 0.0:
-                    ticker_roi = ((last_close - entry_p_calc) / entry_p_calc) * 100
-                else:
-                    ticker_roi = 0.0
+                ticker_roi = (((last_close - entry_p_calc) / entry_p_calc) * 100) if entry_p_calc > 0.0 else 0.0
+            elif ticker in clean_paper_list or clean_ticker_key in clean_paper_list:
+                stored_paper_block = runtime_paper.get(ticker, runtime_paper.get(clean_ticker_key, {}))
+                entry_p_calc = float(stored_paper_block.get("entry", 0.0))
+                ticker_roi = (((last_close - entry_p_calc) / entry_p_calc) * 100) if entry_p_calc > 0.0 else 0.0
             else:
                 ticker_roi = 0.0
             
@@ -441,11 +441,17 @@ if not RAW_MARKET_BATCH.empty:
             pass
 st.markdown("#### 💼 Layer A: My Portfolio Ledger")
 
-# 1. ALWAYS calculate cash balances and FX conversions first (regardless of share positions)
+# Calculate cash balances and FX conversions first (regardless of share positions)
+cash_nzd = float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 14.52)))
+cash_aud = float(st.session_state.get("cash_aud_input", runtime_cash.get("AUD", 0.00)))
+cash_usd = float(st.session_state.get("cash_usd_input", runtime_cash.get("USD", 78.24)))
+pending_nzd = float(st.session_state.get("pending_nzd_input", runtime_cash.get("Pending_NZD", 0.00)))
+pending_aud = float(st.session_state.get("pending_aud_input", runtime_cash.get("Pending_AUD", 0.00)))
+pending_usd = float(st.session_state.get("pending_usd_input", runtime_cash.get("Pending_USD", 0.00)))
+
 available_cash_nzd = cash_nzd + (cash_aud * aud_to_nzd_rate) + (cash_usd * usd_to_nzd_rate)
 pending_cash_nzd = pending_nzd + (pending_aud * aud_to_nzd_rate) + (pending_usd * usd_to_nzd_rate)
 integ_cash_nzd = available_cash_nzd + pending_cash_nzd
-
 if active_live_positions:
     p_df = pd.DataFrame(active_live_positions)
     p_df["P&L (NZD)"] = p_df["Value (NZD)"] - p_df["Cost (NZD)"]
@@ -459,10 +465,7 @@ if active_live_positions:
     tot_equity_nzd = p_df["Value (NZD)"].sum()
     tot_profit_nzd = tot_equity_nzd - tot_invest_nzd
     tot_roi_nzd = (tot_profit_nzd / tot_invest_nzd) * 100 if tot_invest_nzd > 0 else 0.0
-    
-    # Total portfolio calculation including equities
     tot_app_value = tot_equity_nzd + integ_cash_nzd
-
     p_color, p_sign = ("#28a745", "+") if tot_profit_nzd >= 0 else ("#dc3545", "")
     
     currency_cols_a = ["Bought at", "Live price", "New Limit Buy", "Take Profit", "Cost (Loc)", "Cost (NZD)", "Value (Loc)", "Value (NZD)", "Stop Loss", "P&L (NZD)"]
@@ -470,7 +473,6 @@ if active_live_positions:
     p_df["ROI"] = p_df["ROI"].map("{:,.2f}%".format)
     
     html_table_a = p_df[cols_a].to_html(index=False, escape=False, table_id="ledger-portfolio")
-    
     ledger_a_css = """
     <style>
         .ledger-a-scroll-window { max-height: 400px; overflow-y: auto !important; overflow-x: auto !important; border: 1px solid #D1D5DB; }
@@ -483,31 +485,15 @@ if active_live_positions:
     """
     st.markdown(ledger_a_css, unsafe_allow_html=True)
     st.markdown(f"<div class='ledger-a-scroll-window'>{html_table_a}</div>", unsafe_allow_html=True)
-    
-    # Display full summary panel when shares exist
     st.markdown(f"""<div style='background-color: #f1f5f9; padding: 10px 14px; border-radius: 4px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; font-size: 0.88rem; font-weight: bold; margin-bottom: 20px; border: 1px solid #cbd5e1;'><div>🌎 FX: US/NZD: <span style='color: #0284c7;'>{usd_to_nzd_rate:.4f}</span> | AU/NZD: <span style='color: #0284c7;'>{aud_to_nzd_rate:.4f}</span></div><div>📋 Invested: <span style='color: #334155;'>${tot_invest_nzd:,.2f} NZD</span></div><div>💰 Cash: <span style='color: #0284c7;'>${integ_cash_nzd:,.2f} NZD</span></div><div style='background-color: #e2e8f0;'>👑 TOTAL VALUE:<br><span style='color: #0f172a; font-size: 1.15rem;'>${tot_app_value:,.2f} NZD</span></div><div>📈 Return: <span style='color: {p_color};'>{p_sign}${tot_profit_nzd:,.2f} ({p_sign}{tot_roi_nzd:.2f}%)</span></div></div>""", unsafe_allow_html=True)
-
 else:
-    # 2. RENDER THE CASH SUMMARY EVEN IF LIVE SHARERIES POSITIONS ARE EMPTY
     tot_app_value = integ_cash_nzd
     st.info("💡 No active share positions currently held in your portfolio ledger.")
-    
-    st.markdown(f"""
-        <div style='background-color: #f1f5f9; padding: 10px 14px; border-radius: 4px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; font-size: 0.88rem; font-weight: bold; margin-bottom: 20px; border: 1px solid #cbd5e1;'>
-            <div>🌎 FX: US/NZD: <span style='color: #0284c7;'>{usd_to_nzd_rate:.4f}</span> | AU/NZD: <span style='color: #0284c7;'>{aud_to_nzd_rate:.4f}</span></div>
-            <div>📋 Invested: <span style='color: #334155;'>$0.00 NZD</span></div>
-            <div>💰 Cash: <span style='color: #0284c7;'>${integ_cash_nzd:,.2f} NZD</span></div>
-            <div style='background-color: #e2e8f0;'>👑 TOTAL VALUE:<br><span style='color: #0f172a; font-size: 1.15rem;'>${tot_app_value:,.2f} NZD</span></div>
-            <div>📈 Return: <span style='color: #334155;'>$0.00 (0.00%)</span></div>
-        </div>
-    """, unsafe_allow_html=True)
-
+    st.markdown(f"""<div style='background-color: #f1f5f9; padding: 10px 14px; border-radius: 4px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; font-size: 0.88rem; font-weight: bold; margin-bottom: 20px; border: 1px solid #cbd5e1;'><div>🌎 FX: US/NZD: <span style='color: #0284c7;'>{usd_to_nzd_rate:.4f}</span> | AU/NZD: <span style='color: #0284c7;'>{aud_to_nzd_rate:.4f}</span></div><div>📋 Invested: <span style='color: #334155;'>$0.00 NZD</span></div><div>💰 Cash: <span style='color: #0284c7;'>${integ_cash_nzd:,.2f} NZD</span></div><div style='background-color: #e2e8f0;'>👑 TOTAL VALUE:<br><span style='color: #0f172a; font-size: 1.15rem;'>${tot_app_value:,.2f} NZD</span></div><div>📈 Return: <span style='color: #334155;'>$0.00 (0.00%)</span></div></div>""", unsafe_allow_html=True)
 # =============================================================================
-# 📊 Layer B: Asset Comparison Grid (ORDERED BELOW A2)
+# 📊 Layer B: Asset Comparison Grid 
 # =============================================================================
 st.markdown("#### 📊 Layer B: Asset Comparison Grid")
-
-# Build chart_list early here so both Layer B and Layer C can safely reference it
 chart_list = [str(t).strip().upper() for t in all_active_workspace_tickers if str(t).strip().upper() in operational_dfs]
 
 if master_unified_rows:
@@ -515,7 +501,6 @@ if master_unified_rows:
     cols_b = ["Ticker", "Sector", "Asset Name", "Price", "Return", "Limit Buy at", "T/P Exit", "Status", "Fast MA", "Slow MA", "RSI", "ATR"]
     b_df = b_df[cols_b]
     
-    # Use session state to find Layer C's selected token to dynamically sync tables
     current_calc_ticker = st.session_state.get("target_execution_asset_key", chart_list[0] if chart_list else "")
     if current_calc_ticker in b_df["Ticker"].values:
         hoist_row = b_df[b_df["Ticker"] == current_calc_ticker].copy()
@@ -532,7 +517,6 @@ if master_unified_rows:
         df_portfolio_display["Ticker"] = df_portfolio_display["Ticker"].apply(lambda x: f"🎯 {x}" if x == current_calc_ticker else x)
         
     html_portfolio_table = df_portfolio_display.to_html(index=False, escape=False, table_id="portfolio-screener")
-    
     portfolio_combined_html = f"""
     <style>
         body {{ margin: 0; padding: 0; background-color: transparent; }}
@@ -569,7 +553,6 @@ if master_unified_rows:
     st.components.v1.html(portfolio_combined_html, height=340, scrolling=False)
 else:
     st.info("💡 Portfolio overview data matrix processing.")
-
 # =============================================================================
 # 🔍 Core System Chart Analytics
 # =============================================================================
@@ -589,6 +572,7 @@ if chart_list:
         y_scale = alt.Scale(domain=[c_df['Close'].min() * 0.95, c_df['Close'].max() * 1.05], clamp=True)
         base = alt.Chart(c_df).encode(x='Date:T').properties(width='container', height=260)
         st.altair_chart(alt.layer(base.mark_line(color='#4A90E2', strokeWidth=3).encode(y=alt.Y('Close:Q', scale=y_scale)), base.mark_line(color='#00FF66', strokeWidth=2).encode(y='Fast_MA:Q'), base.mark_line(color='#FF3333', strokeWidth=2).encode(y='Slow_MA:Q')), use_container_width=True)
+
 # =============================================================================
 # 📐 Layer C: Volatility-Adjusted Position Sizing Calculator
 # =============================================================================
@@ -621,6 +605,6 @@ if chart_list:
         f_status = f"🟩 <span class='custom-funding-highlight'>Vault Verified:</span> Native {curr_lbl} wallet handles this cleanly." if gap <= 0 else f"🟨 <span class='custom-funding-highlight'>FX Buffer Needed:</span> Convert ${gap * mult:,.2f} NZD inside Sharesies."
         st.markdown(f'<div class="custom-funding-list"><div class="custom-funding-item">• <b>Total Position Capital:</b> <span class="custom-funding-highlight">${tot_cap_native:,.2f} {curr_lbl}</span> (${tot_cap_nzd:,.2f} NZD)</div><div class="custom-funding-item">• <b>Cushion Distance Risk:</b> <span class="custom-funding-highlight">${stop_dist:.2f} {curr_lbl}</span> per share.</div><div class="custom-funding-item">• <b>Portfolio Funding Status:</b> {f_status}</div></div>', unsafe_allow_html=True)
 
-st.markdown("#### 🔄 Layer D: Institutional Sector Money Flow")
+st.markdown("#### 💡 Layer D: Institutional Sector Money Flow")
 if macro_sector_rows:
     st.dataframe(pd.DataFrame(macro_sector_rows).sort_values(by="RSI Status Value", ascending=False), use_container_width=True, hide_index=True)

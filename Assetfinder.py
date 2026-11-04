@@ -5,6 +5,7 @@ import math
 import yfinance as yf
 import altair as alt
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 import os
 import json
 
@@ -17,7 +18,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Core page title configurations optimized for Light Theme text contrast
 st.markdown("""
     <style>
         .block-container { padding-top: 2.5rem !important; padding-bottom: 0.5rem !important; max-width: 100% !important; }
@@ -25,7 +25,6 @@ st.markdown("""
         h1 { font-size: 2.0rem !important; font-weight: 800 !important; color: #111111 !important; }
         .small-header { font-size: 1.25rem !important; font-weight: bold !important; color: #007bff !important; margin-bottom: 4px !important; }
         
-        /* 👑 STYLES THE DATAFRAME IN LIGHT MODE WITH CRISP BLACK FOR ALL TEXT ELEMENTS */
         div[data-testid="stDataFrame"] *, 
         div[data-testid="stDataFrame"] [role="columnheader"] span,
         div[data-testid="stDataFrame"] div {
@@ -35,8 +34,17 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Render page headers immediately on screen so you never see a blank canvas
 st.title("💼 Financial Asset Discovery Dashboard")
+
+TARGETS_FILE = "portfolio_targets.json"
+
+# Read workspace memory state arrays cleanly
+disk_memory = {}
+if os.path.exists(TARGETS_FILE):
+    try:
+        with open(TARGETS_FILE, 'r') as f: disk_memory = json.load(f)
+    except: pass
+runtime_paper = disk_memory.get("paper_positions", {})
 
 # =============================================================================
 # 2. DICTIONARY MAPPING FOR COMPLETE TICKER DATASET (JSON MASTER SYNC)
@@ -74,7 +82,6 @@ def load_company_names_matrix():
             pass
             
     return {}
-
 # =============================================================================
 # 3. HIGH-SPEED CHUNKED CONCURRENT LIVE DATA DOWNLOAD LAYER
 # =============================================================================
@@ -137,9 +144,8 @@ def fetch_live_market_data(tickers, days_lookback):
         return pd.DataFrame()
         
     return pd.concat(master_frames, axis=1).ffill().bfill()
-
 # =============================================================================
-# 4. UPGRADED BREAKOUT ALGORITHMS & MATHEMATICAL CONFLUENCE SCORING
+# 4. UPGRADED BREAKOUT ALGORITHMS & DYNAMIC TIME-AWARE SCORE ENGINE
 # =============================================================================
 def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma, min_stars, min_vol_multiple, show_bears, require_positive_income, max_pe_hurdle):
     if raw_batch.empty: 
@@ -175,7 +181,6 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma, min_stars, m
             tr3 = (df['Low'] - df['Close'].shift(1)).abs()
             df['TR'] = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
             
-            # 🛠️ FIXED: Shift average window back by 1 day so today's live volume doesn't pollute the historical baseline
             df['Avg_Vol_20D'] = df['Volume'].shift(1).rolling(window=20, min_periods=1).mean()
             df['ATR'] = df['TR'].rolling(window=14, min_periods=1).mean()
             
@@ -192,21 +197,23 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma, min_stars, m
             rsi_val = float(df['RSI'].iloc[-1])
             atr_val = float(df['ATR'].iloc[-1]) if not np.isnan(df['ATR'].iloc[-1]) else (c_today * 0.02)
             
+            market_label = "NZ" if ticker.endswith(".NZ") else ("AUS" if ticker.endswith(".AX") else "US")
             resolved_name = disk_names.get(ticker, f"{ticker}")
             
             safe_daily_limit_target = round((c_today - (0.50 * atr_val)) * 0.981, 2)
             safe_take_profit_target = round((safe_daily_limit_target + (2.0 * atr_val)) * 1.019, 2)
 
-            # Determine market locale
-            market_label = "NZ" if ticker.endswith(".NZ") else ("AUS" if ticker.endswith(".AX") else "US")
-            
-            # 🛠️ FIXED INTRADAY VOLUME MATH FLANNEL
             if market_label == "US":
-                # For open US market: evaluate yesterday's closed volume against yesterday's historical 20D average
-                historical_avg = float(df['Avg_Vol_20D'].iloc[-2]) if df['Avg_Vol_20D'].iloc[-2] > 0 else 1.0
-                volume_multiple = float(df['Volume'].iloc[-2]) / historical_avg
+                ny_now = datetime.now(ZoneInfo("America/New_York"))
+                is_us_open = (ny_now.weekday() < 5) and (ny_now.hour > 9 or (ny_now.hour == 9 and ny_now.minute >= 30)) and (ny_now.hour < 16)
+                
+                if is_us_open:
+                    historical_avg = float(df['Avg_Vol_20D'].iloc[-2]) if df['Avg_Vol_20D'].iloc[-2] > 0 else 1.0
+                    volume_multiple = float(df['Volume'].iloc[-2]) / historical_avg
+                else:
+                    avg_volume_20d = float(df['Avg_Vol_20D'].iloc[-1]) if df['Avg_Vol_20D'].iloc[-1] > 0 else 1.0
+                    volume_multiple = current_volume / avg_volume_20d
             else:
-                # For closed markets (NZ/AUS): use today's full completed session numbers safely
                 avg_volume_20d = float(df['Avg_Vol_20D'].iloc[-1]) if df['Avg_Vol_20D'].iloc[-1] > 0 else 1.0
                 volume_multiple = current_volume / avg_volume_20d
 
@@ -217,7 +224,6 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma, min_stars, m
             else:
                 breakout_signal = "🔴 Structural Bear"
 
-            # ⚙️ STEP 1: CALCULATE STARS AND RATINGS LOCALLY (INSTANT)
             stars = 0
             if c_today > f_today: stars += 1
             if c_today > s_today: stars += 1
@@ -226,42 +232,28 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma, min_stars, m
             if pct_change > 0: stars += 1
             star_rating = "⭐" * stars if stars > 0 else "❌"
 
-            # ⚙️ STEP 2: APPLY THE STRICT TECHNICAL GATE (LOCAL MEMORY)
-            if not show_bears and breakout_signal == "🔴 Structural Bear":
-                continue
-                
-            if volume_multiple < min_vol_multiple:
-                continue
-                
-            if stars < min_stars:
-                continue
+            if not show_bears and breakout_signal == "🔴 Structural Bear": continue
+            if volume_multiple < min_vol_multiple: continue
+            if stars < min_stars: continue
 
-            # ⚙️ STEP 3: LAZY FETCH (CACHED) - Only runs for assets matching your precise UI settings
             fundamentals = get_cached_fundamentals(ticker)
             trailing_pe = fundamentals["pe"]
             net_income = fundamentals["income"]
 
-            # ⚙️ STEP 4: RUN FUNDAMENTAL HURDLES
-            if require_positive_income and net_income is not None and net_income <= 0:
-                continue
-                
-            if trailing_pe is not None and trailing_pe > max_pe_hurdle:
-                continue
+            if require_positive_income and net_income is not None and net_income <= 0: continue
+            if trailing_pe is not None and trailing_pe > max_pe_hurdle: continue
 
-            # APPEND ONLY IF PAST ALL GATES
             b_rows.append({
                 "Market": market_label, "Ticker": ticker, "Company Name": resolved_name, 
                 "Alert Status": breakout_signal, "Score": star_rating, "Live Price": c_today, 
                 "Limit Entry Target": safe_daily_limit_target, "Take Profit Target": safe_take_profit_target, 
                 "Vol Multiple": volume_multiple, "ATR Risk": atr_val, "Daily Change %": pct_change, "RSI Momentum": rsi_val,
-                "Trailing PE": trailing_pe if trailing_pe is not None else np.nan,
-                "Net Income": net_income if net_income is not None else np.nan
+                "Trailing PE": trailing_pe if trailing_pe is not None else np.nan,  
+                "Net Income": net_income if net_income is not None else np.nan     
             })
-
         except: 
             continue
     return b_rows
-
 # =============================================================================
 # 5. USER PREFERENCE SIDEBAR CONTROLS
 # =============================================================================
@@ -351,15 +343,12 @@ if not ticker_universe:
 
 ticker_universe = list(dict.fromkeys(ticker_universe))
 
-# 👑 LOCK DOWNLOAD DATA INTO A SESSION VAULT
-# 👑 LOCK DOWNLOAD DATA INTO A SESSION VAULT WITH TIMEFRAME KEY
 vault_key = f"data_{hash(tuple(ticker_universe))}_{days_lookback_value}"
 
 if "active_vault_key" not in st.session_state or st.session_state.active_vault_key != vault_key:
     st.session_state.cached_raw_data = fetch_live_market_data(ticker_universe, days_lookback_value)
     st.session_state.active_vault_key = vault_key
 
-# Run moving averages indicators loop instantly out of local memory cache variables
 raw_breakouts = calculate_momentum_matrix(
     st.session_state.cached_raw_data, 
     ticker_universe, 
@@ -387,7 +376,6 @@ with st.sidebar:
 # =============================================================================
 if raw_breakouts:
     df_grid = pd.DataFrame(raw_breakouts)
-    
     df_grid = df_grid[df_grid["Market"].isin(market_choice)]
     
     if not show_bears:
@@ -401,106 +389,35 @@ if raw_breakouts:
     
     if not df_grid.empty:
         df_grid = df_grid.sort_values(by=["Vol Multiple"], ascending=False)
-        
-        # Update your column ordering filter
         cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Score", "Live Price", "Limit Entry Target", "Take Profit Target", "Vol Multiple", "ATR Risk", "Daily Change %", "RSI Momentum", "Trailing PE", "Net Income"]
         df_grid = df_grid[[c for c in cols_order if c in df_grid.columns]]
-        
-        # Update your plain text display headers
         df_grid.columns = ["Market", "Ticker", "Asset Name", "System Status", "Confluence", "Price", "Limit Entry Target", "Take Profit Target", "RVOL Multiplier", "ATR Risk ($)", "Daily Change %", "RSI Momentum", "Trailing P/E", "Net Income ($)"]
 
         df_display = df_grid.copy()
         df_display["Price"] = df_display["Price"].map("${:,.2f}".format)
         df_display["Limit Entry Target"] = df_display["Limit Entry Target"].map("${:,.2f}".format)
         df_display["Take Profit Target"] = df_display["Take Profit Target"].map("${:,.2f}".format)
-        
-        df_display["RVOL Multiplier"] = df_display["RVOL Multiplier"].apply(
-            lambda x: f"🟢 {x:,.2f}x" if x >= 1.50 else f"{x:,.2f}x"
-        )
-        
+        df_display["RVOL Multiplier"] = df_display["RVOL Multiplier"].apply(lambda x: f"🟢 {x:,.2f}x" if x >= 1.50 else f"{x:,.2f}x")
         df_display["ATR Risk ($)"] = df_display["ATR Risk ($)"].map("${:,.2f}".format)
-        
-        df_display["Daily Change %"] = df_display["Daily Change %"].apply(
-            lambda x: f"🟢 {x:+.2f}%" if x >= 3.00 else f"{x:+.2f}%"
-        )
-        
-        df_display["RSI Momentum"] = df_display["RSI Momentum"].apply(
-            lambda x: f"🟢 {x:,.1f}" if x >= 60.0 else f"{x:,.1f}"
-        )
-
-        # Format the fundamental metric strings
-        df_display["Trailing P/E"] = df_display["Trailing P/E"].apply(
-            lambda x: f"{x:.1f}×" if pd.notnull(x) else "N/A"
-        )
-        df_display["Net Income ($)"] = df_display["Net Income ($)"].apply(
-            lambda x: f"${x:,.0f}" if pd.notnull(x) else "N/A"
-        )
+        df_display["Daily Change %"] = df_display["Daily Change %"].apply(lambda x: f"🟢 {x:+.2f}%" if x >= 3.00 else f"{x:+.2f}%")
+        df_display["RSI Momentum"] = df_display["RSI Momentum"].apply(lambda x: f"🟢 {x:,.1f}" if x >= 60.0 else f"{x:,.1f}")
+        df_display["Trailing P/E"] = df_display["Trailing P/E"].apply(lambda x: f"{x:.1f}×" if pd.notnull(x) else "N/A")
+        df_display["Net Income ($)"] = df_display["Net Income ($)"].apply(lambda x: f"${x:,.0f}" if pd.notnull(x) else "N/A")
 
         html_table = df_display.to_html(index=False, escape=False, table_id="interactive-screener")
         
         screener_combined_html = f"""
         <style>
-            body {{
-                margin: 0;
-                padding: 0;
-                background-color: transparent;
-            }}
-            .scroll-window {{
-                max-height: 650px;
-                overflow-y: auto !important;
-                overflow-x: auto !important;
-                border: 1px solid #D1D5DB;
-            }}
-            #interactive-screener {{
-                width: 100%;
-                border-collapse: collapse;
-                font-family: sans-serif;
-                background-color: #FFFFFF !important;
-            }}
-            #interactive-screener th {{
-                position: -webkit-sticky !important;
-                position: sticky !important;
-                top: 0 !important;
-                z-index: 10 !important;
-                background-color: #E5E7EB !important;
-                color: #111111 !important;
-                font-size: 1.00rem !important;
-                font-weight: bold !important;
-                padding: 0px 12px !important;
-                height: 90px !important;
-                display: table-cell !important;
-                vertical-align: middle !important;
-                line-height: 90px !important;
-                text-align: left;
-                border-bottom: 3px solid #007bff !important;
-                white-space: nowrap !important;
-                cursor: pointer !important;
-                user-select: none;
-            }}
-            #interactive-screener th::after {{
-                content: " ↕";
-                font-size: 0.8rem;
-                color: #888;
-                padding-left: 5px;
-                display: inline-block !important;
-                vertical-align: middle !important;
-                line-height: normal !important;
-            }}
-            #interactive-screener td {{
-                color: #222222 !important;
-                font-size: 0.95rem !important;
-                padding: 12px 12px !important;
-                border-bottom: 1px solid #E5E7EB !important;
-                white-space: nowrap !important;
-            }}
+            body {{ margin: 0; padding: 0; background-color: transparent; }}
+            .scroll-window {{ max-height: 650px; overflow-y: auto !important; overflow-x: auto !important; border: 1px solid #D1D5DB; }}
+            #interactive-screener {{ width: 100%; border-collapse: collapse; font-family: sans-serif; background-color: #FFFFFF !important; }}
+            #interactive-screener th {{ position: -webkit-sticky !important; position: sticky !important; top: 0 !important; z-index: 10 !important; background-color: #E5E7EB !important; color: #111111 !important; font-size: 1.00rem !important; font-weight: bold !important; padding: 0px 12px !important; height: 90px !important; display: table-cell !important; vertical-align: middle !important; line-height: 90px !important; text-align: left; border-bottom: 3px solid #007bff !important; white-space: nowrap !important; cursor: pointer !important; user-select: none; }}
+            #interactive-screener th::after {{ content: " ↕"; font-size: 0.8rem; color: #888; padding-left: 5px; display: inline-block !important; vertical-align: middle !important; line-height: normal !important; }}
+            #interactive-screener td {{ color: #222222 !important; font-size: 0.95rem !important; padding: 12px 12px !important; border-bottom: 1px solid #E5E7EB !important; white-space: nowrap !important; }}
             #interactive-screener tr:nth-child(even) {{ background-color: #F9FAFB !important; }}
             #interactive-screener tr:hover {{ background-color: #F3F4F6 !important; }}
         </style>
-        
-        <div class='scroll-window'>
-            {html_table}
-        </div>
-        
+        <div class='scroll-window'>{html_table}</div>
         <script>
             document.querySelectorAll("#interactive-screener th").forEach((header, index) => {{
                 header.addEventListener("click", () => {{
@@ -508,37 +425,102 @@ if raw_breakouts:
                     const tbody = table.querySelector("tbody");
                     const rows = Array.from(tbody.querySelectorAll("tr"));
                     const isAscending = header.classList.contains("sort-asc");
-                    
                     table.querySelectorAll("th").forEach(th => th.classList.remove("sort-asc", "sort-desc"));
-                    
                     rows.sort((rowA, rowB) => {{
-                        let cellA = rowA.children[index].textContent.replace(/[\\$,%x\\s]/g, "").trim();
-                        let cellB = rowB.children[index].textContent.replace(/[\\$,%x\\s]/g, "").trim();
-                        
-                        cellA = cellA.replace(/🟢/g, "").trim();
-                        cellB = cellB.replace(/🟢/g, "").trim();
-                        
-                        const numA = parseFloat(cellA);
-                        const numB = parseFloat(cellB);
-                        
+                        let cellA = rowA.children[index].textContent.replace(/[\\$,%x\\s]/g, "").trim().replace(/🟢/g, "").trim();
+                        let cellB = rowB.children[index].textContent.replace(/[\\$,%x\\s]/g, "").trim().replace(/🟢/g, "").trim();
+                        const numA = parseFloat(cellA); const numB = parseFloat(cellB);
                         if (!isNaN(numA) && !isNaN(numB)) return isAscending ? numB - numA : numA - numB;
                         return isAscending ? cellB.localeCompare(cellA) : cellA.localeCompare(cellB);
                     }});
-                    
                     header.classList.toggle("sort-asc", !isAscending);
                     header.classList.toggle("sort-desc", isAscending);
-                    
                     rows.forEach(row => tbody.appendChild(row));
                 }});
             }});
         </script>
         """
-        
         st.components.v1.html(screener_combined_html, height=700, scrolling=False)
-        st.markdown("<br>", unsafe_allow_html=True)        
-
+        st.markdown("<br>", unsafe_allow_html=True)
+                # =============================================================================
+        # 7. NEW WATCHLIST TRACKER SCREEN PANEL (PERSISTENT DATA LAYER STRUCTURE)
         # =============================================================================
-        # 7. HIGH-SPEED LIGHTWEIGHT OVERLAY CHART
+        st.markdown("---")
+        st.markdown("<div class='small-header'>📋 Layer E: Persistent Live Watchlist Comparison Deck</div>", unsafe_allow_html=True)
+
+        all_discoverable_tickers = df_grid["Ticker"].tolist() if not df_grid.empty else ["AAPL", "NVDA"]
+
+        watch_col1, watch_col2 = st.columns(2)
+        with watch_col1:
+            target_wl_ticker = st.selectbox("Select Target Discovery Asset to Pin down:", options=all_discoverable_tickers, key="wl_pin_select_key")
+            if st.button("➕ LOCK TICKER TO WATCHLIST MATRIX", use_container_width=True, type="primary"):
+                if target_wl_ticker and not st.session_state.cached_raw_data.empty:
+                    try:
+                        # Dynamic naming check for multi-indexed data frames or clean single columns
+                        possible_close_cols = [f"Close_{target_wl_ticker}", target_wl_ticker, 'Close']
+                        live_price_now = None
+                        
+                        for col in possible_close_cols:
+                            if col in st.session_state.cached_raw_data.columns:
+                                live_price_now = float(st.session_state.cached_raw_data[col].dropna().iloc[-1])
+                                break
+                        
+                        if live_price_now is None:
+                            # Fallback approach: Try downloading the individual current tick manually if the state array is unmapped
+                            ticker_obj = yf.Ticker(target_wl_ticker)
+                            live_price_now = float(ticker_obj.history(period="1d")['Close'].iloc[-1])
+                            
+                        current_timestamp = datetime.now(ZoneInfo("Pacific/Auckland")).strftime("%Y-%m-%d %I:%M %p")
+                        runtime_paper[target_wl_ticker] = {"entry": live_price_now, "entry_date": current_timestamp}
+                        disk_memory["paper_positions"] = runtime_paper
+                        with open(TARGETS_FILE, 'w') as f: 
+                            json.dump(disk_memory, f, indent=4)
+                        st.toast(f"Pinned {target_wl_ticker} down safely at ${live_price_now:,.2f}!")
+                        st.rerun()
+                    except Exception as err:
+                        st.error(f"Could not automatically read tracking column for {target_wl_ticker}. Try picking another active ticker.")
+        with watch_col2:
+            watchlist_grid_rows = []
+            for wl_ticker, wl_meta in list(runtime_paper.items()):
+                try:
+                    possible_close_cols = [f"Close_{wl_ticker}", wl_ticker, 'Close']
+                    live_px = None
+                    
+                    for col in possible_close_cols:
+                        if col in st.session_state.cached_raw_data.columns:
+                            live_px = float(st.session_state.cached_raw_data[col].dropna().iloc[-1])
+                            break
+                            
+                    if live_px is None:
+                        live_px = float(wl_meta.get("entry", 0.0))
+                        
+                    fixed_entry_px = float(wl_meta.get("entry", live_px))
+                    fixed_date = wl_meta.get("entry_date", "N/A")
+                    currency_lbl = "USD" if not (wl_ticker.endswith(".NZ") or wl_ticker.endswith(".AX")) else ("AUD" if wl_ticker.endswith(".AX") else "NZD")
+                    
+                    roi_dollar = live_px - fixed_entry_px
+                    roi_percent = (roi_dollar / fixed_entry_px) * 100 if fixed_entry_px > 0 else 0.0
+                    roi_disp_str = f"+${roi_dollar:,.2f}" if roi_dollar >= 0 else f"-${abs(roi_dollar):,.2f}"
+                    roi_pct_str = f"+{roi_percent:,.2f}%" if roi_dollar >= 0 else f"{roi_percent:,.2f}%"
+                    
+                    watchlist_grid_rows.append({
+                        "Ticker": wl_ticker, "Date Added": fixed_date, "Fixed Entry Price": f"${fixed_entry_px:,.2f} {currency_lbl}",
+                        "Current Live Price": f"${live_px:,.2f} {currency_lbl}", "Theoretical ROI ($)": roi_disp_str, "Theoretical ROI (%)": roi_pct_str
+                    })
+                except:
+                    pass
+                    
+            if watchlist_grid_rows:
+                st.dataframe(pd.DataFrame(watchlist_grid_rows), use_container_width=True, hide_index=True)
+                if st.button("🗑️ Flush Watchlist Grid Memory Arrays", use_container_width=True):
+                    disk_memory["paper_positions"] = {}
+                    with open(TARGETS_FILE, 'w') as f: 
+                        json.dump(disk_memory, f, indent=4)
+                    st.rerun()
+            else:
+                st.caption("Your watchlist grid is currently empty. Choose a ticker on the left to pin it down permanently.")
+        # =============================================================================
+        # 8. HIGH-SPEED LIGHTWEIGHT OVERLAY CHART
         # =============================================================================
         st.markdown("---")
         st.markdown("<div class='small-header'>📈 Global Chart Engine Analytics Overlay</div>", unsafe_allow_html=True)
@@ -548,19 +530,22 @@ if raw_breakouts:
         
         if selected_ticker and not st.session_state.cached_raw_data.empty:
             try:
-                close_col = f"Close_{selected_ticker}" if f"Close_{selected_ticker}" in st.session_state.cached_raw_data.columns else 'Close'
-                chart_df = pd.DataFrame({'Close': st.session_state.cached_raw_data[close_col]}).ffill().bfill().dropna(subset=['Close'])
-                
+                possible_close_cols = [f"Close_{selected_ticker}", selected_ticker, 'Close']
+                target_col = None
+                for col in possible_close_cols:
+                    if col in st.session_state.cached_raw_data.columns:
+                        target_col = col
+                        break
+                        
+                chart_df = pd.DataFrame({'Close': st.session_state.cached_raw_data[target_col]}).ffill().bfill().dropna(subset=['Close'])
                 chart_df['Fast_MA_Line'] = chart_df['Close'].rolling(window=int(fast_ma_slider), min_periods=1).mean()
                 chart_df['Slow_MA_Line'] = chart_df['Close'].rolling(window=int(slow_ma_slider), min_periods=1).mean()
-                
                 chart_df.index = pd.to_datetime(chart_df.index).strftime('%Y-%m-%d')
                 chart_df = chart_df.reset_index().rename(columns={'index': 'Date'})
                 chart_df.columns = [str(c) for c in chart_df.columns]
                 
                 y_scale = alt.Scale(domain=[chart_df['Close'].min() * 0.95, chart_df['Close'].max() * 1.05], clamp=True)
                 base = alt.Chart(chart_df).encode(x='Date:T').properties(height=300)
-                
                 c_line = base.mark_line(color='#4A90E2', strokeWidth=3).encode(y=alt.Y('Close:Q', scale=y_scale, title="Price ($)"))
                 f_line = base.mark_line(color='#00FF66', strokeWidth=2).encode(y='Fast_MA_Line:Q')
                 s_line = base.mark_line(color='#FF3333', strokeWidth=2).encode(y='Slow_MA_Line:Q')
@@ -569,6 +554,8 @@ if raw_breakouts:
                 st.caption(f"🔵 Blue = Price | 🟢 Green = {fast_ma_slider}-Day Fast MA | 🔴 Red = {slow_ma_slider}-Day Slow MA")
             except Exception as chart_fault:
                 st.info("Chart alignment processing. Checking data parameters.")
+        else:
+            st.sidebar.info("No active setups match your filtering criteria right now.")
     else:
         st.sidebar.info("No active setups match your filtering criteria right now.")
 else:

@@ -25,5 +25,14 @@
         "AIR.NZ",
         "CBA.AX"
     ],
-    "paper_positions": {}
+    "paper_positions": {
+        "KDP": {
+            "entry": 37.07939910888672,
+            "entry_date": "2026-11-05 07:52 AM"
+        },
+        "FSLR": {
+            "entry": 198.59010314941406,
+            "entry_date": "2026-11-05 07:54 AM"
+        }
+    }
 }

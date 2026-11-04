@@ -38,16 +38,20 @@ st.title("💼 Financial Asset Discovery Dashboard")
 
 TARGETS_FILE = "portfolio_targets.json"
 
-# Read workspace memory state arrays cleanly
-disk_memory = {}
-if os.path.exists(TARGETS_FILE):
-    try:
-        with open(TARGETS_FILE, 'r') as f: disk_memory = json.load(f)
-    except: pass
-runtime_paper = disk_memory.get("paper_positions", {})
+# Initialize global state storage structures cleanly
+if "disk_memory" not in st.session_state:
+    st.session_state.disk_memory = {}
+    if os.path.exists(TARGETS_FILE):
+        try:
+            with open(TARGETS_FILE, 'r') as f: 
+                st.session_state.disk_memory = json.load(f)
+        except: 
+            pass
 
+if "paper_positions" not in st.session_state.disk_memory:
+    st.session_state.disk_memory["paper_positions"] = {}
 # =============================================================================
-# 2. DICTIONARY MAPPING FOR COMPLETE TICKER DATASET (JSON MASTER SYNC)
+# 2. DICTIONARY MAPPING FOR COMPLETE TICKER DATASET
 # =============================================================================
 def load_company_names_matrix():
     json_path = "master_tickers.json"
@@ -65,8 +69,8 @@ def load_company_names_matrix():
             m_df = pd.read_csv(csv_path, encoding='latin-1')
             m_df.columns = m_df.columns.astype(str).str.strip()
             
-            t_col = 'Ticker' if 'Ticker' in m_df.columns else m_df.columns
-            n_col = 'True_Name' if 'True_Name' in m_df.columns else m_df.columns
+            t_col = 'Ticker' if 'Ticker' in m_df.columns else m_df.columns[0]
+            n_col = 'True_Name' if 'True_Name' in m_df.columns else m_df.columns[1]
             
             csv_data = {}
             for _, row in m_df.iterrows():
@@ -82,8 +86,9 @@ def load_company_names_matrix():
             pass
             
     return {}
+
 # =============================================================================
-# 3. HIGH-SPEED CHUNKED CONCURRENT LIVE DATA DOWNLOAD LAYER
+# 3. HIGH-SPEED CHUNKED LIVE DATA DOWNLOAD LAYER
 # =============================================================================
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_single_chunk_cached(chunk_list, lookback_date):
@@ -91,7 +96,7 @@ def fetch_single_chunk_cached(chunk_list, lookback_date):
         chunk_data = yf.download(chunk_list, start=lookback_date, progress=False, group_by='ticker')
         if not chunk_data.empty:
             if len(chunk_list) == 1:
-                t_name = chunk_list
+                t_name = chunk_list[0]  # FIXED: Extracted string element instead of list representation
                 chunk_data.columns = [f"{col}_{t_name}" for col in chunk_data.columns]
                 return chunk_data
             
@@ -109,7 +114,6 @@ def fetch_single_chunk_cached(chunk_list, lookback_date):
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_cached_fundamentals(ticker):
-    """Hits the network once per ticker per hour, caching the result instantly."""
     try:
         info = yf.Ticker(ticker).info
         return {
@@ -203,19 +207,16 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma, min_stars, m
             safe_daily_limit_target = round((c_today - (0.50 * atr_val)) * 0.981, 2)
             safe_take_profit_target = round((safe_daily_limit_target + (2.0 * atr_val)) * 1.019, 2)
 
+            # FIXED: Synchronised current volume and past indices variables to prevent star scoring mismatches
+            avg_volume_20d = float(df['Avg_Vol_20D'].iloc[-1]) if df['Avg_Vol_20D'].iloc[-1] > 0 else 1.0
+            volume_multiple = current_volume / avg_volume_20d
+
             if market_label == "US":
                 ny_now = datetime.now(ZoneInfo("America/New_York"))
                 is_us_open = (ny_now.weekday() < 5) and (ny_now.hour > 9 or (ny_now.hour == 9 and ny_now.minute >= 30)) and (ny_now.hour < 16)
-                
                 if is_us_open:
                     historical_avg = float(df['Avg_Vol_20D'].iloc[-2]) if df['Avg_Vol_20D'].iloc[-2] > 0 else 1.0
                     volume_multiple = float(df['Volume'].iloc[-2]) / historical_avg
-                else:
-                    avg_volume_20d = float(df['Avg_Vol_20D'].iloc[-1]) if df['Avg_Vol_20D'].iloc[-1] > 0 else 1.0
-                    volume_multiple = current_volume / avg_volume_20d
-            else:
-                avg_volume_20d = float(df['Avg_Vol_20D'].iloc[-1]) if df['Avg_Vol_20D'].iloc[-1] > 0 else 1.0
-                volume_multiple = current_volume / avg_volume_20d
 
             if c_today > f_today and c_today > s_today:
                 breakout_signal = "🟩 DUAL-TREND BREAKOUT"
@@ -247,7 +248,7 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma, min_stars, m
                 "Market": market_label, "Ticker": ticker, "Company Name": resolved_name, 
                 "Alert Status": breakout_signal, "Score": star_rating, "Live Price": c_today, 
                 "Limit Entry Target": safe_daily_limit_target, "Take Profit Target": safe_take_profit_target, 
-                "Vol Multiple": volume_multiple, "ATR Risk": atr_val, "Daily Change %": pct_change, "RSI Momentum": rsi_val,
+                "Vol Multiple": volume_multiple, "ATR Risk": atr_val, "Daily Change %",: pct_change, "RSI Momentum": rsi_val,
                 "Trailing PE": trailing_pe if trailing_pe is not None else np.nan,  
                 "Net Income": net_income if net_income is not None else np.nan     
             })
@@ -306,12 +307,12 @@ with st.sidebar:
         step=5,
         format="%d×"
     )
-
 # =============================================================================
-# 🟢 STATE CONTROLLER ENGINE (PREVENTS RE-DOWNLOADING ON SLIDER MOVES)
+# 🟢 STATE CONTROLLER ENGINE
 # =============================================================================
 csv_path = "ticker_names.csv"
 ticker_universe = []
+disk_names = load_company_names_matrix()
 
 if os.path.exists(csv_path):
     try:
@@ -374,6 +375,7 @@ with st.sidebar:
 # =============================================================================
 # 6. INSTANT DATA SCREENER GRID VIEW (HTML INTERACTIVE SORT ENGINE)
 # =============================================================================
+df_grid = pd.DataFrame()
 if raw_breakouts:
     df_grid = pd.DataFrame(raw_breakouts)
     df_grid = df_grid[df_grid["Market"].isin(market_choice)]
@@ -409,7 +411,7 @@ if raw_breakouts:
         screener_combined_html = f"""
         <style>
             body {{ margin: 0; padding: 0; background-color: transparent; }}
-            .scroll-window {{ max-height: 650px; overflow-y: auto !important; overflow-x: auto !important; border: 1px solid #D1D5DB; }}
+            .scroll-window {{ max-height: 450px; overflow-y: auto !important; overflow-x: auto !important; border: 1px solid #D1D5DB; }}
             #interactive-screener {{ width: 100%; border-collapse: collapse; font-family: sans-serif; background-color: #FFFFFF !important; }}
             #interactive-screener th {{ position: -webkit-sticky !important; position: sticky !important; top: 0 !important; z-index: 10 !important; background-color: #E5E7EB !important; color: #111111 !important; font-size: 1.00rem !important; font-weight: bold !important; padding: 0px 12px !important; height: 90px !important; display: table-cell !important; vertical-align: middle !important; line-height: 90px !important; text-align: left; border-bottom: 3px solid #007bff !important; white-space: nowrap !important; cursor: pointer !important; user-select: none; }}
             #interactive-screener th::after {{ content: " ↕"; font-size: 0.8rem; color: #888; padding-left: 5px; display: inline-block !important; vertical-align: middle !important; line-height: normal !important; }}
@@ -440,123 +442,154 @@ if raw_breakouts:
             }});
         </script>
         """
-        st.components.v1.html(screener_combined_html, height=700, scrolling=False)
-        st.markdown("<br>", unsafe_allow_html=True)
-                # =============================================================================
-        # 7. NEW WATCHLIST TRACKER SCREEN PANEL (PERSISTENT DATA LAYER STRUCTURE)
-        # =============================================================================
-        st.markdown("---")
-        st.markdown("<div class='small-header'>📋 Layer E: Persistent Live Watchlist Comparison Deck</div>", unsafe_allow_html=True)
+        st.components.v1.html(screener_combined_html, height=500, scrolling=False)
+# =============================================================================
+# 7. PERSISTENT LIVE WATCHLIST LAYOUT WITH ROW SELECTION DELETION
+# =============================================================================
+st.markdown("---")
+st.markdown("<div class='small-header'>📋 Layer E: Persistent Live Watchlist Deck</div>", unsafe_allow_html=True)
 
-        all_discoverable_tickers = df_grid["Ticker"].tolist() if not df_grid.empty else ["AAPL", "NVDA"]
+all_discoverable_tickers = df_grid["Ticker"].tolist() if not df_grid.empty else ["AAPL", "NVDA"]
 
-        watch_col1, watch_col2 = st.columns(2)
-        with watch_col1:
-            target_wl_ticker = st.selectbox("Select Target Discovery Asset to Pin down:", options=all_discoverable_tickers, key="wl_pin_select_key")
-            if st.button("➕ LOCK TICKER TO WATCHLIST MATRIX", use_container_width=True, type="primary"):
-                if target_wl_ticker and not st.session_state.cached_raw_data.empty:
-                    try:
-                        # Dynamic naming check for multi-indexed data frames or clean single columns
-                        possible_close_cols = [f"Close_{target_wl_ticker}", target_wl_ticker, 'Close']
-                        live_price_now = None
-                        
-                        for col in possible_close_cols:
-                            if col in st.session_state.cached_raw_data.columns:
-                                live_price_now = float(st.session_state.cached_raw_data[col].dropna().iloc[-1])
-                                break
-                        
-                        if live_price_now is None:
-                            # Fallback approach: Try downloading the individual current tick manually if the state array is unmapped
-                            ticker_obj = yf.Ticker(target_wl_ticker)
-                            live_price_now = float(ticker_obj.history(period="1d")['Close'].iloc[-1])
-                            
-                        current_timestamp = datetime.now(ZoneInfo("Pacific/Auckland")).strftime("%Y-%m-%d %I:%M %p")
-                        runtime_paper[target_wl_ticker] = {"entry": live_price_now, "entry_date": current_timestamp}
-                        disk_memory["paper_positions"] = runtime_paper
-                        with open(TARGETS_FILE, 'w') as f: 
-                            json.dump(disk_memory, f, indent=4)
-                        st.toast(f"Pinned {target_wl_ticker} down safely at ${live_price_now:,.2f}!")
-                        st.rerun()
-                    except Exception as err:
-                        st.error(f"Could not automatically read tracking column for {target_wl_ticker}. Try picking another active ticker.")
-        with watch_col2:
-            watchlist_grid_rows = []
-            for wl_ticker, wl_meta in list(runtime_paper.items()):
-                try:
-                    possible_close_cols = [f"Close_{wl_ticker}", wl_ticker, 'Close']
-                    live_px = None
-                    
-                    for col in possible_close_cols:
-                        if col in st.session_state.cached_raw_data.columns:
-                            live_px = float(st.session_state.cached_raw_data[col].dropna().iloc[-1])
-                            break
-                            
-                    if live_px is None:
-                        live_px = float(wl_meta.get("entry", 0.0))
-                        
-                    fixed_entry_px = float(wl_meta.get("entry", live_px))
-                    fixed_date = wl_meta.get("entry_date", "N/A")
-                    currency_lbl = "USD" if not (wl_ticker.endswith(".NZ") or wl_ticker.endswith(".AX")) else ("AUD" if wl_ticker.endswith(".AX") else "NZD")
-                    
-                    roi_dollar = live_px - fixed_entry_px
-                    roi_percent = (roi_dollar / fixed_entry_px) * 100 if fixed_entry_px > 0 else 0.0
-                    roi_disp_str = f"+${roi_dollar:,.2f}" if roi_dollar >= 0 else f"-${abs(roi_dollar):,.2f}"
-                    roi_pct_str = f"+{roi_percent:,.2f}%" if roi_dollar >= 0 else f"{roi_percent:,.2f}%"
-                    
-                    watchlist_grid_rows.append({
-                        "Ticker": wl_ticker, "Date Added": fixed_date, "Fixed Entry Price": f"${fixed_entry_px:,.2f} {currency_lbl}",
-                        "Current Live Price": f"${live_px:,.2f} {currency_lbl}", "Theoretical ROI ($)": roi_disp_str, "Theoretical ROI (%)": roi_pct_str
-                    })
-                except:
-                    pass
-                    
-            if watchlist_grid_rows:
-                st.dataframe(pd.DataFrame(watchlist_grid_rows), use_container_width=True, hide_index=True)
-                if st.button("🗑️ Flush Watchlist Grid Memory Arrays", use_container_width=True):
-                    disk_memory["paper_positions"] = {}
-                    with open(TARGETS_FILE, 'w') as f: 
-                        json.dump(disk_memory, f, indent=4)
-                    st.rerun()
-            else:
-                st.caption("Your watchlist grid is currently empty. Choose a ticker on the left to pin it down permanently.")
-        # =============================================================================
-        # 8. HIGH-SPEED LIGHTWEIGHT OVERLAY CHART
-        # =============================================================================
-        st.markdown("---")
-        st.markdown("<div class='small-header'>📈 Global Chart Engine Analytics Overlay</div>", unsafe_allow_html=True)
-        
-        available_charts = df_grid["Ticker"].tolist()
-        selected_ticker = st.radio("Select an Asset to View Moving Average Overlays:", options=available_charts, horizontal=True)
-        
-        if selected_ticker and not st.session_state.cached_raw_data.empty:
+watch_col1, watch_col2 = st.columns([1, 2])
+
+with watch_col1:
+    st.markdown("##### Add Assets")
+    target_wl_ticker = st.selectbox("Select via Top Screener Matrix Output:", options=[""] + all_discoverable_tickers, index=0, key="wl_pin_select_key")
+    custom_wl_ticker = st.text_input("Or Type Any Custom Asset Code Manually:", value="", key="custom_ticker_input_key").strip().upper()
+    
+    final_add_ticker = custom_wl_ticker if custom_wl_ticker else target_wl_ticker
+    
+    if st.button("➕ LOCK TICKER TO WATCHLIST BACKEND", use_container_width=True, type="primary"):
+        if final_add_ticker:
             try:
-                possible_close_cols = [f"Close_{selected_ticker}", selected_ticker, 'Close']
-                target_col = None
+                live_price_now = None
+                if not st.session_state.cached_raw_data.empty and f"Close_{final_add_ticker}" in st.session_state.cached_raw_data.columns:
+                    live_price_now = float(st.session_state.cached_raw_data[f"Close_{final_add_ticker}"].dropna().iloc[-1])
+                else:
+                    ticker_obj = yf.Ticker(final_add_ticker)
+                    live_price_now = float(ticker_obj.history(period="1d")['Close'].iloc[-1])
+                
+                current_timestamp = datetime.now(ZoneInfo("Pacific/Auckland")).strftime("%Y-%m-%d %I:%M %p")
+                asset_full_name = disk_names.get(final_add_ticker, final_add_ticker)
+                
+                st.session_state.disk_memory["paper_positions"][final_add_ticker] = {
+                    "asset_name": asset_full_name,
+                    "entry": live_price_now, 
+                    "entry_date": current_timestamp
+                }
+                with open(TARGETS_FILE, 'w') as f: 
+                    json.dump(st.session_state.disk_memory, f, indent=4)
+                st.toast(f"Successfully locked {final_add_ticker} inside watchlist backend!")
+                st.rerun()
+            except Exception as err:
+                st.error(f"Failed to lookup asset price for code '{final_add_ticker}'. Verify code syntax.")
+        else:
+            st.warning("Please choose a ticker code selection target first.")
+
+with watch_col2:
+    st.markdown("##### Active Watchlist Matrix Rows")
+    watchlist_grid_rows = []
+    
+    for wl_ticker, wl_meta in list(st.session_state.disk_memory["paper_positions"].items()):
+        try:
+            live_px = None
+            if not st.session_state.cached_raw_data.empty and f"Close_{wl_ticker}" in st.session_state.cached_raw_data.columns:
+                live_px = float(st.session_state.cached_raw_data[f"Close_{wl_ticker}"].dropna().iloc[-1])
+            else:
+                live_px = float(wl_meta.get("entry", 0.0))
+                
+            fixed_entry_px = float(wl_meta.get("entry", live_px))
+            fixed_date = wl_meta.get("entry_date", "N/A")
+            lbl_name = wl_meta.get("asset_name", wl_ticker)
+            currency_lbl = "USD" if not (wl_ticker.endswith(".NZ") or wl_ticker.endswith(".AX")) else ("AUD" if wl_ticker.endswith(".AX") else "NZD")
+            
+            roi_dollar = live_px - fixed_entry_px
+            roi_percent = (roi_dollar / fixed_entry_px) * 100 if fixed_entry_px > 0 else 0.0
+            
+            watchlist_grid_rows.append({
+                "Delete": False,
+                "Ticker": wl_ticker, 
+                "Asset Name": lbl_name,
+                "Date Added": fixed_date, 
+                "Fixed Entry": f"${fixed_entry_px:,.2f} {currency_lbl}",
+                "Current Live": f"${live_px:,.2f} {currency_lbl}", 
+                "ROI ($)": f"+${roi_dollar:,.2f}" if roi_dollar >= 0 else f"-${abs(roi_dollar):,.2f}", 
+                "ROI (%)": f"+{roi_percent:,.2f}%" if roi_dollar >= 0 else f"{roi_percent:,.2f}%"
+            })
+        except:
+            pass
+            
+    if watchlist_grid_rows:
+        wl_df = pd.DataFrame(watchlist_grid_rows)
+        # Interactive grid selector deck configuration
+        edited_wl_df = st.data_editor(
+            wl_df, 
+            use_container_width=True, 
+            hide_index=True,
+            column_config={"Delete": st.column_config.CheckboxColumn(help="Select lines to drop")}
+        )
+        
+        # Selective removal processing execution block
+        dropped_tickers = edited_wl_df[edited_wl_df["Delete"] == True]["Ticker"].tolist()
+        if dropped_tickers:
+            if st.button("🗑️ PURGE SELECTED WATCHLIST ROWS", use_container_width=True, type="secondary"):
+                for t_drop in dropped_tickers:
+                    if t_drop in st.session_state.disk_memory["paper_positions"]:
+                        del st.session_state.disk_memory["paper_positions"][t_drop]
+                with open(TARGETS_FILE, 'w') as f: 
+                    json.dump(st.session_state.disk_memory, f, indent=4)
+                st.toast(f"Dropped {len(dropped_tickers)} tracked entries out of matrix storage.")
+                st.rerun()
+    else:
+        st.caption("Watchlist backend is currently empty. Choose a ticker entry framework on the left.")
+
+# =============================================================================
+# 8. HIGH-SPEED LIGHTWEIGHT OVERLAY CHART (FIXED: OUTSIDE DEEP CONTEXT LOGIC)
+# =============================================================================
+st.markdown("---")
+st.markdown("<div class='small-header'>📈 Global Chart Engine Analytics Overlay</div>", unsafe_allow_html=True)
+
+available_charts = list(st.session_state.disk_memory["paper_positions"].keys()) + (df_grid["Ticker"].tolist() if not df_grid.empty else [])
+available_charts = list(dict.fromkeys([t for t in available_charts if t]))
+
+if available_charts:
+    selected_ticker = st.radio("Select an Asset to View Moving Average Overlays:", options=available_charts, horizontal=True)
+    
+    if selected_ticker:
+        try:
+            target_col = None
+            possible_close_cols = [f"Close_{selected_ticker}", selected_ticker, 'Close']
+            
+            if not st.session_state.cached_raw_data.empty:
                 for col in possible_close_cols:
                     if col in st.session_state.cached_raw_data.columns:
                         target_col = col
                         break
-                        
-                chart_df = pd.DataFrame({'Close': st.session_state.cached_raw_data[target_col]}).ffill().bfill().dropna(subset=['Close'])
-                chart_df['Fast_MA_Line'] = chart_df['Close'].rolling(window=int(fast_ma_slider), min_periods=1).mean()
-                chart_df['Slow_MA_Line'] = chart_df['Close'].rolling(window=int(slow_ma_slider), min_periods=1).mean()
-                chart_df.index = pd.to_datetime(chart_df.index).strftime('%Y-%m-%d')
-                chart_df = chart_df.reset_index().rename(columns={'index': 'Date'})
-                chart_df.columns = [str(c) for c in chart_df.columns]
+            
+            if target_col is None:
+                lookback_start = datetime.today() - timedelta(days=days_lookback_value)
+                single_chart_df = yf.download(selected_ticker, start=lookback_start, progress=False)
+                chart_df = pd.DataFrame({'Close': single_chart_df['Close']})
+            else:
+                chart_df = pd.DataFrame({'Close': st.session_state.cached_raw_data[target_col]})
                 
-                y_scale = alt.Scale(domain=[chart_df['Close'].min() * 0.95, chart_df['Close'].max() * 1.05], clamp=True)
-                base = alt.Chart(chart_df).encode(x='Date:T').properties(height=300)
-                c_line = base.mark_line(color='#4A90E2', strokeWidth=3).encode(y=alt.Y('Close:Q', scale=y_scale, title="Price ($)"))
-                f_line = base.mark_line(color='#00FF66', strokeWidth=2).encode(y='Fast_MA_Line:Q')
-                s_line = base.mark_line(color='#FF3333', strokeWidth=2).encode(y='Slow_MA_Line:Q')
-                
-                st.altair_chart(alt.layer(c_line, f_line, s_line), use_container_width=True)
-                st.caption(f"🔵 Blue = Price | 🟢 Green = {fast_ma_slider}-Day Fast MA | 🔴 Red = {slow_ma_slider}-Day Slow MA")
-            except Exception as chart_fault:
-                st.info("Chart alignment processing. Checking data parameters.")
-        else:
-            st.sidebar.info("No active setups match your filtering criteria right now.")
-    else:
-        st.sidebar.info("No active setups match your filtering criteria right now.")
+            chart_df = chart_df.ffill().bfill().dropna(subset=['Close'])
+            chart_df['Fast_MA_Line'] = chart_df['Close'].rolling(window=int(fast_ma_slider), min_periods=1).mean()
+            chart_df['Slow_MA_Line'] = chart_df['Close'].rolling(window=int(slow_ma_slider), min_periods=1).mean()
+            chart_df.index = pd.to_datetime(chart_df.index).strftime('%Y-%m-%d')
+            chart_df = chart_df.reset_index().rename(columns={'index': 'Date'})
+            chart_df.columns = [str(c) for c in chart_df.columns]
+            
+            y_scale = alt.Scale(domain=[chart_df['Close'].min() * 0.95, chart_df['Close'].max() * 1.05], clamp=True)
+            base = alt.Chart(chart_df).encode(x='Date:T').properties(height=300)
+            c_line = base.mark_line(color='#4A90E2', strokeWidth=3).encode(y=alt.Y('Close:Q', scale=y_scale, title="Price ($)"))
+            f_line = base.mark_line(color='#00FF66', strokeWidth=2).encode(y='Fast_MA_Line:Q')
+            s_line = base.mark_line(color='#FF3333', strokeWidth=2).encode(y='Slow_MA_Line:Q')
+            
+            st.altair_chart(alt.layer(c_line, f_line, s_line), use_container_width=True)
+            st.caption(f"🔵 Blue = Price | 🟢 Green = {fast_ma_slider}-Day Fast MA | 🔴 Red = {slow_ma_slider}-Day Slow MA")
+        except Exception as chart_fault:
+            st.info("No timeline data loaded or formatting chart properties matrix index profiles.")
 else:
-    st.sidebar.info("No tickers matching crossover momentum velocity rules right now.")
+    st.info("Pin items into your tracking watchlist above or adjust criteria filters to populate chart profiles.")

@@ -1,8 +1,8 @@
 {
     "wallet_cash": {
-        "NZD": 258.34,
+        "NZD": 251.34,
         "AUD": 177.82,
-        "USD": 302.91,
+        "USD": 111.34,
         "Pending_NZD": 0.0,
         "Pending_AUD": 0.0,
         "Pending_USD": 0.0
@@ -13,9 +13,9 @@
         "roi_window": "1 Year"
     },
     "positions": {
-        "XLE": {
-            "shares": 0.0,
-            "entry": 0.0,
+        "FSLR": {
+            "shares": 1.0,
+            "entry": 191.57,
             "upper": 0.0,
             "fixed_stop_distance": 0.0
         }
@@ -27,12 +27,14 @@
     ],
     "paper_positions": {
         "KDP": {
+            "shares": 1.0,
             "entry": 37.07939910888672,
-            "entry_date": "2026-11-05 07:52 AM"
+            "entry_date": "2026-11-06"
         },
         "FSLR": {
+            "shares": 1.0,
             "entry": 198.59010314941406,
-            "entry_date": "2026-11-05 07:54 AM"
+            "entry_date": "2026-11-06"
         }
     }
 }

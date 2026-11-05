@@ -20,7 +20,7 @@ st.set_page_config(
 )
 
 # =============================================================================
-# 2. COMPLETE LIGHT-THEME STYLING INJECTION (REVISED FOR VISIBLE HEADERS)
+# 2. COMPLETE LIGHT-THEME STYLING INJECTION
 # =============================================================================
 st.markdown(
     """
@@ -32,7 +32,6 @@ st.markdown(
         .stTabs [data-baseweb="tab-list"] { gap: 16px !important; margin-bottom: 15px !important; }
         .stTabs [data-baseweb="tab-panel"] { padding-top: 10px !important; }
         
-        /* 👑 STYLES ALL TABLES AND LEDGERS IN CRISP BLACK FOR ALL TEXT ELEMENTS */
         div[data-testid="stDataFrame"] *, 
         div[data-testid="stDataFrame"] [role="columnheader"] span,
         div[data-testid="stDataFrame"] div,
@@ -42,7 +41,6 @@ st.markdown(
             font-weight: 600 !important;
         }
         
-        /* Forces the text inside table headers to remain bold and sharp */
         div[data-testid="stDataFrame"] [role="columnheader"] * {
             font-weight: bold !important;
             color: #111111 !important;
@@ -54,7 +52,7 @@ st.markdown(
 
 TARGETS_FILE = "portfolio_targets.json"
 # =============================================================================
-# 3. HIGH-SPEED COMPANY NAME DICTIONARY MAPPING ENGINE (AUTO-JSON GENERATION)
+# 3. HIGH-SPEED COMPANY NAME DICTIONARY MAPPING ENGINE
 # =============================================================================
 def load_company_names():
     json_path = "master_tickers.json"
@@ -93,7 +91,9 @@ def load_company_names():
 
 company_name_map = load_company_names()
 
-# 4. Load Workspace json state files from local disk memory
+# =============================================================================
+# 4. HOISTED REAL-TIME STATE SYNCHRONIZATION ENGINE (FIXES REAL-TIME CASH LAG)
+# =============================================================================
 disk_memory = {}
 if os.path.exists(TARGETS_FILE):
     try:
@@ -105,6 +105,14 @@ runtime_watchlist = disk_memory.get("watchlist_tickers", [])
 runtime_cash = disk_memory.get("wallet_cash", {"NZD": 14.52, "AUD": 0.00, "USD": 78.24})
 runtime_sliders = disk_memory.get("sliders", {"fast_ma": 10, "slow_ma": 50, "roi_window": "1 Year"})
 runtime_paper = disk_memory.get("paper_positions", {})
+
+# 🟢 MASTER CASH FIX: Directly connect variables to live UI state right away to completely wipe out calculations lag
+cash_nzd = float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 14.52)))
+cash_aud = float(st.session_state.get("cash_aud_input", runtime_cash.get("AUD", 0.00)))
+cash_usd = float(st.session_state.get("cash_usd_input", runtime_cash.get("USD", 78.24)))
+pending_nzd = float(st.session_state.get("pending_nzd_input", runtime_cash.get("Pending_NZD", 0.00)))
+pending_aud = float(st.session_state.get("pending_aud_input", runtime_cash.get("Pending_AUD", 0.00)))
+pending_usd = float(st.session_state.get("pending_usd_input", runtime_cash.get("Pending_USD", 0.00)))
 # 5. High-Speed Cached Concurrent Market Downloader Block
 @st.cache_data(ttl=300)
 def fetch_market_matrix_concurrent(tickers, lookback_days):
@@ -216,7 +224,7 @@ with control_tab2:
     for i in range(6):
         ticker = portfolio_slots[i]
         
-        # 🟢 FIX: Read the live UI state text before falling back to old disk files
+        # 🟢 THE HEADERS SYNC FIX: Grab typing indicators immediately so text labels sync before hitting save
         state_key = f"port_slot_{i}"
         if state_key in st.session_state and st.session_state[state_key].strip() != "":
             active_display_ticker = st.session_state[state_key].upper().strip()
@@ -233,7 +241,6 @@ with control_tab2:
                 st.number_input("Entry Cost", min_value=0.0, value=float(stored.get("entry", 0.0)), step=0.01, format="%.2f", key=f"entry_{i}")
                 st.number_input("Upper Target", min_value=0.0, value=float(stored.get("upper", 0.0)), step=0.01, format="%.2f", key=f"up_{i}")
                 st.number_input("Stop Distance", min_value=0.0, value=float(stored.get("fixed_stop_distance", 15.0)), step=0.5, format="%.2f", key=f"fixed_stop_{i}")
-
 with control_tab3:
     paper_slots = list(runtime_paper.keys())[:6]
     while len(paper_slots) < 6: 
@@ -244,7 +251,7 @@ with control_tab3:
         p_ticker = paper_slots[i]
         state_paper_key = f"paper_slot_{i}"
         
-        # Check current live user text entries instantly
+        # 🟢 PAPER HEADERS SYNC FIX: Synchronize active names instantly as you type
         if state_paper_key in st.session_state and st.session_state[state_paper_key].strip() != "":
             active_display_paper = st.session_state[state_paper_key].upper().strip()
         else:
@@ -271,7 +278,6 @@ with control_tab3:
                 st.date_input("Calendar Entry Date", value=d_date, key=f"paper_date_{i}")
 
 if save_trigger:
-    # 🟢 FIX 1: Read existing deep disk memory values to keep slots over index index 6 from getting deleted
     live_positions = dict(runtime_positions)
     live_paper = dict(runtime_paper)
 
@@ -303,15 +309,10 @@ if save_trigger:
             orig_paper = paper_slots[idx]
             if orig_paper in live_paper: del live_paper[orig_paper]
 
-    # 🟢 FIX 2: Correctly pull live numbers from st.session_state widgets to sync the cash wallet inputs
     live_bounds = {
         "wallet_cash": {
-            "NZD": float(st.session_state.get("cash_nzd_input", 14.52)), 
-            "AUD": float(st.session_state.get("cash_aud_input", 0.00)), 
-            "USD": float(st.session_state.get("cash_usd_input", 78.24)),
-            "Pending_NZD": float(st.session_state.get("pending_nzd_input", 0.00)),
-            "Pending_AUD": float(st.session_state.get("pending_aud_input", 0.00)),
-            "Pending_USD": float(st.session_state.get("pending_usd_input", 0.00))
+            "NZD": cash_nzd, "AUD": cash_aud, "USD": cash_usd,
+            "Pending_NZD": pending_nzd, "Pending_AUD": pending_aud, "Pending_USD": pending_usd
         },
         "sliders": {"fast_ma": int(st.session_state["fast_ma"]), "slow_ma": int(st.session_state["slow_ma"]), "roi_window": st.session_state["roi_window"]},
         "positions": live_positions, 
@@ -415,7 +416,7 @@ if not RAW_MARKET_BATCH.empty:
             else:
                 strategy_status = "🔴 Structural Bear"
             
-            # 🟢 FIX 3: Fully separate ROI formulas for Portfolio vs Paper setups inside the asset tracker grid
+            # Fully separate ROI formulas for Portfolio vs Paper setups inside asset tracker grid
             if ticker in clean_portfolio_list or clean_ticker_key in clean_portfolio_list:
                 stored_block = runtime_positions.get(ticker, runtime_positions.get(clean_ticker_key, {}))
                 entry_p_calc = float(stored_block.get("entry", 0.0))
@@ -456,17 +457,11 @@ if not RAW_MARKET_BATCH.empty:
             pass
 st.markdown("#### 💼 Layer A: My Portfolio Ledger")
 
-# Calculate cash balances and FX conversions first (regardless of share positions)
-cash_nzd = float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 14.52)))
-cash_aud = float(st.session_state.get("cash_aud_input", runtime_cash.get("AUD", 0.00)))
-cash_usd = float(st.session_state.get("cash_usd_input", runtime_cash.get("USD", 78.24)))
-pending_nzd = float(st.session_state.get("pending_nzd_input", runtime_cash.get("Pending_NZD", 0.00)))
-pending_aud = float(st.session_state.get("pending_aud_input", runtime_cash.get("Pending_AUD", 0.00)))
-pending_usd = float(st.session_state.get("pending_usd_input", runtime_cash.get("Pending_USD", 0.00)))
-
+# 🟢 REMOVED DUPLICATE VARIABLE OVERWRITES HERE. Calculations now cleanly reference the hoisted real-time variables.
 available_cash_nzd = cash_nzd + (cash_aud * aud_to_nzd_rate) + (cash_usd * usd_to_nzd_rate)
 pending_cash_nzd = pending_nzd + (pending_aud * aud_to_nzd_rate) + (pending_usd * usd_to_nzd_rate)
 integ_cash_nzd = available_cash_nzd + pending_cash_nzd
+
 if active_live_positions:
     p_df = pd.DataFrame(active_live_positions)
     p_df["P&L (NZD)"] = p_df["Value (NZD)"] - p_df["Cost (NZD)"]
@@ -568,6 +563,7 @@ if master_unified_rows:
     st.components.v1.html(portfolio_combined_html, height=340, scrolling=False)
 else:
     st.info("💡 Portfolio overview data matrix processing.")
+
 # =============================================================================
 # 🔍 Core System Chart Analytics
 # =============================================================================

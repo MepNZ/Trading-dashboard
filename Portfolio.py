@@ -223,24 +223,26 @@ with control_tab2:
     slot_cols = st.columns(3)
     for i in range(6):
         ticker = portfolio_slots[i]
-        
-        # 🟢 THE HEADERS SYNC FIX: Grab typing indicators immediately so text labels sync before hitting save
         state_key = f"port_slot_{i}"
+        
+        # 🟢 THE SEPARATION FIX: Isolate loop state checking completely per index iteration
         if state_key in st.session_state and st.session_state[state_key].strip() != "":
-            active_display_ticker = st.session_state[state_key].upper().strip()
+            slot_input_value = st.session_state[state_key].upper().strip()
         else:
-            active_display_ticker = ticker if "EMPTY" not in ticker else ""
+            slot_input_value = ticker if "EMPTY" not in ticker else ""
             
         stored = runtime_positions.get(ticker, {}) if "EMPTY" not in ticker else {}
-        display_label = active_display_ticker if active_display_ticker else "Empty Slot"
+        display_label = slot_input_value if slot_input_value else "Empty Slot"
         
         with slot_cols[i % 3]:
             with st.expander(f"Slot {i+1}: {display_label}", expanded=False):
-                st.text_input(f"Ticker Symbol", value=active_display_ticker, key=state_key)
+                # Using isolated slot_input_value forces each slot to only check its own text key
+                st.text_input(f"Ticker Symbol", value=slot_input_value, key=state_key)
                 st.number_input("Shares Owned", min_value=0.0, value=float(stored.get("shares", 0.0)), step=0.01, format="%.4f", key=f"shares_{i}")
                 st.number_input("Entry Cost", min_value=0.0, value=float(stored.get("entry", 0.0)), step=0.01, format="%.2f", key=f"entry_{i}")
                 st.number_input("Upper Target", min_value=0.0, value=float(stored.get("upper", 0.0)), step=0.01, format="%.2f", key=f"up_{i}")
                 st.number_input("Stop Distance", min_value=0.0, value=float(stored.get("fixed_stop_distance", 15.0)), step=0.5, format="%.2f", key=f"fixed_stop_{i}")
+
 with control_tab3:
     paper_slots = list(runtime_paper.keys())[:6]
     while len(paper_slots) < 6: 

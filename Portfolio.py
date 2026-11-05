@@ -242,13 +242,18 @@ with control_tab3:
     paper_cols = st.columns(3)
     for i in range(6):
         p_ticker = paper_slots[i]
+        state_paper_key = f"paper_slot_{i}"
         
+        # Check current live user text entries instantly
+        if state_paper_key in st.session_state and st.session_state[state_paper_key].strip() != "":
+            active_display_paper = st.session_state[state_paper_key].upper().strip()
+        else:
+            active_display_paper = p_ticker if "EMPTY" not in p_ticker else ""
+            
         if "EMPTY" in p_ticker:
-            default_tk = ""
             default_ep = 0.0
             stored_date_str = None
         else:
-            default_tk = p_ticker
             p_stored = runtime_paper.get(p_ticker, {})
             default_ep = float(p_stored.get("entry", 0.0))
             stored_date_str = p_stored.get("entry_date", None)
@@ -259,9 +264,9 @@ with control_tab3:
             d_date = datetime.today().date()
             
         with paper_cols[i % 3]:
-            slot_header = f"Paper Slot {i+1}: {default_tk}" if default_tk else f"Paper Slot {i+1}: Empty"
+            slot_header = f"Paper Slot {i+1}: {active_display_paper}" if active_display_paper else f"Paper Slot {i+1}: Empty"
             with st.expander(slot_header, expanded=False):
-                st.text_input(f"Paper Ticker Symbol", value=default_tk, key=f"paper_slot_{i}")
+                st.text_input(f"Paper Ticker Symbol", value=active_display_paper, key=state_paper_key)
                 st.number_input("Paper Entry Price", min_value=0.0, value=default_ep, step=0.01, format="%.2f", key=f"paper_entry_{i}")
                 st.date_input("Calendar Entry Date", value=d_date, key=f"paper_date_{i}")
 

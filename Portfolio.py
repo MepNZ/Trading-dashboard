@@ -12,15 +12,14 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-# 1. Enforce wide-screen single dashboard orientation layout
+# Enforce wide-screen single dashboard orientation layout
 st.set_page_config(
     page_title="Mike's Share Market Dashboard", 
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-
 # =============================================================================
-# 2. COMPLETE LIGHT-THEME STYLING INJECTION
+# LIGHT-THEME STYLING INJECTION
 # =============================================================================
 st.markdown(
     """
@@ -52,7 +51,7 @@ st.markdown(
 
 TARGETS_FILE = "portfolio_targets.json"
 # =============================================================================
-# 3. HIGH-SPEED COMPANY NAME DICTIONARY MAPPING ENGINE
+# COMPANY NAME DICTIONARY MAPPING ENGINE
 # =============================================================================
 def load_company_names():
     json_path = "master_tickers.json"
@@ -90,9 +89,8 @@ def load_company_names():
     return {}
 
 company_name_map = load_company_names()
-
 # =============================================================================
-# 4. HOISTED REAL-TIME STATE SYNCHRONIZATION ENGINE (FIXES REAL-TIME CASH LAG)
+# HOISTED REAL-TIME STATE SYNCHRONIZATION ENGINE (FIXES REAL-TIME CASH LAG)
 # =============================================================================
 disk_memory = {}
 if os.path.exists(TARGETS_FILE):
@@ -106,14 +104,15 @@ runtime_cash = disk_memory.get("wallet_cash", {"NZD": 14.52, "AUD": 0.00, "USD":
 runtime_sliders = disk_memory.get("sliders", {"fast_ma": 10, "slow_ma": 50, "roi_window": "1 Year"})
 runtime_paper = disk_memory.get("paper_positions", {})
 
-# 🟢 MASTER CASH FIX: Directly connect variables to live UI state right away to completely wipe out calculations lag
+# MASTER CASH CONNECTION: Direct linking to session states prevents calculation steps lag
 cash_nzd = float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 14.52)))
 cash_aud = float(st.session_state.get("cash_aud_input", runtime_cash.get("AUD", 0.00)))
 cash_usd = float(st.session_state.get("cash_usd_input", runtime_cash.get("USD", 78.24)))
 pending_nzd = float(st.session_state.get("pending_nzd_input", runtime_cash.get("Pending_NZD", 0.00)))
 pending_aud = float(st.session_state.get("pending_aud_input", runtime_cash.get("Pending_AUD", 0.00)))
 pending_usd = float(st.session_state.get("pending_usd_input", runtime_cash.get("Pending_USD", 0.00)))
-# 5. High-Speed Cached Concurrent Market Downloader Block
+
+# High-Speed Cached Concurrent Market Downloader Block
 @st.cache_data(ttl=300)
 def fetch_market_matrix_concurrent(tickers, lookback_days):
     if not tickers:
@@ -125,7 +124,7 @@ def fetch_market_matrix_concurrent(tickers, lookback_days):
     except Exception:
         return pd.DataFrame()
 
-# 6. Live FX Rate Fetcher Engine Block
+# Live FX Rate Fetcher Engine Block
 @st.cache_data(ttl=300)
 def get_live_fx_rates():
     nzd_rate, aud_rate = 1.7540, 1.1000
@@ -142,8 +141,7 @@ def get_live_fx_rates():
     return nzd_rate, aud_rate
 
 usd_to_nzd_rate, aud_to_nzd_rate = get_live_fx_rates()
-
-# 7. Clean structural clocks tracking banner matching original layout specs
+# Exchange status clock tracking layouts
 def get_exchange_status_badge(tz_name, open_hour=9, open_min=30, close_hour=16, close_min=0, is_nz_au=False):
     if is_nz_au: open_hour, open_min = 10, 0
     try:
@@ -178,7 +176,6 @@ with head_col2:
     save_trigger = st.button("💾 SAVE & SYNC WORKSPACE", type="primary", use_container_width=True)
 
 control_tab1, control_tab2, control_tab3 = st.tabs(["⚙️ Parameters", "📐 Portfolio Slots", "🧪 Paper Trading"])
-
 with control_tab1:
     c_col1, c_col2, c_col3 = st.columns(3)
     with c_col1:
@@ -194,145 +191,102 @@ with control_tab1:
     
     with c_col3:
         st.markdown("#### 💼 Sharesies Vault (Available vs Pending)")
-        
-        # --- NZD Row ---
         nzd_left, nzd_right = st.columns(2)
-        with nzd_left:
-            st.number_input("NZD $ Available", min_value=0.0, value=float(runtime_cash.get("NZD", 14.52)), step=1.0, format="%.2f", key="cash_nzd_input")
-        with nzd_right:
-            st.number_input("NZD $ Pending", min_value=0.0, value=float(runtime_cash.get("Pending_NZD", 0.00)), step=1.0, format="%.2f", key="pending_nzd_input")
-            
-        # --- AUD Row ---
+        with nzd_left: st.number_input("NZD $ Available", min_value=0.0, value=float(runtime_cash.get("NZD", 14.52)), step=1.0, format="%.2f", key="cash_nzd_input")
+        with nzd_right: st.number_input("NZD $ Pending", min_value=0.0, value=float(runtime_cash.get("Pending_NZD", 0.00)), step=1.0, format="%.2f", key="pending_nzd_input")
         aud_left, aud_right = st.columns(2)
-        with aud_left:
-            st.number_input("AUD $ Available", min_value=0.0, value=float(runtime_cash.get("AUD", 0.00)), step=1.0, format="%.2f", key="cash_aud_input")
-        with aud_right:
-            st.number_input("AUD $ Pending", min_value=0.0, value=float(runtime_cash.get("Pending_AUD", 0.00)), step=1.0, format="%.2f", key="pending_aud_input")
-            
-        # --- USD Row ---
+        with aud_left: st.number_input("AUD $ Available", min_value=0.0, value=float(runtime_cash.get("AUD", 0.00)), step=1.0, format="%.2f", key="cash_aud_input")
+        with aud_right: st.number_input("AUD $ Pending", min_value=0.0, value=float(runtime_cash.get("Pending_AUD", 0.00)), step=1.0, format="%.2f", key="pending_aud_input")
         usd_left, usd_right = st.columns(2)
-        with usd_left:
-            st.number_input("USD $ Available", min_value=0.0, value=float(runtime_cash.get("USD", 78.24)), step=1.0, format="%.2f", key="cash_usd_input")
-        with usd_right:
-            st.number_input("USD $ Pending", min_value=0.0, value=float(runtime_cash.get("Pending_USD", 0.00)), step=1.0, format="%.2f", key="pending_usd_input")
+        with usd_left: st.number_input("USD $ Available", min_value=0.0, value=float(runtime_cash.get("USD", 78.24)), step=1.0, format="%.2f", key="cash_usd_input")
+        with usd_right: st.number_input("USD $ Pending", min_value=0.0, value=float(runtime_cash.get("Pending_USD", 0.00)), step=1.0, format="%.2f", key="pending_usd_input")
 
-portfolio_slots = list(runtime_positions.keys())[:6]
-while len(portfolio_slots) < 6: portfolio_slots.append(f"EMPTY_PORT_{len(portfolio_slots)+1}")
+# 🟢 MASTER FIX: Generate slot tracking sequences completely decoupled from asset dictionaries
+portfolio_keys = [k for k in runtime_positions.keys() if k and "EMPTY" not in k]
+paper_keys = [k for k in runtime_paper.keys() if k and "EMPTY" not in k]
 
 with control_tab2:
     slot_cols = st.columns(3)
     for i in range(6):
-        ticker = portfolio_slots[i]
         state_key = f"port_slot_{i}"
         
-        # 🟢 THE SEPARATION FIX: Isolate loop state checking completely per index iteration
-        if state_key in st.session_state and st.session_state[state_key].strip() != "":
-            slot_input_value = st.session_state[state_key].upper().strip()
+        # Access saved data purely by indexed sequence position
+        if i < len(portfolio_keys):
+            stored_ticker = portfolio_keys[i]
+            stored_data = runtime_positions.get(stored_ticker, {})
         else:
-            slot_input_value = ticker if "EMPTY" not in ticker else ""
+            stored_ticker, stored_data = "", {}
             
-        stored = runtime_positions.get(ticker, {}) if "EMPTY" not in ticker else {}
-        display_label = slot_input_value if slot_input_value else "Empty Slot"
+        if state_key in st.session_state: 
+            current_input_val = st.session_state[state_key].upper().strip()
+        else: 
+            current_input_val = stored_ticker
+            
+        display_label = current_input_val if current_input_val else "Empty Slot"
         
         with slot_cols[i % 3]:
             with st.expander(f"Slot {i+1}: {display_label}", expanded=False):
-                # Using isolated slot_input_value forces each slot to only check its own text key
-                st.text_input(f"Ticker Symbol", value=slot_input_value, key=state_key)
-                st.number_input("Shares Owned", min_value=0.0, value=float(stored.get("shares", 0.0)), step=0.01, format="%.4f", key=f"shares_{i}")
-                st.number_input("Entry Cost", min_value=0.0, value=float(stored.get("entry", 0.0)), step=0.01, format="%.2f", key=f"entry_{i}")
-                st.number_input("Upper Target", min_value=0.0, value=float(stored.get("upper", 0.0)), step=0.01, format="%.2f", key=f"up_{i}")
-                st.number_input("Stop Distance", min_value=0.0, value=float(stored.get("fixed_stop_distance", 15.0)), step=0.5, format="%.2f", key=f"fixed_stop_{i}")
+                # Force the default text field value to pull from your database lookup variables
+                st.text_input(f"Ticker Symbol", value=stored_ticker, key=state_key)
+                st.number_input("Shares Owned", min_value=0.0, value=float(stored_data.get("shares", 0.0)), step=0.01, format="%.4f", key=f"shares_{i}")
+                st.number_input("Entry Cost", min_value=0.0, value=float(stored_data.get("entry", 0.0)), step=0.01, format="%.2f", key=f"entry_{i}")
+                st.number_input("Upper Target", min_value=0.0, value=float(stored_data.get("upper", 0.0)), step=0.01, format="%.2f", key=f"up_{i}")
+                st.number_input("Stop Distance", min_value=0.0, value=float(stored_data.get("fixed_stop_distance", 15.0)), step=0.5, format="%.2f", key=f"fixed_stop_{i}")
 
 with control_tab3:
-    paper_slots = list(runtime_paper.keys())[:6]
-    while len(paper_slots) < 6: 
-        paper_slots.append(f"EMPTY_PAPER_{len(paper_slots)+1}")
-        
     paper_cols = st.columns(3)
     for i in range(6):
-        p_ticker = paper_slots[i]
         state_paper_key = f"paper_slot_{i}"
-        
-        # 🟢 PAPER HEADERS SYNC FIX: Synchronize active names instantly as you type
-        if state_paper_key in st.session_state and st.session_state[state_paper_key].strip() != "":
-            active_display_paper = st.session_state[state_paper_key].upper().strip()
+        if i < len(paper_keys):
+            stored_p_ticker = paper_keys[i]
+            stored_p_data = runtime_paper.get(stored_p_ticker, {})
         else:
-            active_display_paper = p_ticker if "EMPTY" not in p_ticker else ""
+            stored_p_ticker, stored_p_data = "", {}
             
-        if "EMPTY" in p_ticker:
-            default_ep = 0.0
-            stored_date_str = None
-        else:
-            p_stored = runtime_paper.get(p_ticker, {})
-            default_ep = float(p_stored.get("entry", 0.0))
-            stored_date_str = p_stored.get("entry_date", None)
+        if state_paper_key in st.session_state: current_p_input = st.session_state[state_paper_key].upper().strip()
+        else: current_p_input = stored_p_ticker
             
-        try: 
-            d_date = datetime.strptime(stored_date_str, "%Y-%m-%d").date() if stored_date_str else datetime.today().date()
-        except: 
-            d_date = datetime.today().date()
+        default_ep = float(stored_p_data.get("entry", 0.0))
+        stored_date_str = stored_p_data.get("entry_date", None)
+        try: d_date = datetime.strptime(stored_date_str, "%Y-%m-%d").date() if stored_date_str else datetime.today().date()
+        except: d_date = datetime.today().date()
             
         with paper_cols[i % 3]:
-            slot_header = f"Paper Slot {i+1}: {active_display_paper}" if active_display_paper else f"Paper Slot {i+1}: Empty"
+            slot_header = f"Paper Slot {i+1}: {current_p_input}" if current_p_input else f"Paper Slot {i+1}: Empty"
             with st.expander(slot_header, expanded=False):
-                st.text_input(f"Paper Ticker Symbol", value=active_display_paper, key=state_paper_key)
+                st.text_input(f"Paper Ticker Symbol", value=stored_p_ticker, key=state_paper_key)
                 st.number_input("Paper Entry Price", min_value=0.0, value=default_ep, step=0.01, format="%.2f", key=f"paper_entry_{i}")
                 st.date_input("Calendar Entry Date", value=d_date, key=f"paper_date_{i}")
 
 if save_trigger:
-    live_positions = dict(runtime_positions)
-    live_paper = dict(runtime_paper)
-
-    # Process portfolio input fields 
+    live_positions, live_paper = {}, {}
     for idx in range(6):
         t_input = st.session_state.get(f"port_slot_{idx}", "").upper().strip()
         if t_input and "EMPTY" not in t_input:
             live_positions[t_input] = {
-                "shares": float(st.session_state.get(f"shares_{idx}", 0.0)), 
-                "entry": float(st.session_state.get(f"entry_{idx}", 0.0)),
-                "upper": float(st.session_state.get(f"up_{idx}", 0.0)), 
-                "fixed_stop_distance": float(st.session_state.get(f"fixed_stop_{idx}", 15.0))
+                "shares": float(st.session_state.get(f"shares_{idx}", 0.0)), "entry": float(st.session_state.get(f"entry_{idx}", 0.0)),
+                "upper": float(st.session_state.get(f"up_{idx}", 0.0)), "fixed_stop_distance": float(st.session_state.get(f"fixed_stop_{idx}", 15.0))
             }
-        elif f"port_slot_{idx}" in st.session_state:
-            orig_ticker = portfolio_slots[idx]
-            if orig_ticker in live_positions: del live_positions[orig_ticker]
-            
-    # Process paper trading input fields
     for idx in range(6):
         p_input = st.session_state.get(f"paper_slot_{idx}", "").upper().strip()
         if p_input and "EMPTY" not in p_input:
             p_date = st.session_state.get(f"paper_date_{idx}", datetime.today().date())
-            live_paper[p_input] = {
-                "shares": 1.0, 
-                "entry": float(st.session_state.get(f"paper_entry_{idx}", 0.0)), 
-                "entry_date": p_date.strftime("%Y-%m-%d")
-            }
-        elif f"paper_slot_{idx}" in st.session_state:
-            orig_paper = paper_slots[idx]
-            if orig_paper in live_paper: del live_paper[orig_paper]
+            live_paper[p_input] = {"shares": 1.0, "entry": float(st.session_state.get(f"paper_entry_{idx}", 0.0)), "entry_date": p_date.strftime("%Y-%m-%d")}
 
     live_bounds = {
-        "wallet_cash": {
-            "NZD": cash_nzd, "AUD": cash_aud, "USD": cash_usd,
-            "Pending_NZD": pending_nzd, "Pending_AUD": pending_aud, "Pending_USD": pending_usd
-        },
+        "wallet_cash": {"NZD": cash_nzd, "AUD": cash_aud, "USD": cash_usd, "Pending_NZD": pending_nzd, "Pending_AUD": pending_aud, "Pending_USD": pending_usd},
         "sliders": {"fast_ma": int(st.session_state["fast_ma"]), "slow_ma": int(st.session_state["slow_ma"]), "roi_window": st.session_state["roi_window"]},
-        "positions": live_positions, 
-        "watchlist_tickers": runtime_watchlist, 
-        "paper_positions": live_paper
+        "positions": live_positions, "watchlist_tickers": runtime_watchlist, "paper_positions": live_paper
     }
-            
-    with open(TARGETS_FILE, 'w') as f: 
-        json.dump(live_bounds, f, indent=4)
-        
+    with open(TARGETS_FILE, 'w') as f: json.dump(live_bounds, f, indent=4)
     st.cache_data.clear()
     st.rerun()
-# 8. Core Sector Taxonomy Benchmarks List
+# Taxonomy references
 sector_mapping_dictionary = {
     "SPY": "🇺🇸 S&P 500 Index", "XLK": "Technology", "XLY": "Consumer Discretionary", 
     "XLC": "Communication", "XLF": "Financials", "XLV": "Healthcare", 
-    "XLP": "Consumer Staples", "XLI": "Industrials", 
-    "XLB": "Materials", "XLU": "Utilities", "XLRE": "Real Estate"
+    "XLP": "Consumer Staples", "XLI": "Industrials", "XLB": "Materials", 
+    "XLU": "Utilities", "XLRE": "Real Estate"
 }
 asset_sector_tags = {
     "XLE": "🛢️ Energy Sector", "MDT": "🩺 Healthcare", "HAS": "🎯 Consumer Goods",
@@ -350,40 +304,28 @@ horizon_days = lookback_days_map.get(chosen_horizon, 365)
 
 master_unified_rows, active_live_positions, operational_dfs, macro_sector_rows = [], [], {}, []
 
-if extended_fetching_tickers:
+if extended_fetching_tickers: 
     RAW_MARKET_BATCH = fetch_market_matrix_concurrent(extended_fetching_tickers, horizon_days)
-else:
+else: 
     RAW_MARKET_BATCH = pd.DataFrame()
-
 if not RAW_MARKET_BATCH.empty:
     for ticker in extended_fetching_tickers:
         try:
             clean_ticker_key = str(ticker).strip().upper()
             if isinstance(RAW_MARKET_BATCH.columns, pd.MultiIndex):
-                if ticker in RAW_MARKET_BATCH.columns.get_level_values(0):
-                    df_t = RAW_MARKET_BATCH[ticker].copy()
-                elif clean_ticker_key in RAW_MARKET_BATCH.columns.get_level_values(0):
-                    df_t = RAW_MARKET_BATCH[clean_ticker_key].copy()
-                else:
-                    continue
-            else:
-                df_t = RAW_MARKET_BATCH.copy()
+                if ticker in RAW_MARKET_BATCH.columns.get_level_values(0): df_t = RAW_MARKET_BATCH[ticker].copy()
+                elif clean_ticker_key in RAW_MARKET_BATCH.columns.get_level_values(0): df_t = RAW_MARKET_BATCH[clean_ticker_key].copy()
+                else: continue
+            else: df_t = RAW_MARKET_BATCH.copy()
                 
             df_t = df_t.ffill().bfill().dropna(subset=['Close'])
             if df_t.empty: continue
 
             df_t['Fast_MA'] = df_t['Close'].rolling(window=int(st.session_state["fast_ma"]), min_periods=1).mean()
             df_t['Slow_MA'] = df_t['Close'].rolling(window=int(st.session_state["slow_ma"]), min_periods=1).mean()
-            
             if 'High' in df_t.columns and 'Low' in df_t.columns:
-                df_t['True_Range'] = pd.concat([
-                    (df_t['High'] - df_t['Low']), 
-                    (df_t['High'] - df_t['Close'].shift(1)).abs(), 
-                    (df_t['Low'] - df_t['Close'].shift(1)).abs()
-                ], axis=1).max(axis=1)
-            else:
-                df_t['True_Range'] = df_t['Close'] * 0.02
-                
+                df_t['True_Range'] = pd.concat([(df_t['High'] - df_t['Low']), (df_t['High'] - df_t['Close'].shift(1)).abs(), (df_t['Low'] - df_t['Close'].shift(1)).abs()], axis=1).max(axis=1)
+            else: df_t['True_Range'] = df_t['Close'] * 0.02
             df_t['ATR'] = df_t['True_Range'].rolling(window=14, min_periods=1).mean()
             
             delta = df_t['Close'].diff()
@@ -393,32 +335,18 @@ if not RAW_MARKET_BATCH.empty:
             
             operational_dfs[ticker] = df_t
             operational_dfs[clean_ticker_key] = df_t
-            
-            last_close = float(df_t['Close'].iloc[-1])
-            rsi_val = float(df_t['RSI'].iloc[-1])
-            
+            last_close, rsi_val = float(df_t['Close'].iloc[-1]), float(df_t['RSI'].iloc[-1])
             if ticker in sector_mapping_dictionary:
-                rsi_lbl = f"{rsi_val:.1f} Healthy"
-                macro_sector_rows.append({
-                    "Sector Symbol": ticker, "Sector Domain Name": sector_mapping_dictionary[ticker], 
-                    "Closing Price": last_close, "RSI Status Value": rsi_val, "RSI Speedometer": rsi_lbl
-                })
+                macro_sector_rows.append({"Sector Symbol": ticker, "Sector Domain Name": sector_mapping_dictionary[ticker], "Closing Price": last_close, "RSI Status Value": rsi_val, "RSI Speedometer": f"{rsi_val:.1f} Healthy"})
                 continue
             
-            fast_ma_val = float(df_t['Fast_MA'].iloc[-1])
-            slow_ma_val = float(df_t['Slow_MA'].iloc[-1])
-            atr_val = float(df_t['ATR'].iloc[-1]) if df_t['ATR'].iloc[-1] > 0 else (last_close * 0.02)
-            
+            fast_ma_val, slow_ma_val, atr_val = float(df_t['Fast_MA'].iloc[-1]), float(df_t['Slow_MA'].iloc[-1]), float(df_t['ATR'].iloc[-1])
+            if atr_val <= 0: atr_val = last_close * 0.02
             safe_daily_limit_target = round((last_close - (0.50 * atr_val)) * 0.981, 2)
             safe_take_profit_target = round((safe_daily_limit_target + (2.0 * atr_val)) * 1.019, 2)
             resolved_name = company_name_map.get(clean_ticker_key, f"{ticker}")
+            strategy_status = "🟩 DUAL-TREND BREAKOUT" if last_close > fast_ma_val and last_close > slow_ma_val else "🔴 Structural Bear"
             
-            if last_close > fast_ma_val and last_close > slow_ma_val:
-                strategy_status = "🟩 DUAL-TREND BREAKOUT"
-            else:
-                strategy_status = "🔴 Structural Bear"
-            
-            # Fully separate ROI formulas for Portfolio vs Paper setups inside asset tracker grid
             if ticker in clean_portfolio_list or clean_ticker_key in clean_portfolio_list:
                 stored_block = runtime_positions.get(ticker, runtime_positions.get(clean_ticker_key, {}))
                 entry_p_calc = float(stored_block.get("entry", 0.0))
@@ -427,39 +355,22 @@ if not RAW_MARKET_BATCH.empty:
                 stored_paper_block = runtime_paper.get(ticker, runtime_paper.get(clean_ticker_key, {}))
                 entry_p_calc = float(stored_paper_block.get("entry", 0.0))
                 ticker_roi = (((last_close - entry_p_calc) / entry_p_calc) * 100) if entry_p_calc > 0.0 else 0.0
-            else:
-                ticker_roi = 0.0
+            else: ticker_roi = 0.0
             
             if ticker in all_active_workspace_tickers or clean_ticker_key in all_active_workspace_tickers:
-                master_unified_rows.append({
-                    "Ticker": ticker, "Sector": asset_sector_tags.get(ticker, "Other"), "Asset Name": resolved_name, 
-                    "Price": last_close, "Return": ticker_roi, "Limit Buy at": safe_daily_limit_target, 
-                    "T/P Exit": safe_take_profit_target, "Status": strategy_status, "Fast MA": fast_ma_val, 
-                    "Slow MA": slow_ma_val, "RSI": rsi_val, "ATR": atr_val
-                })
+                master_unified_rows.append({"Ticker": ticker, "Sector": asset_sector_tags.get(ticker, "Other"), "Asset Name": resolved_name, "Price": last_close, "Return": ticker_roi, "Limit Buy at": safe_daily_limit_target, "T/P Exit": safe_take_profit_target, "Status": strategy_status, "Fast MA": fast_ma_val, "Slow MA": slow_ma_val, "RSI": rsi_val, "ATR": atr_val})
                 
             if ticker in clean_portfolio_list or clean_ticker_key in clean_portfolio_list:
                 stored_block = runtime_positions.get(ticker, runtime_positions.get(clean_ticker_key, {}))
-                shares_num = float(stored_block.get("shares", 0.0))
-                entry_p = float(stored_block.get("entry", 0.0))
-                
+                shares_num, entry_p = float(stored_block.get("shares", 0.0)), float(stored_block.get("entry", 0.0))
                 if shares_num > 0:
                     cost_loc = shares_num * entry_p
                     currency_lbl = "USD" if not (ticker.endswith(".NZ") or ticker.endswith(".AX")) else ("AUD" if ticker.endswith(".AX") else "NZD")
                     mult = usd_to_nzd_rate if currency_lbl == "USD" else (aud_to_nzd_rate if currency_lbl == "AUD" else 1.0)
                     val_loc = shares_num * last_close
-                    
-                    active_live_positions.append({
-                        "Ticker": ticker, "Asset Name": resolved_name, "Shares": shares_num, "Currency": currency_lbl,
-                        "Bought at": entry_p, "Live price": last_close, "New Limit Buy": safe_daily_limit_target,   
-                        "Take Profit": safe_take_profit_target, "Cost (Loc)": cost_loc, "Cost (NZD)": cost_loc * mult, 
-                        "Value (Loc)": val_loc, "Value (NZD)": val_loc * mult, "Stop Loss": last_close - (2.0 * atr_val)
-                    })
-        except Exception:
-            pass
+                    active_live_positions.append({"Ticker": ticker, "Asset Name": resolved_name, "Shares": shares_num, "Currency": currency_lbl, "Bought at": entry_p, "Live price": last_close, "New Limit Buy": safe_daily_limit_target, "Take Profit": safe_take_profit_target, "Cost (Loc)": cost_loc, "Cost (NZD)": cost_loc * mult, "Value (Loc)": val_loc, "Value (NZD)": val_loc * mult, "Stop Loss": last_close - (2.0 * atr_val)})
+        except: pass
 st.markdown("#### 💼 Layer A: My Portfolio Ledger")
-
-# 🟢 REMOVED DUPLICATE VARIABLE OVERWRITES HERE. Calculations now cleanly reference the hoisted real-time variables.
 available_cash_nzd = cash_nzd + (cash_aud * aud_to_nzd_rate) + (cash_usd * usd_to_nzd_rate)
 pending_cash_nzd = pending_nzd + (pending_aud * aud_to_nzd_rate) + (pending_usd * usd_to_nzd_rate)
 integ_cash_nzd = available_cash_nzd + pending_cash_nzd
@@ -468,42 +379,26 @@ if active_live_positions:
     p_df = pd.DataFrame(active_live_positions)
     p_df["P&L (NZD)"] = p_df["Value (NZD)"] - p_df["Cost (NZD)"]
     p_df["ROI"] = (p_df["P&L (NZD)"] / p_df["Cost (NZD)"]) * 100
-    
-    cols_a = ["Ticker", "Asset Name", "Shares", "Currency", "Bought at", "Live price", 
-              "New Limit Buy", "Take Profit", "Cost (Loc)", "Cost (NZD)", 
-              "Value (Loc)", "Value (NZD)", "Stop Loss", "P&L (NZD)", "ROI"]
-    
-    tot_invest_nzd = p_df["Cost (NZD)"].sum()
-    tot_equity_nzd = p_df["Value (NZD)"].sum()
+    cols_a = ["Ticker", "Asset Name", "Shares", "Currency", "Bought at", "Live price", "New Limit Buy", "Take Profit", "Cost (Loc)", "Cost (NZD)", "Value (Loc)", "Value (NZD)", "Stop Loss", "P&L (NZD)", "ROI"]
+    tot_invest_nzd, tot_equity_nzd = p_df["Cost (NZD)"].sum(), p_df["Value (NZD)"].sum()
     tot_profit_nzd = tot_equity_nzd - tot_invest_nzd
     tot_roi_nzd = (tot_profit_nzd / tot_invest_nzd) * 100 if tot_invest_nzd > 0 else 0.0
     tot_app_value = tot_equity_nzd + integ_cash_nzd
     p_color, p_sign = ("#28a745", "+") if tot_profit_nzd >= 0 else ("#dc3545", "")
     
-    currency_cols_a = ["Bought at", "Live price", "New Limit Buy", "Take Profit", "Cost (Loc)", "Cost (NZD)", "Value (Loc)", "Value (NZD)", "Stop Loss", "P&L (NZD)"]
-    for col in currency_cols_a: p_df[col] = p_df[col].map("${:,.2f}".format)
+    for col in ["Bought at", "Live price", "New Limit Buy", "Take Profit", "Cost (Loc)", "Cost (NZD)", "Value (Loc)", "Value (NZD)", "Stop Loss", "P&L (NZD)"]: p_df[col] = p_df[col].map("${:,.2f}".format)
     p_df["ROI"] = p_df["ROI"].map("{:,.2f}%".format)
-    
     html_table_a = p_df[cols_a].to_html(index=False, escape=False, table_id="ledger-portfolio")
-    ledger_a_css = """
-    <style>
-        .ledger-a-scroll-window { max-height: 400px; overflow-y: auto !important; overflow-x: auto !important; border: 1px solid #D1D5DB; }
-        #ledger-portfolio { width: 100%; border-collapse: collapse; font-family: sans-serif; background-color: #FFFFFF !important; }
-        #ledger-portfolio th { position: -webkit-sticky !important; position: sticky !important; top: 0 !important; z-index: 10 !important; background-color: #E5E7EB !important; color: #111111 !important; font-size: 1.00rem !important; font-weight: bold !important; padding: 14px 12px !important; text-align: left; border-bottom: 3px solid #007bff !important; white-space: nowrap !important; user-select: none; }
-        #ledger-portfolio td { color: #222222 !important; font-size: 0.95rem !important; padding: 12px 12px !important; border-bottom: 1px solid #E5E7EB !important; white-space: nowrap !important; }
-        #ledger-portfolio tr:nth-child(even) { background-color: #F9FAFB !important; }
-        #ledger-portfolio tr:hover { background-color: #F3F4F6 !important; }
-    </style>
-    """
-    st.markdown(ledger_a_css, unsafe_allow_html=True)
+    st.markdown("""<style>.ledger-a-scroll-window { max-height: 400px; overflow-y: auto !important; overflow-x: auto !important; border: 1px solid #D1D5DB; } #ledger-portfolio { width: 100%; border-collapse: collapse; font-family: sans-serif; background-color: #FFFFFF !important; } #ledger-portfolio th { position: -webkit-sticky !important; position: sticky !important; top: 0 !important; z-index: 10 !important; background-color: #E5E7EB !important; color: #111111 !important; font-size: 1.00rem !important; font-weight: bold !important; padding: 14px 12px !important; text-align: left; border-bottom: 3px solid #007bff !important; white-space: nowrap !important; } #ledger-portfolio td { color: #222222 !important; font-size: 0.95rem !important; padding: 12px 12px !important; border-bottom: 1px solid #E5E7EB !important; white-space: nowrap !important; } #ledger-portfolio tr:nth-child(even) { background-color: #F9FAFB !important; } #ledger-portfolio tr:hover { background-color: #F3F4F6 !important; }</style>""", unsafe_allow_html=True)
     st.markdown(f"<div class='ledger-a-scroll-window'>{html_table_a}</div>", unsafe_allow_html=True)
     st.markdown(f"""<div style='background-color: #f1f5f9; padding: 10px 14px; border-radius: 4px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; font-size: 0.88rem; font-weight: bold; margin-bottom: 20px; border: 1px solid #cbd5e1;'><div>🌎 FX: US/NZD: <span style='color: #0284c7;'>{usd_to_nzd_rate:.4f}</span> | AU/NZD: <span style='color: #0284c7;'>{aud_to_nzd_rate:.4f}</span></div><div>📋 Invested: <span style='color: #334155;'>${tot_invest_nzd:,.2f} NZD</span></div><div>💰 Cash: <span style='color: #0284c7;'>${integ_cash_nzd:,.2f} NZD</span></div><div style='background-color: #e2e8f0;'>👑 TOTAL VALUE:<br><span style='color: #0f172a; font-size: 1.15rem;'>${tot_app_value:,.2f} NZD</span></div><div>📈 Return: <span style='color: {p_color};'>{p_sign}${tot_profit_nzd:,.2f} ({p_sign}{tot_roi_nzd:.2f}%)</span></div></div>""", unsafe_allow_html=True)
 else:
     tot_app_value = integ_cash_nzd
     st.info("💡 No active share positions currently held in your portfolio ledger.")
     st.markdown(f"""<div style='background-color: #f1f5f9; padding: 10px 14px; border-radius: 4px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; font-size: 0.88rem; font-weight: bold; margin-bottom: 20px; border: 1px solid #cbd5e1;'><div>🌎 FX: US/NZD: <span style='color: #0284c7;'>{usd_to_nzd_rate:.4f}</span> | AU/NZD: <span style='color: #0284c7;'>{aud_to_nzd_rate:.4f}</span></div><div>📋 Invested: <span style='color: #334155;'>$0.00 NZD</span></div><div>💰 Cash: <span style='color: #0284c7;'>${integ_cash_nzd:,.2f} NZD</span></div><div style='background-color: #e2e8f0;'>👑 TOTAL VALUE:<br><span style='color: #0f172a; font-size: 1.15rem;'>${tot_app_value:,.2f} NZD</span></div><div>📈 Return: <span style='color: #334155;'>$0.00 (0.00%)</span></div></div>""", unsafe_allow_html=True)
+
 # =============================================================================
-# 📊 Layer B: Asset Comparison Grid 
+# Layer B: Asset Comparison Grid 
 # =============================================================================
 st.markdown("#### 📊 Layer B: Asset Comparison Grid")
 chart_list = [str(t).strip().upper() for t in all_active_workspace_tickers if str(t).strip().upper() in operational_dfs]
@@ -513,61 +408,25 @@ if master_unified_rows:
     cols_b = ["Ticker", "Sector", "Asset Name", "Price", "Return", "Limit Buy at", "T/P Exit", "Status", "Fast MA", "Slow MA", "RSI", "ATR"]
     b_df = b_df[cols_b]
     
+    # 🟢 FIX: Pick chart_list[0] instead of the whole list as the fallback string default
     current_calc_ticker = st.session_state.get("target_execution_asset_key", chart_list[0] if chart_list else "")
-    if current_calc_ticker in b_df["Ticker"].values:
+    if current_calc_ticker and current_calc_ticker in b_df["Ticker"].values:
         hoist_row = b_df[b_df["Ticker"] == current_calc_ticker].copy()
         remaining_rows = b_df[b_df["Ticker"] != current_calc_ticker].copy()
         b_df = pd.concat([hoist_row, remaining_rows], ignore_index=True)
         
     df_portfolio_display = b_df.copy()
-    for col in ["Price", "Limit Buy at", "T/P Exit", "Fast MA", "Slow MA", "ATR"]:
-        df_portfolio_display[col] = df_portfolio_display[col].map("${:,.2f}".format)
+    for col in ["Price", "Limit Buy at", "T/P Exit", "Fast MA", "Slow MA", "ATR"]: df_portfolio_display[col] = df_portfolio_display[col].map("${:,.2f}".format)
     df_portfolio_display["Return"] = df_portfolio_display["Return"].apply(lambda x: f"🟢 {x:+.2f}%" if x >= 3.00 else f"{x:+.2f}%")
     df_portfolio_display["RSI"] = df_portfolio_display["RSI"].apply(lambda x: f"🟢 {x:,.1f}" if x >= 60.0 else f"{x:,.1f}")
-    
-    if current_calc_ticker:
-        df_portfolio_display["Ticker"] = df_portfolio_display["Ticker"].apply(lambda x: f"🎯 {x}" if x == current_calc_ticker else x)
+    if current_calc_ticker: df_portfolio_display["Ticker"] = df_portfolio_display["Ticker"].apply(lambda x: f"🎯 {x}" if x == current_calc_ticker else x)
         
     html_portfolio_table = df_portfolio_display.to_html(index=False, escape=False, table_id="portfolio-screener")
-    portfolio_combined_html = f"""
-    <style>
-        body {{ margin: 0; padding: 0; background-color: transparent; }}
-        .portfolio-scroll-window {{ max-height: 320px; overflow-y: auto !important; overflow-x: auto !important; border: 1px solid #D1D5DB; }}
-        #portfolio-screener {{ width: 100%; border-collapse: collapse; font-family: sans-serif; background-color: #FFFFFF !important; }}
-        #portfolio-screener th {{ position: -webkit-sticky !important; position: sticky !important; top: 0 !important; z-index: 10 !important; background-color: #E5E7EB !important; color: #111111 !important; font-size: 1.00rem !important; font-weight: bold !important; padding: 16px 12px !important; text-align: left; border-bottom: 3px solid #007bff !important; white-space: nowrap !important; cursor: pointer !important; user-select: none; }}
-        #portfolio-screener th::after {{ content: " ↕"; font-size: 0.8rem; color: #888; padding-left: 5px; }}
-        #portfolio-screener td {{ color: #222222 !important; font-size: 0.95rem !important; padding: 12px 12px !important; border-bottom: 1px solid #E5E7EB !important; white-space: nowrap !important; }}
-        #portfolio-screener tr:nth-child(even) {{ background-color: #F9FAFB !important; }}
-        #portfolio-screener tr:hover {{ background-color: #F3F4F6 !important; }}
-    </style>
-    <div class='portfolio-scroll-window'>{html_portfolio_table}</div>
-    <script>
-        document.querySelectorAll("#portfolio-screener th").forEach((header, index) => {{
-            header.addEventListener("click", () => {{
-                const table = document.getElementById("portfolio-screener");
-                const tbody = table.querySelector("tbody");
-                const rows = Array.from(tbody.querySelectorAll("tr"));
-                const isAscending = header.classList.contains("sort-asc");
-                table.querySelectorAll("th").forEach(th => th.classList.remove("sort-asc", "sort-desc"));
-                rows.sort((rowA, rowB) => {{
-                    let cellA = rowA.children[index].textContent.replace(/[\\$,%x\\s]/g, "").trim().replace(/🟢/g, "").replace(/🎯/g, "").trim();
-                    let cellB = rowB.children[index].textContent.replace(/[\\$,%x\\s]/g, "").trim().replace(/🟢/g, "").replace(/🎯/g, "").trim();
-                    const numA = parseFloat(cellA); const numB = parseFloat(cellB);
-                    if (!isNaN(numA) && !isNaN(numB)) return isAscending ? numB - numA : numA - numB;
-                    return isAscending ? cellB.localeCompare(cellA) : cellA.localeCompare(cellB);
-                }});
-                header.classList.toggle("sort-asc", !isAscending); header.classList.toggle("sort-desc", isAscending);
-                rows.forEach(row => tbody.appendChild(row));
-            }});
-        }});
-    </script>
-    """
+    portfolio_combined_html = f"""<style>body {{ margin: 0; padding: 0; background-color: transparent; }} .portfolio-scroll-window {{ max-height: 320px; overflow-y: auto !important; overflow-x: auto !important; border: 1px solid #D1D5DB; }} #portfolio-screener {{ width: 100%; border-collapse: collapse; font-family: sans-serif; background-color: #FFFFFF !important; }} #portfolio-screener th {{ position: -webkit-sticky !important; position: sticky !important; top: 0 !important; z-index: 10 !important; background-color: #E5E7EB !important; color: #111111 !important; font-size: 1.00rem !important; font-weight: bold !important; padding: 16px 12px !important; text-align: left; border-bottom: 3px solid #007bff !important; white-space: nowrap !important; cursor: pointer !important; }} #portfolio-screener th::after {{ content: " ↕"; font-size: 0.8rem; color: #888; padding-left: 5px; }} #portfolio-screener td {{ color: #222222 !important; font-size: 0.95rem !important; padding: 12px 12px !important; border-bottom: 1px solid #E5E7EB !important; white-space: nowrap !important; }} #portfolio-screener tr:nth-child(even) {{ background-color: #F9FAFB !important; }} #portfolio-screener tr:hover {{ background-color: #F3F4F6 !important; }}</style><div class='portfolio-scroll-window'>{html_portfolio_table}</div><script>document.querySelectorAll("#portfolio-screener th").forEach((header, index) => {{ header.addEventListener("click", () => {{ const table = document.getElementById("portfolio-screener"); const tbody = table.querySelector("tbody"); const rows = Array.from(tbody.querySelectorAll("tr")); const isAscending = header.classList.contains("sort-asc"); table.querySelectorAll("th").forEach(th => th.classList.remove("sort-asc", "sort-desc")); rows.sort((rowA, rowB) => {{ let cellA = rowA.children[index].textContent.replace(/[\\$,%x\\s]/g, "").trim().replace(/🟢/g, "").replace(/🎯/g, "").trim(); let cellB = rowB.children[index].textContent.replace(/[\\$,%x\\s]/g, "").trim().replace(/🟢/g, "").replace(/🎯/g, "").trim(); const numA = parseFloat(cellA); const numB = parseFloat(cellB); if (!isNaN(numA) && !isNaN(numB)) return isAscending ? numB - numA : numA - numB; return isAscending ? cellB.localeCompare(cellA) : cellA.localeCompare(cellB); }}); header.classList.toggle("sort-asc", !isAscending); header.classList.toggle("sort-desc", isAscending); rows.forEach(row => tbody.appendChild(row)); }}); }});</script>"""
     st.components.v1.html(portfolio_combined_html, height=340, scrolling=False)
-else:
-    st.info("💡 Portfolio overview data matrix processing.")
-
+else: st.info("💡 Portfolio overview data matrix processing.")
 # =============================================================================
-# 🔍 Core System Chart Analytics
+# Core System Chart Analytics
 # =============================================================================
 st.markdown("#### 🔍 Core System Chart Analytics")
 if chart_list:
@@ -585,9 +444,8 @@ if chart_list:
         y_scale = alt.Scale(domain=[c_df['Close'].min() * 0.95, c_df['Close'].max() * 1.05], clamp=True)
         base = alt.Chart(c_df).encode(x='Date:T').properties(width='container', height=260)
         st.altair_chart(alt.layer(base.mark_line(color='#4A90E2', strokeWidth=3).encode(y=alt.Y('Close:Q', scale=y_scale)), base.mark_line(color='#00FF66', strokeWidth=2).encode(y='Fast_MA:Q'), base.mark_line(color='#FF3333', strokeWidth=2).encode(y='Slow_MA:Q')), use_container_width=True)
-
 # =============================================================================
-# 📐 Layer C: Volatility-Adjusted Position Sizing Calculator
+# Layer C: Volatility-Adjusted Position Sizing Calculator
 # =============================================================================
 st.markdown("#### 📐 Layer C: Volatility-Adjusted Position Sizing Calculator")
 if chart_list:
@@ -619,5 +477,4 @@ if chart_list:
         st.markdown(f'<div class="custom-funding-list"><div class="custom-funding-item">• <b>Total Position Capital:</b> <span class="custom-funding-highlight">${tot_cap_native:,.2f} {curr_lbl}</span> (${tot_cap_nzd:,.2f} NZD)</div><div class="custom-funding-item">• <b>Cushion Distance Risk:</b> <span class="custom-funding-highlight">${stop_dist:.2f} {curr_lbl}</span> per share.</div><div class="custom-funding-item">• <b>Portfolio Funding Status:</b> {f_status}</div></div>', unsafe_allow_html=True)
 
 st.markdown("#### 💡 Layer D: Institutional Sector Money Flow")
-if macro_sector_rows:
-    st.dataframe(pd.DataFrame(macro_sector_rows).sort_values(by="RSI Status Value", ascending=False), use_container_width=True, hide_index=True)
+if macro_sector_rows: st.dataframe(pd.DataFrame(macro_sector_rows).sort_values(by="RSI Status Value", ascending=False), use_container_width=True, hide_index=True)

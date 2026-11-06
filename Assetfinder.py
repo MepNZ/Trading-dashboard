@@ -9,6 +9,36 @@ from zoneinfo import ZoneInfo
 import os
 import json
 import warnings
+import requests
+import base64
+
+def load_from_github(filename):
+    try:
+        token = st.secrets["GITHUB_TOKEN"]
+        url = f"https://github.com{filename}"
+        headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+        r = requests.get(url, headers=headers)
+        if r.status_code == 200:
+            return json.loads(base64.b64decode(r.json()["content"]).decode())
+    except:
+        pass
+    return {}
+
+def save_to_github(filename, data):
+    try:
+        token = st.secrets["GITHUB_TOKEN"]
+        url = f"https://github.com{filename}"
+        headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+        r = requests.get(url, headers=headers)
+        sha = r.json().get("sha") if r.status_code == 200 else None
+        payload = {
+            "message": f"Update {filename} from Streamlit Cloud",
+            "content": base64.b64encode(json.dumps(data, indent=4).encode()).decode()
+        }
+        if sha: payload["sha"] = sha
+        requests.put(url, headers=headers, json=payload)
+    except:
+        pass
 
 warnings.filterwarnings('ignore')
 
@@ -39,17 +69,10 @@ st.markdown("""
 
 st.title("💼 Financial Asset Discovery Dashboard")
 
-TARGETS_FILE = "portfolio_targets.json"
+TARGETS_FILE = "discovery_targets.json"
 
-# Initialize global state storage structures cleanly
 if "disk_memory" not in st.session_state:
-    st.session_state.disk_memory = {}
-    if os.path.exists(TARGETS_FILE):
-        try:
-            with open(TARGETS_FILE, 'r') as f: 
-                st.session_state.disk_memory = json.load(f)
-        except: 
-            pass
+    st.session_state.disk_memory = load_from_github("discovery_targets.json")
 
 if "watchlist_positions" not in st.session_state.disk_memory:
     st.session_state.disk_memory["watchlist_positions"] = {}
@@ -388,10 +411,11 @@ with watch_col1:
                 
                 current_timestamp = datetime.now(ZoneInfo("Pacific/Auckland")).strftime("%Y-%m-%d %I:%M %p")
                 st.session_state.disk_memory["watchlist_positions"][final_add_ticker] = {"asset_name": disk_names.get(final_add_ticker, final_add_ticker), "entry": live_price_now, "entry_date": current_timestamp}
-                with open(TARGETS_FILE, 'w') as f: json.dump(st.session_state.disk_memory, f, indent=4)
+                save_to_github("discovery_targets.json", st.session_state.disk_memory)
                 st.toast(f"Successfully locked {final_add_ticker} inside watchlist backend!")
+
                 st.rerun()
-            except: st.error(f"Failed to lookup asset price for code '{final_add_ticker}'. Verify code syntax.")
+            except Exception: st.error(f"Failed to lookup asset price for code '{final_add_ticker}'. Verify code syntax.")
         else: st.warning("Please choose a ticker code selection target first.")
 
 with watch_col2:
@@ -421,8 +445,9 @@ with watch_col2:
         if dropped_tickers and st.button("🗑️ PURGE SELECTED WATCHLIST ROWS", use_container_width=True, type="secondary"):
             for t_drop in dropped_tickers:
                 if t_drop in st.session_state.disk_memory["watchlist_positions"]: del st.session_state.disk_memory["watchlist_positions"][t_drop]
-            with open(TARGETS_FILE, 'w') as f: json.dump(st.session_state.disk_memory, f, indent=4)
+            save_to_github("discovery_targets.json", st.session_state.disk_memory)
             st.toast("Dropped selected tracked entries.")
+
             st.rerun()
     else: st.caption("Watchlist backend is currently empty.")
 

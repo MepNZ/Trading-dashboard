@@ -125,6 +125,15 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "🗃️ On-Screen Historical Trade Database",
     "🛡️ Live Account Margin Matrix"
 ])
+@st.cache_data(ttl=300)
+def fetch_forex_matrix_batch(tickers, start_date):
+    if not tickers:
+        return pd.DataFrame()
+    try:
+        df = yf.download(tickers, start=start_date, progress=False)
+        return df
+    except Exception:
+        return pd.DataFrame()
 
 @st.cache_data
 def fetch_and_flatten_forex(ticker_symbol, start, end):
@@ -423,12 +432,34 @@ if not data.empty:
     # 7. MULTI-PAIR STRENGTH SCOREBOARD & CORRELATION
     # ==========================================
     with tab2:
-        st.subheader("⚡ Core Currency Trend Strength & 24-Hour Velocity Tracker")
-        core_majors = ["EURUSD=X", "GBPUSD=X", "AUDUSD=X", "NZDUSD=X", "USDJPY=X", "USDCAD=X", "USDCHF=X"]
-        
-        score_cols = st.columns(len(core_majors))
-        for idx, m_ticker in enumerate(core_majors):
-            pair_df = fetch_and_flatten_forex(m_ticker, now_date - pd.Timedelta(days=5), now_date)
+            st.subheader("⚡ Core Currency Trend Strength & 24-Hour Velocity Tracker")
+    core_majors = ["EURUSD=X", "GBPUSD=X", "AUDUSD=X", "NZDUSD=X", "USDJPY=X", "USDCAD=X", "USDCHF=X"]
+    
+    # Download all 7 currency pairs concurrently in 1 single step
+    batch_raw = fetch_forex_matrix_batch(core_majors, now_date - pd.Timedelta(days=60))
+    
+    score_cols = st.columns(len(core_majors))
+    matrix_rows = []
+    close_series_dict = {}
+
+    for idx, m_ticker in enumerate(core_majors):
+        try:
+            if isinstance(batch_raw.columns, pd.MultiIndex):
+                pair_df = batch_raw.xs(m_ticker, level="Ticker", axis=1, drop_level=True).copy()
+            elif m_ticker in batch_raw.columns:
+                pair_df = batch_raw[[m_ticker]].copy()
+            else:
+                # Handle flattened headers cleanly
+                matching_cols = [c for c in batch_raw.columns if m_ticker in str(c)]
+                if matching_cols:
+                    pair_df = batch_raw[matching_cols].copy()
+                    if isinstance(pair_df.columns, pd.MultiIndex):
+                        pair_df.columns = pair_df.columns.get_level_values(-1)
+                else:
+                    continue
+            
+            pair_df = pair_df.ffill().bfill()
+    
             if len(pair_df) >= 2:
                 day_close = float(pair_df['Close'].iloc[-1])
                 prev_close = float(pair_df['Close'].iloc[-2])
@@ -440,61 +471,59 @@ if not data.empty:
                         value=f"{day_close:.4f}" if "JPY" not in m_ticker else f"{day_close:.2f}",
                         delta=f"{pct_shift:+.2f}%"
                     )
-        
-        matrix_rows = []
-        close_series_dict = {}
-        for m_ticker in core_majors:
-            m_data = fetch_and_flatten_forex(m_ticker, now_date - pd.Timedelta(days=50), now_date)
-            if not m_data.empty:
-                m_close = float(m_data['Close'].iloc[-1])
-                m_fast = m_data['Close'].rolling(9).mean().iloc[-1]
-                m_slow = m_data['Close'].rolling(21).mean().iloc[-1]
+            
+            # Process Matrix Analysis out of pre-fetched rows
+            m_close = float(pair_df['Close'].iloc[-1])
+            m_fast = pair_df['Close'].rolling(9).mean().iloc[-1]
+            m_slow = pair_df['Close'].rolling(21).mean().iloc[-1]
+            
+            m_hl = pair_df['High'] - pair_df['Low']
+            m_hc = np.abs(pair_df['High'] - pair_df['Close'].shift())
+            m_lc = np.abs(pair_df['Low'] - pair_df['Close'].shift())
+            m_rng = pd.concat([m_hl, m_hc, m_lc], axis=1)
+            m_atr = m_rng.max(axis=1).rolling(14).mean().iloc[-1]
+            
+            close_series_dict[m_ticker.replace("=X","")] = pair_df['Close']
+            
+            if m_close > m_fast > m_slow:
+                status = "🟢 Bullish Velocity"
+                score = 2
+            elif m_close < m_fast < m_slow:
+                status = "🚨 Bearish Velocity"
+                score = -2
+            elif m_fast > m_slow:
+                status = "🟡 Weak Long Bias"
+                score = 1
+            else:
+                status = "🟠 Weak Short Bias"
+                score = -1
                 
-                m_hl = m_data['High'] - m_data['Low']
-                m_hc = np.abs(m_data['High'] - m_data['Close'].shift())
-                m_lc = np.abs(m_data['Low'] - m_data['Close'].shift())
-                m_rng = pd.concat([m_hl, m_hc, m_lc], axis=1)
-                m_atr = m_rng.max(axis=1).rolling(14).mean().iloc[-1]
-                
-                close_series_dict[m_ticker.replace("=X","")] = m_data['Close']
-                
-                if m_close > m_fast > m_slow:
-                    status = "🟢 Bullish Velocity"
-                    score = 2
-                elif m_close < m_fast < m_slow:
-                    status = "🚨 Bearish Velocity"
-                    score = -2
-                elif m_fast > m_slow:
-                    status = "🟡 Weak Long Bias"
-                    score = 1
-                else:
-                    status = "🟠 Weak Short Bias"
-                    score = -1
-                    
-                matrix_rows.append({
-                    "Asset Ticker": m_ticker.replace("=X", ""),
-                    "Current Spot": round(m_close, 5),
-                    "Expected Upper Target": round(m_close + (m_atr * atr_multiplier), 5),
-                    "Expected Lower Target": round(m_close - (m_atr * atr_multiplier), 5),
-                    "Technical Condition": status,
-                    "Rank Weight": score
-                })
-                
-        matrix_df = pd.DataFrame(matrix_rows).sort_values(by="Rank Weight", ascending=False)
-        st.markdown("<br><b>Structural Regime Matrix</b>", unsafe_allow_html=True)
-        st.dataframe(matrix_df[["Asset Ticker", "Current Spot", "Expected Upper Target", "Expected Lower Target", "Technical Condition"]], use_container_width=True, hide_index=True)
+            matrix_rows.append({
+                "Asset Ticker": m_ticker.replace("=X", ""),
+                "Current Spot": round(m_close, 5),
+                "Expected Upper Target": round(m_close + (m_atr * atr_multiplier), 5),
+                "Expected Lower Target": round(m_close - (m_atr * atr_multiplier), 5),
+                "Technical Condition": status,
+                "Rank Weight": score
+            })
+        except:
+            pass
 
-        st.subheader("🔗 Multi-Pair Statistical Correlation Matrix")
-        try:
-            corr_df = pd.DataFrame(close_series_dict).corr(method="pearson")
-            fig_corr = go.Figure(data=go.Heatmap(
-                z=corr_df.values, x=corr_df.columns, y=corr_df.columns,
-                colorscale="RdBu", zmin=-1, zmax=1, text=np.round(corr_df.values, 2), texttemplate="%{text}"
-            ))
-            fig_corr.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10))
-            st.plotly_chart(fig_corr, use_container_width=True)
-        except Exception:
-            st.warning("Insufficient structural database rows.")
+    matrix_df = pd.DataFrame(matrix_rows).sort_values(by="Rank Weight", ascending=False)
+    st.markdown("<br><b>Structural Regime Matrix</b>", unsafe_allow_html=True)
+    st.dataframe(matrix_df[["Asset Ticker", "Current Spot", "Expected Upper Target", "Expected Lower Target", "Technical Condition"]], use_container_width=True, hide_index=True)
+
+    st.subheader("🔗 Multi-Pair Statistical Correlation Matrix")
+    try:
+        corr_df = pd.DataFrame(close_series_dict).corr(method="pearson")
+        fig_corr = go.Figure(data=go.Heatmap(
+            z=corr_df.values, x=corr_df.columns, y=corr_df.columns,
+            colorscale="RdBu", zmin=-1, zmax=1, text=np.round(corr_df.values, 2), texttemplate="%{text}"
+        ))
+        fig_corr.update_layout(height=350, margin=dict(l=10, r=10, t=10, b=10))
+        st.plotly_chart(fig_corr, use_container_width=True)
+    except Exception:
+        st.warning("Insufficient structural database rows.")
 
 # ==========================================
 # 8. HISTORICAL ON-SCREEN LOGS DATABASE TAB

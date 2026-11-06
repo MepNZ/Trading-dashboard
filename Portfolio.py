@@ -9,6 +9,36 @@ from datetime import datetime, timedelta
 import pytz
 from zoneinfo import ZoneInfo
 import warnings
+import requests
+import base64
+
+def load_from_github(filename):
+    try:
+        token = st.secrets["GITHUB_TOKEN"]
+        url = f"https://api.github.com/repos/MepNZ/Trading-dashboard/contents/{filename}"
+        headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+        r = requests.get(url, headers=headers)
+        if r.status_code == 200:
+            return json.loads(base64.b64decode(r.json()["content"]).decode())
+    except:
+        pass
+    return {}
+
+def save_to_github(filename, data):
+    try:
+        token = st.secrets["GITHUB_TOKEN"]
+        url = f"https://api.github.com/repos/MepNZ/Trading-dashboard/contents/{filename}"
+        headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+        r = requests.get(url, headers=headers)
+        sha = r.json().get("sha") if r.status_code == 200 else None
+        payload = {
+            "message": f"Update {filename} from Streamlit Cloud",
+            "content": base64.b64encode(json.dumps(data, indent=4).encode()).decode()
+        }
+        if sha: payload["sha"] = sha
+        requests.put(url, headers=headers, json=payload)
+    except:
+        pass
 
 warnings.filterwarnings('ignore')
 
@@ -49,7 +79,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-TARGETS_FILE = "portfolio_targets.json"
+TARGETS_FILE = "mike_portfolio.json"
 # =============================================================================
 # COMPANY NAME DICTIONARY MAPPING ENGINE
 # =============================================================================
@@ -92,11 +122,7 @@ company_name_map = load_company_names()
 # =============================================================================
 # HOISTED REAL-TIME STATE SYNCHRONIZATION ENGINE (FIXES REAL-TIME CASH LAG)
 # =============================================================================
-disk_memory = {}
-if os.path.exists(TARGETS_FILE):
-    try:
-        with open(TARGETS_FILE, 'r') as f: disk_memory = json.load(f)
-    except Exception: pass
+disk_memory = load_from_github("mike_portfolio.json")
 
 runtime_positions = disk_memory.get("positions", {})
 runtime_watchlist = disk_memory.get("watchlist_tickers", [])
@@ -105,9 +131,9 @@ runtime_sliders = disk_memory.get("sliders", {"fast_ma": 10, "slow_ma": 50, "roi
 runtime_paper = disk_memory.get("paper_positions", {})
 
 # MASTER CASH CONNECTION: Direct linking to session states prevents calculation steps lag
-cash_nzd = float(st.session_state.get("cash_nzd_input", runtime_cash.get("NZD", 14.52)))
-cash_aud = float(st.session_state.get("cash_aud_input", runtime_cash.get("AUD", 0.00)))
-cash_usd = float(st.session_state.get("cash_usd_input", runtime_cash.get("USD", 78.24)))
+cash_nzd = float(st.session_state.get("cash_nzd_input", 14.52))
+cash_aud = float(st.session_state.get("cash_aud_input", 0.00))
+cash_usd = float(st.session_state.get("cash_usd_input", 78.24))
 pending_nzd = float(st.session_state.get("pending_nzd_input", runtime_cash.get("Pending_NZD", 0.00)))
 pending_aud = float(st.session_state.get("pending_aud_input", runtime_cash.get("Pending_AUD", 0.00)))
 pending_usd = float(st.session_state.get("pending_usd_input", runtime_cash.get("Pending_USD", 0.00)))
@@ -264,21 +290,40 @@ if save_trigger:
         t_input = st.session_state.get(f"port_slot_{idx}", "").upper().strip()
         if t_input and "EMPTY" not in t_input:
             live_positions[t_input] = {
-                "shares": float(st.session_state.get(f"shares_{idx}", 0.0)), "entry": float(st.session_state.get(f"entry_{idx}", 0.0)),
-                "upper": float(st.session_state.get(f"up_{idx}", 0.0)), "fixed_stop_distance": float(st.session_state.get(f"fixed_stop_{idx}", 15.0))
+                "shares": float(st.session_state.get(f"shares_{idx}", 0.0)), 
+                "entry": float(st.session_state.get(f"entry_{idx}", 0.0)),
+                "upper": float(st.session_state.get(f"up_{idx}", 0.0)), 
+                "fixed_stop_distance": float(st.session_state.get(f"fixed_stop_{idx}", 15.0))
             }
     for idx in range(6):
         p_input = st.session_state.get(f"paper_slot_{idx}", "").upper().strip()
         if p_input and "EMPTY" not in p_input:
             p_date = st.session_state.get(f"paper_date_{idx}", datetime.today().date())
-            live_paper[p_input] = {"shares": 1.0, "entry": float(st.session_state.get(f"paper_entry_{idx}", 0.0)), "entry_date": p_date.strftime("%Y-%m-%d")}
+            live_paper[p_input] = {
+                "shares": 1.0, 
+                "entry": float(st.session_state.get(f"paper_entry_{idx}", 0.0)), 
+                "entry_date": p_date.strftime("%Y-%m-%d")
+            }
 
     live_bounds = {
-        "wallet_cash": {"NZD": cash_nzd, "AUD": cash_aud, "USD": cash_usd, "Pending_NZD": pending_nzd, "Pending_AUD": pending_aud, "Pending_USD": pending_usd},
-        "sliders": {"fast_ma": int(st.session_state["fast_ma"]), "slow_ma": int(st.session_state["slow_ma"]), "roi_window": st.session_state["roi_window"]},
-        "positions": live_positions, "watchlist_tickers": runtime_watchlist, "paper_positions": live_paper
+        "wallet_cash": {
+            "NZD": float(st.session_state.get("cash_nzd_input", 14.52)), 
+            "AUD": float(st.session_state.get("cash_aud_input", 0.00)), 
+            "USD": float(st.session_state.get("cash_usd_input", 78.24)),
+            "Pending_NZD": float(st.session_state.get("pending_nzd_input", 0.00)), 
+            "Pending_AUD": float(st.session_state.get("pending_aud_input", 0.00)), 
+            "Pending_USD": float(st.session_state.get("pending_usd_input", 0.00))
+        },
+        "sliders": {
+            "fast_ma": int(st.session_state.get("fast_ma", 10)), 
+            "slow_ma": int(st.session_state.get("slow_ma", 50)), 
+            "roi_window": st.session_state.get("roi_window", "1 Year")
+        },
+        "positions": live_positions, 
+        "watchlist_tickers": runtime_watchlist, 
+        "paper_positions": live_paper
     }
-    with open(TARGETS_FILE, 'w') as f: json.dump(live_bounds, f, indent=4)
+    save_to_github("mike_portfolio.json", live_bounds)
     st.cache_data.clear()
     st.rerun()
 # Taxonomy references
@@ -347,7 +392,7 @@ if not RAW_MARKET_BATCH.empty:
             resolved_name = company_name_map.get(clean_ticker_key, f"{ticker}")
             strategy_status = "🟩 DUAL-TREND BREAKOUT" if last_close > fast_ma_val and last_close > slow_ma_val else "🔴 Structural Bear"
             
-            if ticker in clean_portfolio_list or clean_ticker_key in clean_portfolio_list:
+            if clean_ticker_key in [t.upper() for t in clean_portfolio_list]:
                 stored_block = runtime_positions.get(ticker, runtime_positions.get(clean_ticker_key, {}))
                 entry_p_calc = float(stored_block.get("entry", 0.0))
                 ticker_roi = (((last_close - entry_p_calc) / entry_p_calc) * 100) if entry_p_calc > 0.0 else 0.0
@@ -360,8 +405,8 @@ if not RAW_MARKET_BATCH.empty:
             if ticker in all_active_workspace_tickers or clean_ticker_key in all_active_workspace_tickers:
                 master_unified_rows.append({"Ticker": ticker, "Sector": asset_sector_tags.get(ticker, "Other"), "Asset Name": resolved_name, "Price": last_close, "Return": ticker_roi, "Limit Buy at": safe_daily_limit_target, "T/P Exit": safe_take_profit_target, "Status": strategy_status, "Fast MA": fast_ma_val, "Slow MA": slow_ma_val, "RSI": rsi_val, "ATR": atr_val})
                 
-            if ticker in clean_portfolio_list or clean_ticker_key in clean_portfolio_list:
-                stored_block = runtime_positions.get(ticker, runtime_positions.get(clean_ticker_key, {}))
+            if clean_ticker_key in [t.upper() for t in clean_portfolio_list]:
+                stored_block = runtime_positions.get(ticker, runtime_positions.get(ticker.lower(), runtime_positions.get(clean_ticker_key, {})))
                 shares_num, entry_p = float(stored_block.get("shares", 0.0)), float(stored_block.get("entry", 0.0))
                 if shares_num > 0:
                     cost_loc = shares_num * entry_p

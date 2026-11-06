@@ -1,1 +1,25 @@
-{}
+{
+    "wallet_cash": {
+        "NZD": 14.52,
+        "AUD": 0.0,
+        "USD": 78.24,
+        "Pending_NZD": 0.0,
+        "Pending_AUD": 0.0,
+        "Pending_USD": 0.0
+    },
+    "sliders": {
+        "fast_ma": 10,
+        "slow_ma": 50,
+        "roi_window": "1 Year"
+    },
+    "positions": {
+        "FSLR": {
+            "shares": 1.0,
+            "entry": 192.0,
+            "upper": 0.0,
+            "fixed_stop_distance": 15.0
+        }
+    },
+    "watchlist_tickers": [],
+    "paper_positions": {}
+}

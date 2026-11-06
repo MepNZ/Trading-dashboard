@@ -14,8 +14,8 @@
     },
     "positions": {
         "FSLR": {
-            "shares": 1.0,
-            "entry": 201.5,
+            "shares": 2.0,
+            "entry": 196.54,
             "upper": 0.0,
             "fixed_stop_distance": 15.0
         }

@@ -10,14 +10,14 @@
     "sliders": {
         "fast_ma": 10,
         "slow_ma": 50,
-        "roi_window": "1 Year"
+        "roi_window": "1 Year",
+        "profit_target_pct": 20.0,
+        "stop_loss_pct": 7.0
     },
     "positions": {
         "FSLR": {
             "shares": 2.0,
-            "entry": 196.54,
-            "upper": 0.0,
-            "fixed_stop_distance": 15.0
+            "entry": 196.54
         }
     },
     "watchlist_tickers": [],

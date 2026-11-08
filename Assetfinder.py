@@ -68,6 +68,23 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("💼 Financial Asset Discovery Dashboard")
+# --- CLEAN HEADER CONTROLS AND TIMESTAMP ---
+col_btn, col_time = st.columns([1, 4])
+
+with col_btn:
+    if st.button("🔄 Force Refresh Data", use_container_width=False):
+        st.cache_data.clear()
+        st.rerun()
+
+with col_time:
+    st.markdown(
+        f"<p style='color: #666; margin-top: 6px; font-size: 14px; text-align: left;'> "
+        f"📅 <b>Last Market Scan:</b> {pd.Timestamp.now().strftime('%d-%m-%Y %I:%M:%S %p')}"
+        f"</p>", 
+        unsafe_allow_html=True
+    )
+st.markdown("---")
+# -------------------------------------------
 
 TARGETS_FILE = "discovery_targets.json"
 
@@ -246,12 +263,23 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma, min_stars, m
                     historical_avg = float(df['Avg_Vol_20D'].iloc[-2]) if df['Avg_Vol_20D'].iloc[-2] > 0 else 1.0
                     volume_multiple = float(df['Volume'].iloc[-2]) / historical_avg
 
+                        # --- UPDATED SIGNAL ENGINE CODE ---
+            # Check proximity to Fast MA (within 1.5% of the line) for pullbacks
+            is_near_fast_ma = abs(c_today - f_today) / f_today <= 0.015
+
             if c_today > f_today and c_today > s_today:
-                breakout_signal = "🟩 DUAL-TREND BREAKOUT"
+                if is_near_fast_ma and c_today >= f_today:
+                    breakout_signal = "🔵 FAST MA PULLBACK (Retest Entry)"
+                else:
+                    breakout_signal = "🟩 DUAL-TREND BREAKOUT"
             elif c_today > f_today and c_today <= s_today:
-                breakout_signal = "🟢 Turning Bullish (High Vol)" if volume_multiple >= 1.1 else "🟡 Turning Bullish (Low Vol)"
+                if volume_multiple >= 1.1:
+                    breakout_signal = "🟡 PRE-BREAKOUT: Turning Bullish (High Vol)"
+                else:
+                    breakout_signal = "⚡ PRE-BREAKOUT: Turning Bullish (Low Vol)"
             else:
                 breakout_signal = "🔴 Structural Bear"
+            # --- END OF UPDATED SIGNAL ENGINE ---
 
             stars = 0
             if c_today > f_today: stars += 1
@@ -300,14 +328,28 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 🛠 Technical Settings Layer")
     fast_ma_slider = st.slider("Fast MA Filter Window:", min_value=5, max_value=30, value=10, step=1)
-    slow_ma_slider = st.slider("Slow MA Filter Window:", min_value=20, max_value=150, value=35, step=5)
+    slow_ma_slider = st.slider("Slow MA Filter Window:", min_value=20, max_value=150, value=50, step=5)
     
     st.markdown("---")
     st.markdown("### 🎯 Display Filters")
     show_bears = st.checkbox("Include Structural Bears in Matrix", value=False)
-    min_vol_multiple = st.slider("Minimum Vol Multiple Filter:", min_value=0.0, max_value=5.0, value=1.5, step=0.1, format="%.1fx")
-    min_stars = st.slider("Minimum Confluence Rating (Stars):", min_value=0, max_value=5, value=4, step=1, format="%d ⭐")
-
+    min_vol_multiple = st.slider("Minimum Vol Multiple Filter:", min_value=0.0, max_value=5.0, value=1.3, step=0.1, format="%.1fx")
+    min_stars = st.slider("Minimum Confluence Rating (Stars):", min_value=0, max_value=5, value=3, step=1, format="%d ⭐")
+    
+    signal_filter = st.multiselect(
+        "Filter Matrix by Specific Signals:",
+        options=[
+            "🟩 DUAL-TREND BREAKOUT", 
+            "🔵 FAST MA PULLBACK (Retest Entry)", 
+            "🟡 PRE-BREAKOUT: Turning Bullish (High Vol)",
+            "⚡ PRE-BREAKOUT: Turning Bullish (Low Vol)"
+        ],
+        default=[
+            "🟩 DUAL-TREND BREAKOUT", 
+            "🔵 FAST MA PULLBACK (Retest Entry)", 
+            "🟡 PRE-BREAKOUT: Turning Bullish (High Vol)"
+        ]
+    )
     st.markdown("---")
     st.markdown("### 📊 Fundamental Health Layer")
     require_positive_income = st.checkbox("Enforce Positive Net Income (12M)", value=True)
@@ -339,18 +381,39 @@ if os.path.exists(csv_path):
 if not ticker_universe: ticker_universe = ["AAPL", "NVDA"]
 ticker_universe = list(dict.fromkeys(ticker_universe))
 
-vault_key = f"data_{hash(tuple(ticker_universe))}_{days_lookback_value}"
-if "active_vault_key" not in st.session_state or st.session_state.active_vault_key != vault_key:
-    st.session_state.cached_raw_data = fetch_live_market_data(ticker_universe, days_lookback_value)
-    st.session_state.active_vault_key = vault_key
-
-raw_breakouts = calculate_momentum_matrix(st.session_state.cached_raw_data, ticker_universe, fast_ma_slider, slow_ma_slider, min_stars, min_vol_multiple, show_bears, require_positive_income, max_pe_hurdle)
-absolute_max_price = max(math.ceil(max([row["Live Price"] for row in raw_breakouts])) if raw_breakouts else 1000, 500)
+@st.cache_data(ttl=300, show_spinner=False)
+def get_immutable_market_snapshot(universe, lookback_days):
+    """Downloads and freezes data arrays for 5 minutes regardless of slider movements"""
+    return fetch_live_market_data(universe, lookback_days)
 
 with st.sidebar:
     st.markdown("---")
     st.markdown("### 💸 Price Restrictions")
-    max_price_filter = st.slider("Maximum Live Price to Display:", min_value=5, max_value=absolute_max_price, value=absolute_max_price, step=5, format="$%d")
+    max_price_filter = st.slider("Maximum Live Price to Display:", min_value=5, max_value=2000, value=2000, step=5, format="$%d")
+    
+    # --- RESTORING ACCIDENTALLY DELETED FUNDAMENTAL CONTROLS ---
+    st.markdown("---")
+    st.markdown("### 🧬 Fundamental Health Layer")
+    require_positive_income = st.checkbox("Enforce Positive Net Income (12M)", value=True, key="sb_income")
+    max_pe_hurdle = st.slider("Maximum Allowed Trailing P/E:", min_value=5, max_value=100, value=40, step=5, format="%d", key="sb_pe")
+
+if "ticker_universe" in locals() or "ticker_universe" in globals():
+    raw_market_snapshot = get_immutable_market_snapshot(ticker_universe, days_lookback_value)
+    
+    # Process calculations using the frozen data array
+    raw_breakouts = calculate_momentum_matrix(
+        raw_market_snapshot, 
+        ticker_universe, 
+        fast_ma_slider, 
+        slow_ma_slider, 
+        min_stars, 
+        min_vol_multiple, 
+        show_bears, 
+        require_positive_income, 
+        max_pe_hurdle
+    )
+
+absolute_max_price = max(math.ceil(max([row["Live Price"] for row in raw_breakouts])) if raw_breakouts else 1000, 500)
 
 # =============================================================================
 # 6. INSTANT DATA SCREENER GRID VIEW
@@ -359,6 +422,10 @@ df_grid = pd.DataFrame()
 if raw_breakouts:
     df_grid = pd.DataFrame(raw_breakouts)
     df_grid = df_grid[df_grid["Market"].isin(market_choice)]
+    
+    if signal_filter:
+        df_grid = df_grid[df_grid["Alert Status"].isin(signal_filter)]
+    
     if not show_bears: df_grid = df_grid[df_grid["Alert Status"] != "🔴 Structural Bear"]
     df_grid = df_grid[(df_grid["Live Price"] <= max_price_filter) & (df_grid["Vol Multiple"] >= min_vol_multiple)]
     
@@ -369,18 +436,16 @@ if raw_breakouts:
         df_grid = df_grid.sort_values(by=["Vol Multiple"], ascending=False)
         cols_order = ["Market", "Ticker", "Company Name", "Alert Status", "Score", "Live Price", "Limit Entry Target", "Take Profit Target", "Vol Multiple", "ATR Risk", "Daily Change %", "RSI Momentum", "Trailing PE", "Net Income"]
         df_grid = df_grid[[c for c in cols_order if c in df_grid.columns]]
-        df_grid.columns = ["Market", "Ticker", "Asset Name", "System Status", "Confluence", "Price", "Limit Entry Target", "Take Profit Target", "RVOL Multiplier", "ATR Risk ($)", "Daily Change %", "RSI Momentum", "Trailing P/E", "Net Income ($)"]
+        df_grid.columns = ["Market", "Ticker", "Asset Name", "System Status", "Confluence", "Price", "Limit Entry", "Take Profit", "RVOL", "ATR Risk", "Daily %", "RSI", "P/E", "Net Income"]
 
         df_display = df_grid.copy()
         df_display["Price"] = df_display["Price"].map("${:,.2f}".format)
-        df_display["Limit Entry Target"] = df_display["Limit Entry Target"].map("${:,.2f}".format)
-        df_display["Take Profit Target"] = df_display["Take Profit Target"].map("${:,.2f}".format)
-        df_display["RVOL Multiplier"] = df_display["RVOL Multiplier"].apply(lambda x: f"🟢 {x:,.2f}x" if x >= 1.50 else f"{x:,.2f}x")
-        df_display["ATR Risk ($)"] = df_display["ATR Risk ($)"].map("${:,.2f}".format)
-        df_display["Daily Change %"] = df_display["Daily Change %"].apply(lambda x: f"🟢 {x:+.2f}%" if x >= 3.00 else f"{x:+.2f}%")
-        df_display["RSI Momentum"] = df_display["RSI Momentum"].apply(lambda x: f"🟢 {x:,.1f}" if x >= 60.0 else f"{x:,.1f}")
-        df_display["Trailing P/E"] = df_display["Trailing P/E"].apply(lambda x: f"{x:.1f}×" if pd.notnull(x) else "N/A")
-        df_display["Net Income ($)"] = df_display["Net Income ($)"].apply(lambda x: f"${x:,.0f}" if pd.notnull(x) else "N/A")
+        df_display["Limit Entry"] = df_display["Limit Entry"].map("${:,.2f}".format)
+        df_display["Take Profit"] = df_display["Take Profit"].map("${:,.2f}".format)
+        df_display["RVOL"] = df_display["RVOL"].apply(lambda x: f"🟢 {x:.2f}x" if x >= 1.50 else f"⚪ {x:.2f}x")
+        df_display["ATR Risk"] = df_display["ATR Risk"].map("${:,.2f}".format)
+        df_display["Daily %"] = df_display["Daily %"].apply(lambda x: f"🟢 {x:+.2f}%" if x >= 3.00 else f"⚪ {x:+.2f}%")
+        df_display["RSI"] = df_display["RSI"].apply(lambda x: f"🔴 {x:.1f}" if x >= 68.0 else f"⚪ {x:.1f}")
 
         html_table = df_display.to_html(index=False, escape=False, table_id="interactive-screener")
         screener_combined_html = f"""<style>body {{ margin: 0; padding: 0; background-color: transparent; }} .scroll-window {{ max-height: 450px; overflow-y: auto !important; overflow-x: auto !important; border: 1px solid #D1D5DB; }} #interactive-screener {{ width: 100%; border-collapse: collapse; font-family: sans-serif; background-color: #FFFFFF !important; }} #interactive-screener th {{ position: -webkit-sticky !important; position: sticky !important; top: 0 !important; z-index: 10 !important; background-color: #E5E7EB !important; color: #111111 !important; font-size: 1.00rem !important; font-weight: bold !important; padding: 0px 12px !important; height: 90px !important; display: table-cell !important; vertical-align: middle !important; line-height: 90px !important; text-align: left; border-bottom: 3px solid #007bff !important; white-space: nowrap !important; cursor: pointer; user-select: none; }} #interactive-screener th::after {{ content: " ↕"; font-size: 0.8rem; color: #888; padding-left: 5px; display: inline-block !important; vertical-align: middle !important; line-height: normal !important; }} #interactive-screener td {{ color: #222222 !important; font-size: 0.95rem !important; padding: 12px 12px !important; border-bottom: 1px solid #E5E7EB !important; white-space: nowrap !important; }} #interactive-screener tr:nth-child(even) {{ background-color: #F9FAFB !important; }} #interactive-screener tr:hover {{ background-color: #F3F4F6 !important; }}</style><div class='scroll-window'>{html_table}</div><script>document.querySelectorAll("#interactive-screener th").forEach((header, index) => {{ header.addEventListener("click", () => {{ const table = document.getElementById("interactive-screener"); const tbody = table.querySelector("tbody"); const rows = Array.from(tbody.querySelectorAll("tr")); const isAscending = header.classList.contains("sort-asc"); table.querySelectorAll("th").forEach(th => th.classList.remove("sort-asc", "sort-desc")); rows.sort((rowA, rowB) => {{ let cellA = rowA.children[index].textContent.replace(/[\\$,%x\\s]/g, "").trim().replace(/🟢/g, "").trim(); let cellB = rowB.children[index].textContent.replace(/[\\$,%x\\s]/g, "").trim().replace(/🟢/g, "").trim(); const numA = parseFloat(cellA); const numB = parseFloat(cellB); if (!isNaN(numA) && !isNaN(numB)) return isAscending ? numB - numA : numA - numB; return isAscending ? cellB.localeCompare(cellA) : cellA.localeCompare(cellB); }}); header.classList.toggle("sort-asc", !isAscending); header.classList.toggle("sort-desc", isAscending); rows.forEach(row => tbody.appendChild(row)); }}); }});</script>"""

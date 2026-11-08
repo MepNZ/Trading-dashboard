@@ -465,57 +465,118 @@ with watch_col1:
     custom_wl_ticker = st.text_input("Or Type Any Custom Asset Code Manually:", value="", key="custom_ticker_input_key").strip().upper()
     final_add_ticker = custom_wl_ticker if custom_wl_ticker else target_wl_ticker
     
-    if st.button("➕ LOCK TICKER TO WATCHLIST BACKEND", use_container_width=True, type="primary"):
-        if final_add_ticker:
+    # --- OPTIMIZED LAYER E WATCHLIST BACKEND INJECTION ---
+if st.button("➕ LOCK TICKER TO WATCHLIST BACKEND", use_container_width=True):
+    target_code = final_add_ticker.strip().upper() if final_add_ticker else None
+    
+    if target_code:
+        # Check if it's visible in the active UI frame first
+        live_price_val = None
+        asset_display_name = target_code
+        
+        if not df_grid.empty and "Ticker" in df_grid.columns:
+            matched_row = df_grid[df_grid["Ticker"] == target_code]
+            if not matched_row.empty:
+                live_price_val = float(matched_row["Price"].values[0])
+                asset_display_name = str(matched_row["Asset Name"].values[0])
+
+        # If it's hidden by filters, grab a quick single-tick reference from yfinance
+        if live_price_val == None:
             try:
-                live_price_now = None
-                if not st.session_state.cached_raw_data.empty and f"Close_{final_add_ticker}" in st.session_state.cached_raw_data.columns:
-                    live_price_now = float(st.session_state.cached_raw_data[f"Close_{final_add_ticker}"].dropna().iloc[-1])
-                else:
-                    live_price_now = float(yf.Ticker(final_add_ticker).history(period="1d")['Close'].iloc[-1])
+                ticker_obj = yf.Ticker(target_code)
+                # Fast historical single-bar fetch to prevent system hang
+                fast_hist = ticker_obj.history(period="1d")
+                if not fast_hist.empty:
+                    live_price_val = float(fast_hist['Close'].iloc[-1])
+                    asset_display_name = ticker_obj.info.get('longName', target_code)
+            except:
+                pass
+
+        if live_price_val is not None:
+            if target_code not in st.session_state.disk_memory["watchlist_positions"]:
                 
-                current_timestamp = datetime.now(ZoneInfo("Pacific/Auckland")).strftime("%Y-%m-%d %I:%M %p")
-                st.session_state.disk_memory["watchlist_positions"][final_add_ticker] = {"asset_name": disk_names.get(final_add_ticker, final_add_ticker), "entry": live_price_now, "entry_date": current_timestamp}
+                # Format to your exact lower data editor schema
+                st.session_state.disk_memory["watchlist_positions"][target_code] = {
+                    "entry": live_price_val,
+                    "asset_name": asset_display_name,
+                    "entry_date": pd.Timestamp.now().strftime('%d-%m-%Y')
+                }
+                
+                # Instantly synchronize to your online storage repository
                 save_to_github("discovery_targets.json", st.session_state.disk_memory)
-                st.toast(f"Successfully locked {final_add_ticker} inside watchlist backend!")
-
+                
+                st.toast(f"✅ {target_code} successfully locked to Watchlist Deck!", icon="🚀")
                 st.rerun()
-            except Exception: st.error(f"Failed to lookup asset price for code '{final_add_ticker}'. Verify code syntax.")
-        else: st.warning("Please choose a ticker code selection target first.")
-
+            else:
+                st.warning(f"⚠️ {target_code} is already active on your Watchlist Deck.")
+        else:
+            st.error(f"❌ Failed to validate price for code '{target_code}'. Verify ticker syntax.")
 with watch_col2:
     st.markdown("##### Active Watchlist Matrix Rows")
     watchlist_grid_rows = []
+    
+    # Pre-parse df_grid into a fast lookup dictionary to bypass network loops completely
+    grid_lookup = {}
+    if not df_grid.empty:
+        for _, row in df_grid.iterrows():
+            grid_lookup[row["Ticker"]] = {
+                "price": row["Price"],
+                "vol": row["RVOL"]
+            }
+            
     for wl_ticker, wl_meta in list(st.session_state.disk_memory["watchlist_positions"].items()):
         try:
-            live_px, live_vol = None, 0
-            if not st.session_state.cached_raw_data.empty:
-                if f"Close_{wl_ticker}" in st.session_state.cached_raw_data.columns: live_px = float(st.session_state.cached_raw_data[f"Close_{wl_ticker}"].dropna().iloc[-1])
-                if f"Volume_{wl_ticker}" in st.session_state.cached_raw_data.columns: live_vol = int(st.session_state.cached_raw_data[f"Volume_{wl_ticker}"].dropna().iloc[-1])
+            live_px, live_vol_str = None, "N/A"
+            
+            # 1. Try to grab the price instantly from your display grid memory first
+            if wl_ticker in grid_lookup:
+                live_px = grid_lookup[wl_ticker]["price"]
+                live_vol_str = str(grid_lookup[wl_ticker]["vol"])
+            
+            # 2. If it's hidden by filters, grab it from your raw market snapshot matrix arrays
+            elif 'raw_market_snapshot' in locals() or 'raw_market_snapshot' in globals():
+                if not raw_market_snapshot.empty:
+                    if f"Close_{wl_ticker}" in raw_market_snapshot.columns:
+                        live_px = float(raw_market_snapshot[f"Close_{wl_ticker}"].dropna().iloc[-1])
+                    if f"Volume_{wl_ticker}" in raw_market_snapshot.columns:
+                        vol_val = int(raw_market_snapshot[f"Volume_{wl_ticker}"].dropna().iloc[-1])
+                        live_vol_str = f"{vol_val:,}"
+
+            # 3. Secure hard fallback to avoid freezing the system if a ticker is unindexed
             if live_px is None:
-                hist = yf.Ticker(wl_ticker).history(period="1d")
-                live_px, live_vol = float(hist['Close'].iloc[-1]), (int(hist['Volume'].iloc[-1]) if 'Volume' in hist.columns else 0)
+                live_px = float(wl_meta.get("entry", 1.00))
                 
             fixed_entry_px = float(wl_meta.get("entry", live_px))
             currency_lbl = "USD" if not (wl_ticker.endswith(".NZ") or wl_ticker.endswith(".AX")) else ("AUD" if wl_ticker.endswith(".AX") else "NZD")
             roi_dollar = live_px - fixed_entry_px
             roi_percent = (roi_dollar / fixed_entry_px) * 100 if fixed_entry_px > 0 else 0.0
             
-            watchlist_grid_rows.append({"Delete": False, "Ticker": wl_ticker, "Asset Name": wl_meta.get("asset_name", wl_ticker), "Date Added": wl_meta.get("entry_date", "N/A"), "Fixed Entry": f"${fixed_entry_px:,.2f} {currency_lbl}", "Current Live": f"${live_px:,.2f} {currency_lbl}", "Live Volume": f"{live_vol:,}" if live_vol > 0 else "N/A", "ROI ($)": f"+${roi_dollar:,.2f}" if roi_dollar >= 0 else f"-${abs(roi_dollar):,.2f}", "ROI (%)": f"+{roi_percent:,.2f}%" if roi_dollar >= 0 else f"{roi_percent:,.2f}%"})
-        except: pass
+            watchlist_grid_rows.append({
+                "Delete": False, 
+                "Ticker": wl_ticker, 
+                "Asset Name": wl_meta.get("asset_name", wl_ticker), 
+                "Date Added": wl_meta.get("entry_date", "N/A"), 
+                "Fixed Entry": f"${fixed_entry_px:,.2f} {currency_lbl}", 
+                "Current Live": f"${live_px:,.2f} {currency_lbl}", 
+                "Live Volume": live_vol_str, 
+                "ROI ($)": f"+${roi_dollar:,.2f}" if roi_dollar >= 0 else f"-${abs(roi_dollar):,.2f}", 
+                "ROI (%)": f"+{roi_percent:,.2f}%" if roi_dollar >= 0 else f"{roi_percent:,.2f}%"
+            })
+        except: 
+            pass
             
     if watchlist_grid_rows:
         edited_wl_df = st.data_editor(pd.DataFrame(watchlist_grid_rows), use_container_width=True, hide_index=True, column_config={"Delete": st.column_config.CheckboxColumn(help="Select lines to drop")})
         dropped_tickers = edited_wl_df[edited_wl_df["Delete"] == True]["Ticker"].tolist()
         if dropped_tickers and st.button("🗑️ PURGE SELECTED WATCHLIST ROWS", use_container_width=True, type="secondary"):
             for t_drop in dropped_tickers:
-                if t_drop in st.session_state.disk_memory["watchlist_positions"]: del st.session_state.disk_memory["watchlist_positions"][t_drop]
+                if t_drop in st.session_state.disk_memory["watchlist_positions"]: 
+                    del st.session_state.disk_memory["watchlist_positions"][t_drop]
             save_to_github("discovery_targets.json", st.session_state.disk_memory)
             st.toast("Dropped selected tracked entries.")
-
             st.rerun()
-    else: st.caption("Watchlist backend is currently empty.")
-
+    else: 
+        st.caption("Watchlist backend is currently empty.")
 # =============================================================================
 # 8. HIGH-SPEED LIGHTWEIGHT OVERLAY CHART
 # =============================================================================

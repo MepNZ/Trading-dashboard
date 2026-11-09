@@ -13,9 +13,16 @@ import requests
 import base64
 
 def load_from_github(filename):
+    # Local-first fallback for local testing to bypass network delays
+    if os.path.exists(filename):
+        try:
+            with open(filename, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            pass
     try:
         token = st.secrets["GITHUB_TOKEN"]
-        url = f"https://github.com{filename}"
+        url = f"https://github.com{st.secrets['GITHUB_REPO']}/contents/{filename}"
         headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
         r = requests.get(url, headers=headers)
         if r.status_code == 200:
@@ -25,9 +32,16 @@ def load_from_github(filename):
     return {}
 
 def save_to_github(filename, data):
+    # Local-first fallback to write instantly to disk without hitting Github API
+    try:
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4)
+    except:
+        pass
+        
     try:
         token = st.secrets["GITHUB_TOKEN"]
-        url = f"https://github.com{filename}"
+        url = f"https://github.com{st.secrets['GITHUB_REPO']}/contents/{filename}"
         headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
         r = requests.get(url, headers=headers)
         sha = r.json().get("sha") if r.status_code == 200 else None
@@ -68,6 +82,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("💼 Financial Asset Discovery Dashboard")
+
 # --- CLEAN HEADER CONTROLS AND TIMESTAMP ---
 col_btn, col_time = st.columns([1, 4])
 
@@ -84,12 +99,11 @@ with col_time:
         unsafe_allow_html=True
     )
 st.markdown("---")
-# -------------------------------------------
 
 TARGETS_FILE = "discovery_targets.json"
 
 if "disk_memory" not in st.session_state:
-    st.session_state.disk_memory = load_from_github("discovery_targets.json")
+    st.session_state.disk_memory = load_from_github(TARGETS_FILE)
 
 if "watchlist_positions" not in st.session_state.disk_memory:
     st.session_state.disk_memory["watchlist_positions"] = {}
@@ -129,7 +143,6 @@ def load_company_names_matrix():
             pass
             
     return {}
-
 # =============================================================================
 # 3. HIGH-SPEED CHUNKED LIVE DATA DOWNLOAD LAYER
 # =============================================================================
@@ -141,7 +154,7 @@ def fetch_single_chunk_cached(chunk_list, lookback_date):
             if isinstance(chunk_list, str):
                 t_name = chunk_list.strip().upper()
             elif isinstance(chunk_list, list) and len(chunk_list) > 0:
-                t_name = str(chunk_list[0]).strip().upper()
+                t_name = str(chunk_list).strip().upper()
             else:
                 t_name = "ASSET"
 
@@ -263,8 +276,6 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma, min_stars, m
                     historical_avg = float(df['Avg_Vol_20D'].iloc[-2]) if df['Avg_Vol_20D'].iloc[-2] > 0 else 1.0
                     volume_multiple = float(df['Volume'].iloc[-2]) / historical_avg
 
-                        # --- UPDATED SIGNAL ENGINE CODE ---
-            # Check proximity to Fast MA (within 1.5% of the line) for pullbacks
             is_near_fast_ma = abs(c_today - f_today) / f_today <= 0.015
 
             if c_today > f_today and c_today > s_today:
@@ -279,7 +290,6 @@ def calculate_momentum_matrix(raw_batch, tickers, fast_ma, slow_ma, min_stars, m
                     breakout_signal = "⚡ PRE-BREAKOUT: Turning Bullish (Low Vol)"
             else:
                 breakout_signal = "🔴 Structural Bear"
-            # --- END OF UPDATED SIGNAL ENGINE ---
 
             stars = 0
             if c_today > f_today: stars += 1
@@ -351,10 +361,13 @@ with st.sidebar:
         ]
     )
     st.markdown("---")
+    st.markdown("### 💸 Price Restrictions")
+    max_price_filter = st.slider("Maximum Live Price to Display:", min_value=5, max_value=2000, value=2000, step=5, format="$%d")
+    
+    st.markdown("---")
     st.markdown("### 📊 Fundamental Health Layer")
-    require_positive_income = st.checkbox("Enforce Positive Net Income (12M)", value=True)
-    max_pe_hurdle = st.slider("Maximum Allowed Trailing P/E:", min_value=5, max_value=100, value=40, step=5, format="%d×")
-
+    require_positive_income = st.checkbox("Enforce Positive Net Income (12M)", value=True, key="sb_income")
+    max_pe_hurdle = st.slider("Maximum Allowed Trailing P/E:", min_value=5, max_value=100, value=40, step=5, format="%d×", key="sb_pe")
 # STATE CONTROLLER ENGINE
 csv_path = "ticker_names.csv"
 ticker_universe = []
@@ -383,24 +396,11 @@ ticker_universe = list(dict.fromkeys(ticker_universe))
 
 @st.cache_data(ttl=300, show_spinner=False)
 def get_immutable_market_snapshot(universe, lookback_days):
-    """Downloads and freezes data arrays for 5 minutes regardless of slider movements"""
     return fetch_live_market_data(universe, lookback_days)
-
-with st.sidebar:
-    st.markdown("---")
-    st.markdown("### 💸 Price Restrictions")
-    max_price_filter = st.slider("Maximum Live Price to Display:", min_value=5, max_value=2000, value=2000, step=5, format="$%d")
-    
-    # --- RESTORING ACCIDENTALLY DELETED FUNDAMENTAL CONTROLS ---
-    st.markdown("---")
-    st.markdown("### 🧬 Fundamental Health Layer")
-    require_positive_income = st.checkbox("Enforce Positive Net Income (12M)", value=True, key="sb_income")
-    max_pe_hurdle = st.slider("Maximum Allowed Trailing P/E:", min_value=5, max_value=100, value=40, step=5, format="%d", key="sb_pe")
 
 if "ticker_universe" in locals() or "ticker_universe" in globals():
     raw_market_snapshot = get_immutable_market_snapshot(ticker_universe, days_lookback_value)
     
-    # Process calculations using the frozen data array
     raw_breakouts = calculate_momentum_matrix(
         raw_market_snapshot, 
         ticker_universe, 
@@ -418,6 +418,28 @@ absolute_max_price = max(math.ceil(max([row["Live Price"] for row in raw_breakou
 # =============================================================================
 # 6. INSTANT DATA SCREENER GRID VIEW
 # =============================================================================
+# HIGH-SPEED PATCH: Cache calculations so selecting items does NOT trigger a 30-second delay
+@st.cache_data(ttl=300, show_spinner=False)
+def get_cached_breakouts_matrix(snapshot_df, universe, f_ma, s_ma, stars, vol_mult, bears, inc_chk, pe_chk):
+    return calculate_momentum_matrix(snapshot_df, universe, f_ma, s_ma, stars, vol_mult, bears, inc_chk, pe_chk)
+
+if "ticker_universe" in locals() or "ticker_universe" in globals():
+    raw_market_snapshot = get_immutable_market_snapshot(ticker_universe, days_lookback_value)
+    
+    raw_breakouts = get_cached_breakouts_matrix(
+        raw_market_snapshot, 
+        ticker_universe, 
+        fast_ma_slider, 
+        slow_ma_slider, 
+        min_stars, 
+        min_vol_multiple, 
+        show_bears, 
+        require_positive_income, 
+        max_pe_hurdle
+    )
+
+absolute_max_price = max(math.ceil(max([row["Live Price"] for row in raw_breakouts])) if raw_breakouts else 1000, 500)
+
 df_grid = pd.DataFrame()
 if raw_breakouts:
     df_grid = pd.DataFrame(raw_breakouts)
@@ -450,99 +472,92 @@ if raw_breakouts:
         html_table = df_display.to_html(index=False, escape=False, table_id="interactive-screener")
         screener_combined_html = f"""<style>body {{ margin: 0; padding: 0; background-color: transparent; }} .scroll-window {{ max-height: 450px; overflow-y: auto !important; overflow-x: auto !important; border: 1px solid #D1D5DB; }} #interactive-screener {{ width: 100%; border-collapse: collapse; font-family: sans-serif; background-color: #FFFFFF !important; }} #interactive-screener th {{ position: -webkit-sticky !important; position: sticky !important; top: 0 !important; z-index: 10 !important; background-color: #E5E7EB !important; color: #111111 !important; font-size: 1.00rem !important; font-weight: bold !important; padding: 0px 12px !important; height: 90px !important; display: table-cell !important; vertical-align: middle !important; line-height: 90px !important; text-align: left; border-bottom: 3px solid #007bff !important; white-space: nowrap !important; cursor: pointer; user-select: none; }} #interactive-screener th::after {{ content: " ↕"; font-size: 0.8rem; color: #888; padding-left: 5px; display: inline-block !important; vertical-align: middle !important; line-height: normal !important; }} #interactive-screener td {{ color: #222222 !important; font-size: 0.95rem !important; padding: 12px 12px !important; border-bottom: 1px solid #E5E7EB !important; white-space: nowrap !important; }} #interactive-screener tr:nth-child(even) {{ background-color: #F9FAFB !important; }} #interactive-screener tr:hover {{ background-color: #F3F4F6 !important; }}</style><div class='scroll-window'>{html_table}</div><script>document.querySelectorAll("#interactive-screener th").forEach((header, index) => {{ header.addEventListener("click", () => {{ const table = document.getElementById("interactive-screener"); const tbody = table.querySelector("tbody"); const rows = Array.from(tbody.querySelectorAll("tr")); const isAscending = header.classList.contains("sort-asc"); table.querySelectorAll("th").forEach(th => th.classList.remove("sort-asc", "sort-desc")); rows.sort((rowA, rowB) => {{ let cellA = rowA.children[index].textContent.replace(/[\\$,%x\\s]/g, "").trim().replace(/🟢/g, "").trim(); let cellB = rowB.children[index].textContent.replace(/[\\$,%x\\s]/g, "").trim().replace(/🟢/g, "").trim(); const numA = parseFloat(cellA); const numB = parseFloat(cellB); if (!isNaN(numA) && !isNaN(numB)) return isAscending ? numB - numA : numA - numB; return isAscending ? cellB.localeCompare(cellA) : cellA.localeCompare(cellB); }}); header.classList.toggle("sort-asc", !isAscending); header.classList.toggle("sort-desc", isAscending); rows.forEach(row => tbody.appendChild(row)); }}); }});</script>"""
         st.components.v1.html(screener_combined_html, height=500, scrolling=False)
+
 # =============================================================================
 # 7. PERSISTENT LIVE WATCHLIST LAYOUT WITH ROW SELECTION DELETION
 # =============================================================================
 st.markdown("---")
 st.markdown("<div class='small-header'>📋 Layer E: Persistent Live Watchlist Deck</div>", unsafe_allow_html=True)
 
-all_discoverable_tickers = df_grid["Ticker"].tolist() if not df_grid.empty else ["AAPL", "NVDA"]
+all_discoverable_tickers = [row["Ticker"] for row in raw_breakouts] if 'raw_breakouts' in locals() else []
 watch_col1, watch_col2 = st.columns([1, 2])
 
 with watch_col1:
-    st.markdown("##### Add Assets")
-    target_wl_ticker = st.selectbox("Select via Top Screener Matrix Output:", options=[""] + all_discoverable_tickers, index=0, key="wl_pin_select_key")
-    custom_wl_ticker = st.text_input("Or Type Any Custom Asset Code Manually:", value="", key="custom_ticker_input_key").strip().upper()
-    final_add_ticker = custom_wl_ticker if custom_wl_ticker else target_wl_ticker
+    st.markdown("##### Batch-Add Assets")
+    selected_batch_tickers = st.multiselect(
+        "Select Assets from Active Screener Output Matrix:", 
+        options=all_discoverable_tickers, 
+        key="wl_batch_select_key"
+    )
     
-    # --- OPTIMIZED LAYER E WATCHLIST BACKEND INJECTION ---
-if st.button("➕ LOCK TICKER TO WATCHLIST BACKEND", use_container_width=True):
-    target_code = final_add_ticker.strip().upper() if final_add_ticker else None
-    
-    if target_code:
-        # Check if it's visible in the active UI frame first
-        live_price_val = None
-        asset_display_name = target_code
-        
-        if not df_grid.empty and "Ticker" in df_grid.columns:
-            matched_row = df_grid[df_grid["Ticker"] == target_code]
-            if not matched_row.empty:
-                live_price_val = float(matched_row["Price"].values[0])
-                asset_display_name = str(matched_row["Asset Name"].values[0])
+    if st.button("➕ LOCK QUEUED ASSETS TO WATCHLIST", use_container_width=True):
+        if selected_batch_tickers:
+            write_occurred = False
+            
+            # OPTIMIZATION A: Create a lightning-fast O(1) dictionary look-up array out of your initial calculation matrix
+            screener_lookup = {row["Ticker"]: row for row in raw_breakouts} if 'raw_breakouts' in locals() else {}
+            
+            for target_code in selected_batch_tickers:
+                target_code = target_code.strip().upper()
+                if target_code in st.session_state.disk_memory["watchlist_positions"]:
+                    continue
+                
+                # Check the cached list instantly
+                if target_code in screener_lookup:
+                    matched_item = screener_lookup[target_code]
+                    st.session_state.disk_memory["watchlist_positions"][target_code] = {
+                        "entry": float(matched_item["Live Price"]),
+                        "asset_name": str(matched_item["Company Name"]),
+                        "entry_date": pd.Timestamp.now().strftime('%d-%m-%Y')
+                    }
+                    write_occurred = True
+                else:
+                    st.error(f"❌ '{target_code}' properties could not be mapped out of initial memory cache arrays.")
 
-        # If it's hidden by filters, grab a quick single-tick reference from yfinance
-        if live_price_val == None:
-            try:
-                ticker_obj = yf.Ticker(target_code)
-                # Fast historical single-bar fetch to prevent system hang
-                fast_hist = ticker_obj.history(period="1d")
-                if not fast_hist.empty:
-                    live_price_val = float(fast_hist['Close'].iloc[-1])
-                    asset_display_name = ticker_obj.info.get('longName', target_code)
-            except:
-                pass
-
-        if live_price_val is not None:
-            if target_code not in st.session_state.disk_memory["watchlist_positions"]:
+            if write_occurred:
+                # OPTIMIZATION B: Save instantly to local disk memory block, then run the slow GitHub write in the background
+                import threading
+                try:
+                    with open(TARGETS_FILE, 'w', encoding='utf-8') as f:
+                        json.dump(st.session_state.disk_memory, f, indent=4)
+                except:
+                    pass
                 
-                # Format to your exact lower data editor schema
-                st.session_state.disk_memory["watchlist_positions"][target_code] = {
-                    "entry": live_price_val,
-                    "asset_name": asset_display_name,
-                    "entry_date": pd.Timestamp.now().strftime('%d-%m-%Y')
-                }
+                # Spin up an asynchronous thread for GitHub so your Streamlit screen updates instantly
+                threading.Thread(target=save_to_github, args=(TARGETS_FILE, st.session_state.disk_memory), daemon=True).start()
                 
-                # Instantly synchronize to your online storage repository
-                save_to_github("discovery_targets.json", st.session_state.disk_memory)
-                
-                st.toast(f"✅ {target_code} successfully locked to Watchlist Deck!", icon="🚀")
+                st.toast(f"🚀 Locked batch assets successfully to Watchlist Deck!", icon="✅")
                 st.rerun()
-            else:
-                st.warning(f"⚠️ {target_code} is already active on your Watchlist Deck.")
         else:
-            st.error(f"❌ Failed to validate price for code '{target_code}'. Verify ticker syntax.")
+            st.warning("⚠️ Choose one or more valid stocks inside the selection queue box first.")
 with watch_col2:
     st.markdown("##### Active Watchlist Matrix Rows")
     watchlist_grid_rows = []
-    
-    # Pre-parse df_grid into a fast lookup dictionary to bypass network loops completely
-    grid_lookup = {}
-    if not df_grid.empty:
-        for _, row in df_grid.iterrows():
-            grid_lookup[row["Ticker"]] = {
-                "price": row["Price"],
-                "vol": row["RVOL"]
-            }
             
     for wl_ticker, wl_meta in list(st.session_state.disk_memory["watchlist_positions"].items()):
         try:
             live_px, live_vol_str = None, "N/A"
             
-            # 1. Try to grab the price instantly from your display grid memory first
-            if wl_ticker in grid_lookup:
-                live_px = grid_lookup[wl_ticker]["price"]
-                live_vol_str = str(grid_lookup[wl_ticker]["vol"])
-            
-            # 2. If it's hidden by filters, grab it from your raw market snapshot matrix arrays
-            elif 'raw_market_snapshot' in locals() or 'raw_market_snapshot' in globals():
-                if not raw_market_snapshot.empty:
-                    if f"Close_{wl_ticker}" in raw_market_snapshot.columns:
-                        live_px = float(raw_market_snapshot[f"Close_{wl_ticker}"].dropna().iloc[-1])
-                    if f"Volume_{wl_ticker}" in raw_market_snapshot.columns:
-                        vol_val = int(raw_market_snapshot[f"Volume_{wl_ticker}"].dropna().iloc[-1])
-                        live_vol_str = f"{vol_val:,}"
+            if 'raw_breakouts' in locals():
+                matched_item = next((row for row in raw_breakouts if row["Ticker"] == wl_ticker), None)
+                if matched_item:
+                    live_px = float(matched_item["Live Price"])
+                    live_vol_str = f"{matched_item['Vol Multiple']:.2f}x"
 
-            # 3. Secure hard fallback to avoid freezing the system if a ticker is unindexed
+            if (live_px is None or live_vol_str == "N/A") and not raw_market_snapshot.empty:
+                try:
+                    clean_wl = wl_ticker.strip().upper()
+                    close_col = f"Close_{clean_wl}" if f"Close_{clean_wl}" in raw_market_snapshot.columns else None
+                    vol_col = f"Volume_{clean_wl}" if f"Volume_{clean_wl}" in raw_market_snapshot.columns else None
+                    
+                    if close_col and live_px is None:
+                        live_px = float(raw_market_snapshot[close_col].dropna().iloc[-1])
+                    if vol_col and live_vol_str == "N/A":
+                        vol_val = float(raw_market_snapshot[vol_col].dropna().iloc[-1])
+                        live_vol_str = f"{vol_val:,.0f}"
+                except:
+                    pass
+
             if live_px is None:
                 live_px = float(wl_meta.get("entry", 1.00))
                 
@@ -572,33 +587,81 @@ with watch_col2:
             for t_drop in dropped_tickers:
                 if t_drop in st.session_state.disk_memory["watchlist_positions"]: 
                     del st.session_state.disk_memory["watchlist_positions"][t_drop]
-            save_to_github("discovery_targets.json", st.session_state.disk_memory)
+            save_to_github(TARGETS_FILE, st.session_state.disk_memory)
             st.toast("Dropped selected tracked entries.")
             st.rerun()
     else: 
         st.caption("Watchlist backend is currently empty.")
+
 # =============================================================================
 # 8. HIGH-SPEED LIGHTWEIGHT OVERLAY CHART
 # =============================================================================
 st.markdown("---")
 st.markdown("<div class='small-header'>📈 Global Chart Engine Analytics Overlay</div>", unsafe_allow_html=True)
-available_charts = list(dict.fromkeys([t for t in list(st.session_state.disk_memory["watchlist_positions"].keys()) + (df_grid["Ticker"].tolist() if not df_grid.empty else []) if t]))
+available_charts = list(dict.fromkeys([t for t in list(st.session_state.disk_memory["watchlist_positions"].keys()) if t]))
 
 if available_charts:
     selected_ticker = st.radio("Select an Asset to View Moving Average Overlays:", options=available_charts, horizontal=True)
     if selected_ticker:
         try:
-            target_col = next((col for col in [f"Close_{selected_ticker}", selected_ticker, 'Close'] if not st.session_state.cached_raw_data.empty and col in st.session_state.cached_raw_data.columns), None)
-            chart_df = pd.DataFrame({'Close': st.session_state.cached_raw_data[target_col]} if target_col else {'Close': yf.download(selected_ticker, start=datetime.now(ZoneInfo("Pacific/Auckland")) - timedelta(days=days_lookback_value), progress=False)['Close']}).ffill().bfill().dropna(subset=['Close'])
-            chart_df['Fast_MA_Line'] = chart_df['Close'].rolling(window=int(fast_ma_slider), min_periods=1).mean()
-            chart_df['Slow_MA_Line'] = chart_df['Close'].rolling(window=int(slow_ma_slider), min_periods=1).mean()
-            chart_df = chart_df.reset_index().rename(columns={'index': 'Date', 'Date': 'Date'})
-            chart_df['Date'] = pd.to_datetime(chart_df['Date']).dt.strftime('%Y-%m-%d')
-            chart_df.columns = [str(c) for c in chart_df.columns]
+            chart_df = pd.DataFrame()
+            target_sel = str(selected_ticker).strip().upper()
             
-            y_scale = alt.Scale(domain=[chart_df['Close'].min() * 0.95, chart_df['Close'].max() * 1.05], clamp=True)
-            base = alt.Chart(chart_df).encode(x='Date:T').properties(height=300)
-            st.altair_chart(alt.layer(base.mark_line(color='#4A90E2', strokeWidth=3).encode(y=alt.Y('Close:Q', scale=y_scale, title="Price ($)")), base.mark_line(color='#00FF66', strokeWidth=2).encode(y='Fast_MA_Line:Q'), base.mark_line(color='#FF3333', strokeWidth=2).encode(y='Slow_MA_Line:Q')), use_container_width=True)
-            st.caption(f"🔵 Blue = Price | 🟢 Green = {fast_ma_slider}-Day Fast MA | 🔴 Red = {slow_ma_slider}-Day Slow MA")
-        except: st.info("Formatting chart properties matrix index profiles.")
-else: st.info("Pin items into your tracking watchlist above to populate chart profiles.")
+            # 1. Try to extract from the pre-loaded live market snapshot
+            if not raw_market_snapshot.empty:
+                target_col = f"Close_{target_sel}"
+                if target_col in raw_market_snapshot.columns:
+                    chart_df = pd.DataFrame({'Close': raw_market_snapshot[target_col].dropna()})
+
+            # 2. Fall back to standalone download if snapshot didn't resolve it
+            if chart_df.empty:
+                downloaded_raw = yf.download(selected_ticker, start=datetime.now() - timedelta(days=days_lookback_value), progress=False)
+                if not downloaded_raw.empty:
+                    # Cleanly unnest potential MultiIndex headers from standalone yfinance
+                    if isinstance(downloaded_raw.columns, pd.MultiIndex):
+                        if 'Close' in downloaded_raw.columns.get_level_values(0):
+                            extracted_series = downloaded_raw['Close']
+                        elif 'Close' in downloaded_raw.columns.get_level_values(1):
+                            extracted_series = downloaded_raw.xs('Close', axis=1, level=1)
+                        else:
+                            extracted_series = downloaded_raw.iloc[:, 0]
+                    else:
+                        extracted_series = downloaded_raw['Close'] if 'Close' in downloaded_raw.columns else downloaded_raw.iloc[:, 0]
+                    
+                    # FORCE TO A FLATTENED SERIES AND CLEAN ANY HIGHER LEVEL MULTIINDEX SCALARS
+                    if isinstance(extracted_series, pd.DataFrame):
+                        extracted_series = extracted_series.iloc[:, 0]
+                        
+                    chart_df = pd.DataFrame(extracted_series).rename(columns={extracted_series.name: 'Close'}).dropna()
+    
+            if not chart_df.empty:
+                # Strictly force column names to standard flat strings to protect Altair rendering
+                chart_df = chart_df.ffill().bfill()
+                chart_df['Fast_MA_Line'] = chart_df['Close'].rolling(window=int(fast_ma_slider), min_periods=1).mean()
+                chart_df['Slow_MA_Line'] = chart_df['Close'].rolling(window=int(slow_ma_slider), min_periods=1).mean()
+                
+                # Standarize Index to a plain text 'Date' column safely
+                chart_df = chart_df.reset_index()
+                if 'index' in chart_df.columns:
+                    chart_df = chart_df.rename(columns={'index': 'Date'})
+                elif 'Date' not in chart_df.columns:
+                    chart_df.columns.values[0] = 'Date'
+                    
+                chart_df['Date'] = pd.to_datetime(chart_df['Date']).dt.strftime('%Y-%m-%d')
+                chart_df.columns = [str(c) for c in chart_df.columns]
+                
+                # Plot the clean, flattened structures
+                y_scale = alt.Scale(domain=[float(chart_df['Close'].min()) * 0.95, float(chart_df['Close'].max()) * 1.05], clamp=True)
+                base = alt.Chart(chart_df).encode(x='Date:T').properties(height=300)
+                st.altair_chart(alt.layer(
+                    base.mark_line(color='#4A90E2', strokeWidth=3).encode(y=alt.Y('Close:Q', scale=y_scale, title="Price ($)")), 
+                    base.mark_line(color='#00FF66', strokeWidth=2).encode(y='Fast_MA_Line:Q'), 
+                    base.mark_line(color='#FF3333', strokeWidth=2).encode(y='Slow_MA_Line:Q')
+                ), use_container_width=True)
+                st.caption(f"🔵 Blue = Price | 🟢 Green = {fast_ma_slider}-Day Fast MA | 🔴 Red = {slow_ma_slider}-Day Slow MA")
+            else:
+                st.info("No historical pricing values available to display for this instrument.")
+        except Exception as chart_err: 
+            st.error(f"Error formatting chart analytics: {str(chart_err)}")
+else: 
+    st.info("Pin items into your tracking watchlist above to populate chart profiles.")

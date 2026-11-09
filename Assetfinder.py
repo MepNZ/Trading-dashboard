@@ -32,21 +32,24 @@ def load_from_github(filename):
     return {}
 
 def save_to_github(filename, data):
-    # Local-first fallback to write instantly to disk without hitting Github API
+    # 1. Update local disk instantly so local testing never loses data
     try:
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4)
     except:
         pass
         
+    # 2. Push to GitHub API so Streamlit Cloud stays perfectly in sync
     try:
+        import requests
+        import base64
         token = st.secrets["GITHUB_TOKEN"]
         url = f"https://github.com{st.secrets['GITHUB_REPO']}/contents/{filename}"
         headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
         r = requests.get(url, headers=headers)
         sha = r.json().get("sha") if r.status_code == 200 else None
         payload = {
-            "message": f"Update {filename} from Streamlit Cloud",
+            "message": f"Syncing dashboard metadata ({filename}) from application run",
             "content": base64.b64encode(json.dumps(data, indent=4).encode()).decode()
         }
         if sha: payload["sha"] = sha
@@ -368,10 +371,14 @@ with st.sidebar:
     st.markdown("### 📊 Fundamental Health Layer")
     require_positive_income = st.checkbox("Enforce Positive Net Income (12M)", value=True, key="sb_income")
     max_pe_hurdle = st.slider("Maximum Allowed Trailing P/E:", min_value=5, max_value=100, value=40, step=5, format="%d×", key="sb_pe")
-# STATE CONTROLLER ENGINE
+# =============================================================================
+# OPTIMIZED TWO-LAYER STATE CONTROLLER ENGINE
+# =============================================================================
 csv_path = "ticker_names.csv"
-ticker_universe = []
 disk_names = load_company_names_matrix()
+
+core_universe = []
+extended_us_universe = []
 
 if os.path.exists(csv_path):
     try:
@@ -379,64 +386,64 @@ if os.path.exists(csv_path):
         m_df.columns = m_df.columns.astype(str).str.strip()
         m_df['Market'] = m_df['Market'].astype(str).str.strip().str.upper()
         
-        us_assets = m_df[m_df['Market'] == 'US']
-        nz_assets = m_df[m_df['Market'] == 'NZ']
-        aus_assets = m_df[m_df['Market'] == 'AUS']
+        us_assets = m_df[m_df['Market'] == 'US']['Ticker'].astype(str).str.strip().str.upper().tolist()
+        nz_assets = m_df[m_df['Market'] == 'NZ']['Ticker'].astype(str).str.strip().str.upper().tolist()
+        aus_assets = m_df[m_df['Market'] == 'AUS']['Ticker'].astype(str).str.strip().str.upper().tolist()
         
-        if "US" in market_choice:
-            if include_all_us: ticker_universe.extend(us_assets['Ticker'].astype(str).str.strip().str.upper().tolist())
-            else: ticker_universe.extend(us_assets.head(100)['Ticker'].astype(str).str.strip().str.upper().tolist())
-        if "NZ" in market_choice: ticker_universe.extend(nz_assets['Ticker'].astype(str).str.strip().str.upper().tolist())
-        if "AUS" in market_choice: ticker_universe.extend(aus_assets['Ticker'].astype(str).str.strip().str.upper().tolist())
+        # Build Core Universe (Always loaded if market choice is active)
+        if "NZ" in market_choice: core_universe.extend(nz_assets)
+        if "AUS" in market_choice: core_universe.extend(aus_assets)
+        if "US" in market_choice: core_universe.extend(us_assets[:100]) # Top 100 US
+        
+        # Build Extended Universe (Isolated entirely)
+        if "US" in market_choice: extended_us_universe.extend(us_assets[100:]) # Remaining 403
     except Exception as parse_error:
         st.sidebar.error(f"Source file routing error: {str(parse_error)}")
 
-if not ticker_universe: ticker_universe = ["AAPL", "NVDA"]
-ticker_universe = list(dict.fromkeys(ticker_universe))
+# Fallbacks to prevent empty arrays
+if not core_universe: core_universe = ["AAPL", "NVDA"]
+core_universe = list(dict.fromkeys(core_universe))
+extended_us_universe = list(dict.fromkeys(extended_us_universe))
 
+# Master Fragmented Download Functions to protect cache layers
 @st.cache_data(ttl=300, show_spinner=False)
-def get_immutable_market_snapshot(universe, lookback_days):
+def get_core_snapshot(universe, lookback_days):
     return fetch_live_market_data(universe, lookback_days)
 
-if "ticker_universe" in locals() or "ticker_universe" in globals():
-    raw_market_snapshot = get_immutable_market_snapshot(ticker_universe, days_lookback_value)
-    
-    raw_breakouts = calculate_momentum_matrix(
-        raw_market_snapshot, 
-        ticker_universe, 
-        fast_ma_slider, 
-        slow_ma_slider, 
-        min_stars, 
-        min_vol_multiple, 
-        show_bears, 
-        require_positive_income, 
-        max_pe_hurdle
-    )
+@st.cache_data(ttl=300, show_spinner=False)
+def get_extended_snapshot(universe, lookback_days, is_enabled):
+    if not is_enabled or not universe:
+        return pd.DataFrame()
+    return fetch_live_market_data(universe, lookback_days)
 
-absolute_max_price = max(math.ceil(max([row["Live Price"] for row in raw_breakouts])) if raw_breakouts else 1000, 500)
+# Execution Engine: Combines data arrays seamlessly using fast pandas axis concatenation
+core_df = get_core_snapshot(core_universe, days_lookback_value)
+extended_df = get_extended_snapshot(extended_us_universe, days_lookback_value, include_all_us)
 
-# =============================================================================
-# 6. INSTANT DATA SCREENER GRID VIEW
-# =============================================================================
+if include_all_us and not extended_df.empty:
+    raw_market_snapshot = pd.concat([core_df, extended_df], axis=1).ffill().bfill()
+    ticker_universe = core_universe + extended_us_universe
+else:
+    raw_market_snapshot = core_df
+    ticker_universe = core_universe
+
 # HIGH-SPEED PATCH: Cache calculations so selecting items does NOT trigger a 30-second delay
 @st.cache_data(ttl=300, show_spinner=False)
 def get_cached_breakouts_matrix(snapshot_df, universe, f_ma, s_ma, stars, vol_mult, bears, inc_chk, pe_chk):
     return calculate_momentum_matrix(snapshot_df, universe, f_ma, s_ma, stars, vol_mult, bears, inc_chk, pe_chk)
 
-if "ticker_universe" in locals() or "ticker_universe" in globals():
-    raw_market_snapshot = get_immutable_market_snapshot(ticker_universe, days_lookback_value)
-    
-    raw_breakouts = get_cached_breakouts_matrix(
-        raw_market_snapshot, 
-        ticker_universe, 
-        fast_ma_slider, 
-        slow_ma_slider, 
-        min_stars, 
-        min_vol_multiple, 
-        show_bears, 
-        require_positive_income, 
-        max_pe_hurdle
-    )
+# Calculate raw breakouts using your new fast stratified market snapshot variables
+raw_breakouts = get_cached_breakouts_matrix(
+    raw_market_snapshot, 
+    ticker_universe, 
+    fast_ma_slider, 
+    slow_ma_slider, 
+    min_stars, 
+    min_vol_multiple, 
+    show_bears, 
+    require_positive_income, 
+    max_pe_hurdle
+)
 
 absolute_max_price = max(math.ceil(max([row["Live Price"] for row in raw_breakouts])) if raw_breakouts else 1000, 500)
 

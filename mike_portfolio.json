@@ -36,6 +36,11 @@
             "shares": 1.0,
             "entry": 35.8,
             "entry_date": "2026-11-09"
+        },
+        "MTD": {
+            "shares": 1.0,
+            "entry": 1722.15,
+            "entry_date": "2026-11-09"
         }
     }
 }

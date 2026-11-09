@@ -12,7 +12,7 @@
         "slow_ma": 50,
         "roi_window": "1 Year",
         "profit_target_pct": 20.0,
-        "stop_loss_pct": 7.0
+        "stop_loss_pct": 22.0
     },
     "positions": {
         "FSLR": {

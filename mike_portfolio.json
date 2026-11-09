@@ -26,6 +26,11 @@
             "shares": 1.0,
             "entry": 41.53,
             "entry_date": "2026-11-09"
+        },
+        "DUK": {
+            "shares": 1.0,
+            "entry": 127.78,
+            "entry_date": "2026-11-09"
         }
     }
 }

@@ -21,5 +21,11 @@
         }
     },
     "watchlist_tickers": [],
-    "paper_positions": {}
+    "paper_positions": {
+        "CPU.AX": {
+            "shares": 1.0,
+            "entry": 42.0,
+            "entry_date": "2026-11-09"
+        }
+    }
 }

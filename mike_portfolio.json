@@ -31,6 +31,11 @@
             "shares": 1.0,
             "entry": 127.78,
             "entry_date": "2026-11-09"
+        },
+        "PPL": {
+            "shares": 1.0,
+            "entry": 35.8,
+            "entry_date": "2026-11-09"
         }
     }
 }

@@ -1,1 +1,54 @@
-{}
+{
+    "watchlist_positions": {
+        "THL.NZ": {
+            "entry": 2.8299999237060547,
+            "asset_name": "Tourism Holdings",
+            "entry_date": "09-11-2026"
+        },
+        "CPU.AX": {
+            "entry": 42.9900016784668,
+            "asset_name": "Computershare Limited",
+            "entry_date": "09-11-2026"
+        },
+        "PPL": {
+            "entry": 35.79999923706055,
+            "asset_name": "PPL Corporation",
+            "entry_date": "09-11-2026"
+        },
+        "ETR": {
+            "entry": 110.55000305175781,
+            "asset_name": "Entergy Corporation",
+            "entry_date": "09-11-2026"
+        },
+        "CHTR": {
+            "entry": 118.06999969482422,
+            "asset_name": "Charter Communications, Inc.",
+            "entry_date": "09-11-2026"
+        },
+        "FOXA": {
+            "entry": 66.63999938964844,
+            "asset_name": "Fox Corporation",
+            "entry_date": "09-11-2026"
+        },
+        "ABNB": {
+            "entry": 189.99000549316406,
+            "asset_name": "Airbnb, Inc.",
+            "entry_date": "09-11-2026"
+        },
+        "BGP.NZ": {
+            "entry": 4.25,
+            "asset_name": "Briscoe Group",
+            "entry_date": "09-11-2026"
+        },
+        "MTD": {
+            "entry": 1722.1500244140625,
+            "asset_name": "Mettler-Toledo International Inc.",
+            "entry_date": "09-11-2026"
+        },
+        "DUK": {
+            "entry": 127.77999877929688,
+            "asset_name": "Duke Energy Corporation",
+            "entry_date": "09-11-2026"
+        }
+    }
+}
